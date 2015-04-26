@@ -1,0 +1,33 @@
+{
+  "name": "ghost.js",
+  "version": "0.1.0",
+  "description": "Warcraft 3 Game Host",
+  "main": "run.js",
+  "dependencies": {
+    "binary": "^0.3.0",
+    "bufferpack": "^0.0.6",
+    "ffi": "^1.3.1",
+    "hex": "^0.0.1",
+    "lodash": "^2.4.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w3gh/ghost.js.git"
+  },
+  "keywords": [
+    "w3gh",
+    "ghost++",
+    "host",
+    "war3"
+  ],
+  "author": "Nikolay Kostyurin <jilizart@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/w3gh/ghost.js/issues"
+  },
+  "homepage": "https://github.com/w3gh/ghost.js"
+}
