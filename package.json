@@ -10,6 +10,9 @@
     "hex": "^0.0.1",
     "lodash": "^2.4.1"
   },
+  "engines": {
+    "node": ">=3.3.0"
+  },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -30,5 +33,6 @@
   "bugs": {
     "url": "https://github.com/w3gh/ghost.js/issues"
   },
-  "homepage": "https://github.com/w3gh/ghost.js"
+  "homepage": "https://github.com/w3gh/ghost.js",
+  "engineStrict": true
 }
