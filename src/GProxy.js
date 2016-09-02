@@ -3,14 +3,18 @@
 var util = require('util');
 var dgram = require('dgram');
 var log = require('./log');
-var Config = require('./Config');
-var Bytes = require('./Bytes');
-var AdminGame = require('./game/AdminGame');
-var Map = require('./game/Map');
+const Config = require('./Config');
+const Bytes = require('./Bytes');
+const AdminGame = require('./game/AdminGame');
+const Map = require('./game/Map');
 
 export default class GProxy {
-	constructor() {
-		this.cfg = new Config();
+	constructor(configPath) {
+		if (!configPath) {
+			throw new Error('No config path given');
+		}
+
+		this.cfg = new Config(configPath);
 
 		this.currentGame = null;
 		this.exiting = false;
@@ -22,7 +26,6 @@ export default class GProxy {
 		this.udpSocketSetup();
 		this.adminGameSetup();
 	}
-
 
 	onMessage() {
 		log('Ghost message', arguments);

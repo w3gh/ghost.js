@@ -3,8 +3,8 @@
 import net from 'net';
 import util from 'util';
 import log from './../log';
-import { ByteArrayUInt32 } from './../Bytes';
-import { EventEmitter } from 'events';
+import {ByteArrayUInt32} from './../Bytes';
+import {EventEmitter} from 'events';
 import GameProtocol from './GameProtocol';
 import GameMap from './Map';
 import GamePlayer from './GamePlayer';
@@ -18,7 +18,7 @@ export default class BaseGame extends EventEmitter {
 		this.ghost = ghost;
 		this.socket = new net.Server();
 		this.protocol = new GameProtocol();
-		this.map = (map instanceof GameMap) ? map : new GameMap(ghost, map);
+		this.map = (map instanceof GameMap) ? map : new GameMap(map);
 
 		this.slots = this.map.getSlots();
 
@@ -145,32 +145,32 @@ export default class BaseGame extends EventEmitter {
 	}
 
 	socketServerSetup(hostPort) {
-		this.socket.on('listening', this.onListening.bind(this));
-		this.socket.on('connection', this.onConnection.bind(this));
+		this.socket.on('listening', this.onListening);
+		this.socket.on('connection', this.onConnection);
 
-		this.socket.on('error', this.onError.bind(this));
-		this.socket.on('close', this.onClose.bind(this));
+		this.socket.on('error', this.onError);
+		this.socket.on('close', this.onClose);
 
 		this.socket.listen(hostPort);
 	}
 
-	onListening() {
+	onListening = () => {
 		log('BaseGame listening');
-	}
+	};
 
-	onConnection(socket) {
+	onConnection = (socket) => {
 		log('BaseGame Potential Player connected', socket.remoteAddress + ':' + socket.remotePort);
 
 		this.potentials.push(new GamePlayer.Potential(this.protocol, this, socket));
-	}
+	};
 
-	onError() {
-		log('BaseGame error', arguments);
-	}
+	onError = (...args) => {
+		log('BaseGame', 'error', ...args);
+	};
 
-	onClose() {
-		log('BaseGame close', arguments);
-	}
+	onClose = (...args) => {
+		log('BaseGame', 'close', ...args);
+	};
 
 	getEmptySlot() {
 
@@ -214,17 +214,17 @@ export default class BaseGame extends EventEmitter {
 	}
 
 	update() {
-		var interval = Date.now() - this.lastPingTime;
+		const interval = Date.now() - this.lastPingTime;
+		const socket = this.ghost.udpSocket;
+		const fixedHostCounter = this.hostCounter & 0x0FFFFFFF;
 
 		if (interval > GAME_REHOST_INTERVAL) { // refresh every 5 sec
 
 			if (!this.countDownStarted) {
-				var fixedHostCounter = this.hostCounter & 0x0FFFFFFF;
-
-				var buffer = this.protocol.SEND_W3GS_GAMEINFO(
+				const buffer = this.protocol.SEND_W3GS_GAMEINFO(
 					this.ghost.tft,
 					this.ghost.LANWar3Version,
-					ByteArrayUInt32(GameMap.MAPGAMETYPE_UNKNOWN0),
+					ByteArrayUInt32(GameMap.GAMETYPE_UNKNOWN0),
 					this.map.getGameFlags(),
 					this.map.getWidth(),
 					this.map.getHeight(),
@@ -239,12 +239,8 @@ export default class BaseGame extends EventEmitter {
 					fixedHostCounter
 				);
 
-				var socket = this.ghost.udpSocket;
-
-				socket.send(buffer, 0, buffer.length, 6112, 'localhost', function (err, bytes) {
-					if (err) {
-						throw err;
-					}
+				socket.send(buffer, 0, buffer.length, 6112, 'localhost', (err, bytes) => {
+					if (err) throw err;
 
 					log('localhost', 6112, 'BaseGame bytes sent', bytes);
 				});

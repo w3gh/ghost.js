@@ -7,7 +7,7 @@ var _ = require('lodash');
 
 var gmp = FFI.Library('gmp');
 
-var library = FFI.Library('./libbncsutil.so', {
+var library = FFI.Library('libbncsutil', {
 	// NLS: [],
 	// getPublicKey: []
 	bncsutil_getVersion: ['unsigned long']

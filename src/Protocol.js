@@ -1,7 +1,10 @@
-import _ from 'lodash';
 import bp from 'bufferpack';
 
 export default class Protocol {
+
+	static minLength = 4;
+	static maxLength = 65535;
+
 	/**
 	 * @param {Buffer} buffer
 	 * @returns {Boolean}
@@ -50,5 +53,3 @@ export default class Protocol {
 	}
 }
 
-Protocol.minLength = 4;
-Protocol.maxLength = 65535;

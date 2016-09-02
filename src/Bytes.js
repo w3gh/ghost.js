@@ -31,7 +31,7 @@ export function ByteArrayUInt32(num) {
  * @returns {Buffer}
  * @constructor
  */
-export function ByteExtract(text, count) {
+export function BytesExtract(text, count) {
 	var bytes = text.split(' ').map(function (el) {
 		return String(el);
 	});
