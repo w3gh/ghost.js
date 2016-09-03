@@ -1,19 +1,17 @@
-import util from 'util';
-import path from 'path';
 import dgram from 'dgram';
 import log from './log';
-import Config from './Config';
 import Bytes from './Bytes';
 import AdminGame from './game/AdminGame';
 import Map from './game/Map';
+import Bot from './Bot';
 
-export default class GHost {
+export default class GHost extends Bot {
 	static run = (config) => {
 		return new GHost(config);
 	};
 
 	constructor(cfg) {
-		this.cfg = new Config(cfg);
+		super(cfg);
 
 		this.currentGame = null;
 		this.exiting = false;
@@ -26,8 +24,6 @@ export default class GHost {
 		this.adminGameSetup();
 	}
 
-	getMapPath = (filename) => path.resolve(path.join(this.mapCfgPath, `${filename}.json`));
-
 	udpSocketSetup() {
 		this.udpSocket = dgram.createSocket('udp4');
 		this.udpSocket.on('listening', this.onListening);
@@ -37,20 +33,20 @@ export default class GHost {
 		this.udpSocket.bind();
 	}
 
-	onMessage = () => {
-		log('Ghost message', arguments);
+	onMessage = (...args) => {
+		debug('Bot', 'message', ...args);
 	};
 
-	onClose = () => {
-		log('Ghost close', arguments);
+	onClose = (...args) => {
+		debug('Bot', 'close', ...args);
 	};
 
-	onError = () => {
-		log('Ghost error', arguments);
+	onError = (...args) => {
+		debug('Bot', 'error', ...args);
 	};
 
-	onListening = () => {
-		log('Ghost listening');
+	onListening = (...args) => {
+		debug('Bot', 'listening', ...args);
 	};
 
 	configure() {

@@ -49,10 +49,10 @@ export function BytesExtract(text, count) {
  * @returns {Array}
  */
 export function ByteString(string) {
-	var buffArray = (new Buffer(string)).toJSON();
-	buffArray.push(0); // all strings need to be null terminated
+	var buffArray = Buffer.from(string).toJSON();
+	buffArray.data.push(0); // all strings need to be null terminated
 
-	return buffArray;
+	return buffArray.data;
 }
 
 /**
@@ -62,7 +62,7 @@ export function ByteString(string) {
  */
 export function ByteHeader(buffer) {
 	var byteArray = buffer.toJSON();
-	return Number(byteArray[0]);
+	return Number(byteArray.data[0]);
 }
 
 // <I 4 bytes

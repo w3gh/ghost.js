@@ -1,13 +1,10 @@
-var net = require('net');
-var util = require('util');
-var hex = require('hex');
-var _ = require('lodash');
-var bufferpack = require('bufferpack');
-var pack = bufferpack.pack;
-var BNetProtocol = require('./BNetProtocol');
-var CommandPacket = require('./../CommandPacket');
-var BNCSUtil = require('./BNCSUtil');
-var log = require('./../log');
+import net from 'net';
+import hex from 'hex';
+import {pack} from 'bufferpack';
+import BNetProtocol from './BNetProtocol';
+import CommandPacket from '../CommandPacket';
+import BNCSUtil from './BNCSUtil';
+import log from '../log';
 
 const defaults = {
 	war3version: '26',
@@ -65,19 +62,29 @@ export default class BNet {
 		this.alias = alias;
 		this.port = port;
 
-		this.handlers[BNetProtocol.SID_PING] = this.HANDLE_SID_PING;
-		this.handlers[BNetProtocol.SID_AUTH_INFO] = this.HANDLE_SID_AUTH_INFO;
-		this.handlers[BNetProtocol.SID_AUTH_CHECK] = this.HANDLE_SID_AUTH_CHECK;
-		this.handlers[BNetProtocol.SID_REQUIREDWORK] = this.HANDLE_SID_REQUIREDWORK;
-		this.handlers[BNetProtocol.SID_AUTH_ACCOUNTLOGON] = this.HANDLE_SID_AUTH_ACCOUNTLOGON;
-		this.handlers[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF] = this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF;
-		this.handlers[BNetProtocol.SID_NULL] = this.HANDLE_SID_NULL;
-		this.handlers[BNetProtocol.SID_ENTERCHAT] = this.HANDLE_SID_ENTERCHAT;
-		this.handlers[BNetProtocol.SID_CHATEVENT] = this.HANDLE_SID_CHATEVENT;
-		this.handlers[BNetProtocol.SID_CLANINFO] = this.HANDLE_SID_CLANINFO;
-		this.handlers[BNetProtocol.SID_CLANMEMBERLIST] = this.HANDLE_SID_CLANMEMBERLIST;
-		this.handlers[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE] = this.HANDLE_SID_CLANMEMBERSTATUSCHANGE;
-		this.handlers[BNetProtocol.SID_MESSAGEBOX] = this.HANDLE_SID_MESSAGEBOX;
+		this.handlers = {
+			[BNetProtocol.SID_PING]: this.HANDLE_SID_PING,
+			[BNetProtocol.SID_AUTH_INFO]: this.HANDLE_SID_AUTH_INFO,
+			[BNetProtocol.SID_AUTH_CHECK]: this.HANDLE_SID_AUTH_CHECK,
+			[BNetProtocol.SID_REQUIREDWORK]: this.HANDLE_SID_REQUIREDWORK,
+			[BNetProtocol.SID_AUTH_ACCOUNTLOGON]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
+			[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
+			[BNetProtocol.SID_NULL]: this.HANDLE_SID_NULL,
+			[BNetProtocol.SID_ENTERCHAT]: this.HANDLE_SID_ENTERCHAT,
+			[BNetProtocol.SID_CHATEVENT]: this.HANDLE_SID_CHATEVENT,
+			[BNetProtocol.SID_CLANINFO]: this.HANDLE_SID_CLANINFO,
+			[BNetProtocol.SID_CLANMEMBERLIST]: this.HANDLE_SID_CLANMEMBERLIST,
+			[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
+			[BNetProtocol.SID_MESSAGEBOX]: this.HANDLE_SID_MESSAGEBOX,
+
+			[BNetProtocol.SID_CLANINVITATION]: this.HANDLE_SID_CLANINVITATION,
+			[BNetProtocol.SID_CLANMEMBERREMOVED]: this.HANDLE_SID_CLANMEMBERREMOVED,
+			[BNetProtocol.SID_FRIENDSUPDATE]: this.HANDLE_SID_FRIENDSUPDATE,
+			[BNetProtocol.SID_FRIENDSLIST]: this.HANDLE_SID_FRIENDSLIST,
+			[BNetProtocol.SID_FLOODDETECTED]: this.HANDLE_SID_FLOODDETECTED,
+			[BNetProtocol.SID_FRIENDSADD]: this.HANDLE_SID_FRIENDSADD
+		};
+
 		// this.handlers[BNetProtocol.SID_CLANINVITATION] =            this.HANDLE_SID_CLANINVITATION;
 		// this.handlers[BNetProtocol.SID_CLANMEMBERREMOVED] =         this.HANDLE_SID_CLANMEMBERREMOVED;
 		// this.handlers[BNetProtocol.SID_FRIENDSUPDATE] =             this.HANDLE_SID_FRIENDSUPDATE;
@@ -148,35 +155,39 @@ export default class BNet {
 		}
 	}
 
-	onConnect() {
-		log('connected', this.alias, this.remoteAddress, this.remotePort);
+	onConnect = () => {
+		log('connected', this.alias, this.server, this.port);
 
 		this.sendPacket(BNetProtocol.SEND_PROTOCOL_INITIALIZE_SELECTOR());
-		this.sendPacket(BNetProtocol.SEND_SID_AUTH_INFO(defaults.war3version,
+		this.sendPacket(BNetProtocol.SEND_SID_AUTH_INFO(
+			defaults.war3version,
 			defaults.tft,
 			defaults.localeID,
 			defaults.countryAbbrev,
-			defaults.country));
-	}
+			defaults.country
+		));
+	};
 
-	onData(buffer) {
+	onData = (buffer) => {
+		log('data', buffer);
+
 		this.extractPackets(buffer);
 		this.processPackets();
-	}
+	};
 
-	onEnd() {
+	onEnd = () => {
 		log('connection end');
-	}
+	};
 
-	onError(error) {
+	onError = (error) => {
 		log('error ' + error);
-	}
+	};
 
 	run() {
-		this.socket.on('connect', this.onConnect.bind(this));
-		this.socket.on('data', this.onData.bind(this));
-		this.socket.on('end', this.onEnd.bind(this));
-		this.socket.on('error', this.onError.bind(this));
+		this.socket.on('connect', this.onConnect);
+		this.socket.on('data', this.onData);
+		this.socket.on('end', this.onEnd);
+		this.socket.on('error', this.onError);
 		this.socket.connect(this.port, this.server);
 	}
 
@@ -233,7 +244,3 @@ export default class BNet {
 		log('HANDLE_SID_MESSAGEBOX');
 	}
 }
-
-Object.assign(BNet, {
-	handlers: {}
-});

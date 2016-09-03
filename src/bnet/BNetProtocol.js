@@ -1,16 +1,86 @@
-'use strict';
-
-var assert = require('assert');
-var hex = require('hex');
-var util = require('util');
-var bp = require('bufferpack');
-var _ = require('lodash');
-var log = require('./../log');
-import { ByteArray } from './../Bytes';
+import log from './../log';
+import bp from 'bufferpack';
+import hex from 'hex';
+import assert from 'assert';
+import {ByteArray} from './../Bytes';
 import Protocol from './../Protocol';
 
 class BNetProtocol extends Protocol {
-	assignLength(buff) {
+
+	static BNET_HEADER_CONSTANT = '\xff';
+
+	static SID_AUTH_INFO = '\x50';
+	static SID_PING = '\x25';
+	static SID_AUTH_CHECK = '\x51';
+	static SID_REQUIREDWORK = '\x4c';
+	static SID_AUTH_ACCOUNTLOGON = '\x53';
+	static SID_AUTH_ACCOUNTLOGONPROOF = '\x54';
+	static SID_NULL = '\x00';
+	static SID_NETGAMEPORT = '\x45';
+	static SID_ENTERCHAT = '\x0a';
+	static SID_JOINCHANNEL = '\x0c';
+	static SID_CHATEVENT = '\x0f';
+	static SID_CHATCOMMAND = '\x0e';
+	static SID_CLANINFO = '\x75';
+	static SID_CLANMEMBERLIST = '\x7d';
+	static SID_CLANMEMBERSTATUSCHANGE = '\x7f';
+	static SID_MESSAGEBOX = '\x19';
+	static SID_CLANINVITATION = '\x77';
+	static SID_CLANMEMBERREMOVED = '\x7e';
+	static SID_FRIENDSUPDATE = '\x66';
+	static SID_FRIENDSLIST = '\x65';
+	static SID_FLOODDETECTED = '\x13';
+	static SID_FRIENDSADD = '\x67';
+
+	static KR_GOOD = '\x00\x00\x00\x00';
+	static KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
+	static KR_INVALID_VERSION = '\x01\x01\x00\x00';
+	static KR_ROC_KEY_IN_USE = '\x01\x02\x00\x00';
+	static KR_TFT_KEY_IN_USE = '\x11\x02\x00\x00';
+
+	static NULL = '\x00';
+	static NULL_2 = '\x00\x00';
+	static NULL_3 = '\x00\x00\x00';
+	static NULL_4 = '\x00\x00\x00\x00';
+
+	static EID_SHOWUSER = '\x01\x00\x00\x00';
+	static EID_JOIN = '\x02\x00\x00\x00';
+	static EID_LEAVE = '\x03\x00\x00\x00';
+	static EID_WHISPER = '\x04\x00\x00\x00';
+	static EID_TALK = '\x05\x00\x00\x00';
+	static EID_BROADCAST = '\x06\x00\x00\x00';
+	static EID_CHANNEL = '\x07\x00\x00\x00';
+	static EID_USERFLAGS = '\x09\x00\x00\x00';
+	static EID_WHISPERSENT = '\x0a\x00\x00\x00';
+	static EID_CHANNELFULL = '\x0d\x00\x00\x00';
+	static EID_CHANNELDOESNOTEXIST = '\x0e\x00\x00\x00';
+	static EID_CHANNELRESTRICTED = '\x0f\x00\x00\x00';
+	static EID_INFO = '\x12\x00\x00\x00';
+	static EID_ERROR = '\x13\x00\x00\x00';
+	static EID_EMOTE = '\x17\x00\x00\x00';
+
+	static CLANRANK_INITIATE = 0;
+	static CLANRANK_PEON = 1;
+	static CLANRANK_GRUNT = 2;
+	static CLANRANK_SHAMAN = 3;
+	static CLANRANK_CHIEFTAN = 4;
+
+	// Bitfield
+	static FRIENDSTATUS_MUTUAL = 1;
+	static FRIENDSTATUS_DND = 2;
+	static FRIENDSTATUS_AWAY = 4;
+
+	// Value
+	static FRIENDLOCATION_OFFLINE = 0;
+	static FRIENDLOCATION_NOTCHAT = 1;
+	static FRIENDLOCATION_CHAT = 2;
+	static FRIENDLOCATION_PUB = 3;
+	static FRIENDLOCATION_PRIVHIDE = 4;
+	static FRIENDLOCATION_PRIVSHOW = 5;
+
+	static receivers = {};
+
+	static assignLength(buff) {
 		var len = buff.length;
 		// l = len(p)
 		//   #p[2] = l % 256
@@ -27,7 +97,7 @@ class BNetProtocol extends Protocol {
 	 * @param {Buffer} buff
 	 * @returns {*}
 	 */
-	getLength(buff) {
+	static getLength(buff) {
 		console.log('getLength', buff.toString('hex', 2, 4));
 		return buff.toString('hex', 2, 4);
 	}
@@ -47,16 +117,13 @@ class BNetProtocol extends Protocol {
 		return buff;
 	}
 
-	SEND_PROTOCOL_INITIALIZE_SELECTOR() {
-		var buf = new Buffer('\x01');
-
+	static SEND_PROTOCOL_INITIALIZE_SELECTOR() {
 		log('SEND_PROTOCOL_INITIALIZE_SELECTOR');
-		hex(buf);
 
-		return buf;
+		return new Buffer('\x01');
 	}
 
-	SEND_SID_AUTH_INFO(ver, tft, localeID, countryAbbrev, country) {
+	static SEND_SID_AUTH_INFO(ver, tft, localeID, countryAbbrev, country) {
 		var protocolID = this.NULL_4;
 		var platformID = [54, 56, 88, 73]; // "IX86"
 		var productIdROC = [51, 82, 65, 87]; // "WAR3"
@@ -94,9 +161,9 @@ class BNetProtocol extends Protocol {
 			this.NULL
 		]);
 
-		var buff = this.assignLength(ByteArray(bytes));
+		var buff = this.assignLength(Buffer.from(bytes));
 
-		console.log('SEND_SID_AUTH_INFO');
+		log('SEND_SID_AUTH_INFO');
 		hex(buff);
 		return buff;
 	}
@@ -113,7 +180,7 @@ class BNetProtocol extends Protocol {
 	 * @param {String} keyOwnerName
 	 * @returns {Buffer}
 	 */
-	SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName) {
+	static SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName) {
 		var numKeys = (tft) ? 2 : 1;
 
 		var bytes = [
@@ -217,81 +284,6 @@ class BNetProtocol extends Protocol {
 	RECEIVE_SID_CLANINFO() {
 	}
 }
-
-Object.assign(BNetProtocol, {
-	BNET_HEADER_CONSTANT: '\xff',
-
-	SID_AUTH_INFO: '\x50',
-	SID_PING: '\x25',
-	SID_AUTH_CHECK: '\x51',
-	SID_REQUIREDWORK: '\x4c',
-	SID_AUTH_ACCOUNTLOGON: '\x53',
-	SID_AUTH_ACCOUNTLOGONPROOF: '\x54',
-	SID_NULL: '\x00',
-	SID_NETGAMEPORT: '\x45',
-	SID_ENTERCHAT: '\x0a',
-	SID_JOINCHANNEL: '\x0c',
-	SID_CHATEVENT: '\x0f',
-	SID_CHATCOMMAND: '\x0e',
-	SID_CLANINFO: '\x75',
-	SID_CLANMEMBERLIST: '\x7d',
-	SID_CLANMEMBERSTATUSCHANGE: '\x7f',
-	SID_MESSAGEBOX: '\x19',
-	SID_CLANINVITATION: '\x77',
-	SID_CLANMEMBERREMOVED: '\x7e',
-	SID_FRIENDSUPDATE: '\x66',
-	SID_FRIENDSLIST: '\x65',
-	SID_FLOODDETECTED: '\x13',
-	SID_FRIENDSADD: '\x67',
-
-	KR_GOOD: '\x00\x00\x00\x00',
-	KR_OLD_GAME_VERSION: '\x00\x01\x00\x00',
-	KR_INVALID_VERSION: '\x01\x01\x00\x00',
-	KR_ROC_KEY_IN_USE: '\x01\x02\x00\x00',
-	KR_TFT_KEY_IN_USE: '\x11\x02\x00\x00',
-
-	NULL: '\x00',
-	NULL_2: '\x00\x00',
-	NULL_3: '\x00\x00\x00',
-	NULL_4: '\x00\x00\x00\x00',
-
-	EID_SHOWUSER: '\x01\x00\x00\x00',
-	EID_JOIN: '\x02\x00\x00\x00',
-	EID_LEAVE: '\x03\x00\x00\x00',
-	EID_WHISPER: '\x04\x00\x00\x00',
-	EID_TALK: '\x05\x00\x00\x00',
-	EID_BROADCAST: '\x06\x00\x00\x00',
-	EID_CHANNEL: '\x07\x00\x00\x00',
-	EID_USERFLAGS: '\x09\x00\x00\x00',
-	EID_WHISPERSENT: '\x0a\x00\x00\x00',
-	EID_CHANNELFULL: '\x0d\x00\x00\x00',
-	EID_CHANNELDOESNOTEXIST: '\x0e\x00\x00\x00',
-	EID_CHANNELRESTRICTED: '\x0f\x00\x00\x00',
-	EID_INFO: '\x12\x00\x00\x00',
-	EID_ERROR: '\x13\x00\x00\x00',
-	EID_EMOTE: '\x17\x00\x00\x00',
-
-	CLANRANK_INITIATE: 0,
-	CLANRANK_PEON: 1,
-	CLANRANK_GRUNT: 2,
-	CLANRANK_SHAMAN: 3,
-	CLANRANK_CHIEFTAN: 4,
-
-	// Bitfield
-	FRIENDSTATUS_MUTUAL: 1,
-	FRIENDSTATUS_DND: 2,
-	FRIENDSTATUS_AWAY: 4,
-
-	// Value
-	FRIENDLOCATION_OFFLINE: 0,
-	FRIENDLOCATION_NOTCHAT: 1,
-	FRIENDLOCATION_CHAT: 2,
-	FRIENDLOCATION_PUB: 3,
-	FRIENDLOCATION_PRIVHIDE: 4,
-	FRIENDLOCATION_PRIVSHOW: 5,
-
-	receivers: {}
-});
 
 BNetProtocol.receivers[BNetProtocol.SID_AUTH_INFO] = BNetProtocol.RECEIVE_SID_AUTH_INFO;
 BNetProtocol.receivers[BNetProtocol.SID_AUTH_CHECK] = BNetProtocol.RECEIVE_SID_AUTH_CHECK;
