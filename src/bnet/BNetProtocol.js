@@ -4,7 +4,7 @@ import hex from 'hex';
 import assert from 'assert';
 import {ByteArray, AssignLength} from './../Bytes';
 import Protocol from './../Protocol';
-import {debug} from './../Logger';
+import {debug, info, error} from './../Logger';
 
 class BNetProtocol extends Protocol {
 
@@ -111,14 +111,14 @@ class BNetProtocol extends Protocol {
 	}
 
 	static SEND_PROTOCOL_INITIALIZE_SELECTOR() {
-		var buff = Buffer.from('\x01', 'binary');
-
 		debug('SEND_PROTOCOL_INITIALIZE_SELECTOR');
 
-		return buff;
+		return Buffer.from('\x01', 'binary');
 	}
 
 	static SEND_SID_AUTH_INFO(ver, tft, localeID, countryAbbrev, country) {
+		debug('SEND_SID_AUTH_INFO');
+
 		var protocolID = this.NULL_4;
 		var platformID = '68XI'; //[54, 56, 88, 73]; // "IX86"
 		var productIdROC = '3RAW'; //[51, 82, 65, 87]; // "WAR3"
@@ -147,23 +147,9 @@ class BNetProtocol extends Protocol {
 			this.NULL
 		];
 
-		debug('SEND_SID_AUTH_INFO');
-
 		return AssignLength(ByteArray(bytes));
 	}
 
-	/**
-	 *
-	 * @param {Boolean} tft
-	 * @param {String} clientToken
-	 * @param {String} exeVersion
-	 * @param {String} exeVersionHash
-	 * @param {String} keyInfoRoc
-	 * @param {String} keyInfoTft
-	 * @param {String} exeInfo
-	 * @param {String} keyOwnerName
-	 * @returns {Buffer}
-	 */
 	static SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName) {
 		var numKeys = (tft) ? 2 : 1;
 
@@ -212,6 +198,98 @@ class BNetProtocol extends Protocol {
 		return AssignLength(ByteArray(bytes));
 	}
 
+	static SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, accountName) {
+		assert(clientPublicKey.length === 32, 'public key length error');
+
+		info('cd keys accepted');
+
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_AUTH_ACCOUNTLOGON,
+			this.NULL_2, //length
+			clientPublicKey,
+			accountName,
+			this.NULL
+		];
+
+	    return AssignLength(ByteArray(bytes));
+	}
+
+	static SEND_SID_AUTH_ACCOUNTLOGONPROOF(M1) {
+		assert(M1.length === 20, 'password length error');
+
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_AUTH_ACCOUNTLOGONPROOF,
+			this.NULL_2, //length
+			M1
+		];
+
+	    return AssignLength(ByteArray(bytes));
+	}
+
+	static SEND_SID_NETGAMEPORT(serverPort) {
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_NETGAMEPORT,
+			this.NULL_2, //length
+			bp.pack('<H', serverPort)
+		];
+
+		return AssignLength(ByteArray(bytes));
+	}
+
+	static SEND_SID_ENTERCHAT() {
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_ENTERCHAT,
+			this.NULL_2, //length
+			this.NULL, //account name
+			this.NULL //stat string
+		];
+
+		return AssignLength(ByteArray(bytes));
+	}
+
+	static SEND_SID_FRIENDSLIST() {
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_FRIENDSLIST,
+			this.NULL_2, //length
+		];
+
+		return AssignLength(ByteArray(bytes));
+	}
+
+	static SEND_SID_CLANMEMBERLIST() {
+		const cookie = this.NULL_4;
+
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_CLANMEMBERLIST,
+			this.NULL_2, //length
+			cookie
+		];
+
+		return AssignLength(ByteArray(bytes));
+	}
+
+	static SEND_SID_JOINCHANNEL(channel) {
+		const noCreateJoin = '\x02\x00\x00\x00';
+		const firstJoin = '\x01\x00\x00\x00';
+
+		var bytes = [
+			this.BNET_HEADER_CONSTANT,
+			this.SID_JOINCHANNEL,
+			this.NULL_2,
+			channel.length > 0 ? noCreateJoin : firstJoin,
+			channel,
+			this.NULL
+		];
+
+		return AssignLength(ByteArray(bytes));
+	}
+
 	static RECEIVE_SID_AUTH_INFO(buff) {
 		debug('RECEIVE_SID_AUTH_INFO');
 		assert(BNetProtocol.validateLength(buff) && buff.length >= 25);
@@ -239,10 +317,10 @@ class BNetProtocol extends Protocol {
 		};
 	};
 
-	static RECEIVE_SID_PING(buf) {
+	static RECEIVE_SID_PING(buff) {
 		debug('RECEIVE_SID_PING');
-		assert(buf.length >= 8);
-		return buf.slice(4, 8); // bytes(p[4:8])
+		assert(buff.length >= 8);
+		return buff.slice(4, 8); // bytes(p[4:8])
 	};
 
 	static RECEIVE_SID_AUTH_CHECK(buff) {
@@ -256,35 +334,63 @@ class BNetProtocol extends Protocol {
 		const keyStateDescription = buff.slice(8).toString().split(BNetProtocol.NULL, 1)[0];
 
 		return {keyState, keyStateDescription};
-		//
-		// if (keyState === BNetProtocol.KR_GOOD) {
-		// 	return true;
-		// }
-		//
-		// return false;
 	};
 
-	static RECEIVE_SID_REQUIREDWORK() {
-		debug('RECEIVE_SID_REQUIREDWORK')
+	static RECEIVE_SID_REQUIREDWORK(buff) {
+		debug('RECEIVE_SID_REQUIREDWORK');
+
+		return BNetProtocol.validateLength(buff);
 	}
 
-	static RECEIVE_SID_AUTH_ACCOUNTLOGON() {
-		debug('RECEIVE_SID_AUTH_ACCOUNTLOGON')
+	static RECEIVE_SID_AUTH_ACCOUNTLOGON(buff) {
+		assert(BNetProtocol.validateLength(buff) && buff.length >= 8);
+
+		const status = buff.slice(4, 8);
+
+		if (!(status.toString() === BNetProtocol.NULL_4.toString() && buff.length >= 72)) {
+			error('buffer status is null');
+
+			return false;
+		}
+
+		const salt = buff.slice(8, 40);
+		const serverPublicKey = buff.slice(40, 72);
+
+		return {status, salt, serverPublicKey};
 	}
 
-	static RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF() {
-		debug('RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF')
+	static RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF(buff) {
+		debug('RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF');
+
+		assert(BNetProtocol.validateLength(buff) && buff.length >= 8);
+
+		const statusExpected = '\x0e000000';
+
+		const status = buff.slice(4, 8);
+
+		return (status.toString() === BNetProtocol.NULL_4.toString()
+			|| status.toString() === statusExpected.toString()
+		);
+
+		// assert (validate_length(p) and len(p) >= 8)
+	    // status = bytes(p[4:8])
+	    // return (status == NULL_4 or status == b'\x0e000000')
 	}
 
-	static RECEIVE_SID_NULL() {
-		debug('RECEIVE_SID_NULL')
+	static RECEIVE_SID_NULL(buff) {
+		debug('RECEIVE_SID_NULL');
+
+		return BNetProtocol.validateLength(buff);
 	}
 
-	static RECEIVE_SID_ENTERCHAT() {
-		debug('RECEIVE_SID_ENTERCHAT')
+	static RECEIVE_SID_ENTERCHAT(buff) {
+		debug('RECEIVE_SID_ENTERCHAT');
+		assert(BNetProtocol.validateLength(buff) && buff.length >= 5);
+
+        return buff.slice(4);
 	}
 
-	static RECEIVE_SID_CHATEVENT() {
+	static RECEIVE_SID_CHATEVENT(buff) {
 		debug('RECEIVE_SID_CHATEVENT')
 	}
 

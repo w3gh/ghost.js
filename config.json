@@ -1,6 +1,7 @@
 {
   "server": "server.pvpgn.pro",
   "alias": "pvpgn.pro",
+  "passwordHashType": "pvpgn",
   "username": "jilizart",
   "password": "jilizart",
   "war3version": "26",

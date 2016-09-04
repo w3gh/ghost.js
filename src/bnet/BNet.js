@@ -3,11 +3,12 @@ import hex from 'hex';
 import bp from 'bufferpack';
 import assert from 'assert';
 import path from 'path';
+import EventEmitter from 'events';
 import {ByteArray} from './../Bytes';
 import BNetProtocol, {receivers} from './BNetProtocol';
 import CommandPacket from '../CommandPacket';
 import BNCSUtil from './../../libbncsutil/BNCSUtil';
-import {debug, error} from '../Logger';
+import {debug, info, error} from '../Logger';
 
 const defaults = {
 	war3version: '26',
@@ -51,8 +52,10 @@ function createKeyInfo(key, clientToken, serverToken) {
  * @param {Object} options
  * @constructor
  */
-class BNet {
+class BNet extends EventEmitter {
 	constructor(config, options) {
+		super();
+
 		this.packets = [];
 		this.buffer = new Buffer('');
 		this.socket = new net.Socket(options);
@@ -65,6 +68,7 @@ class BNet {
 		this.server = config.item('server');
 		this.alias = config.item('alias');
 		this.port = config.item('port', 6112);
+		this.hostPort = config.item('hostPort', 6112);
 
 		this.war3version = config.item('war3version', '26');
 		this.TFT = config.item('tft', true);
@@ -83,6 +87,7 @@ class BNet {
 		this.password = config.item('password', '');
 		assert(this.password !== '', 'password empty');
 		this.firstChannel = config.item('firstchannel', 'The Void');
+		this.passwordHashType = config.item('passwordHashType', '');
 
 		// this.handlers[BNetProtocol.SID_CLANINVITATION] =            this.HANDLE_SID_CLANINVITATION;
 		// this.handlers[BNetProtocol.SID_CLANMEMBERREMOVED] =         this.HANDLE_SID_CLANMEMBERREMOVED;
@@ -277,28 +282,122 @@ class BNet {
 
 	}
 
-	static HANDLE_SID_AUTH_CHECK() {
-		debug('HANDLE_SID_AUTH_CHECK');
+	static HANDLE_SID_AUTH_CHECK(d) {
+		debug('HANDLE_SID_AUTH_CHECK', d);
+
+		if (d.keyState.toString() !== BNetProtocol.KR_GOOD.toString()) {
+			error('CD Key or version problem. See above');
+		} else {
+			var clientPublicKey;
+
+			if (!this.nls) {
+				this.nls = BNCSUtil.nls_init(this.username, this.password)
+			}
+
+			clientPublicKey = BNCSUtil.nls_get_A(this.nls);
+
+			if (clientPublicKey.length !== 32) { // retry since bncsutil randomly fails
+				this.nls = BNCSUtil.nls_init(this.username, this.password);
+				clientPublicKey = BNCSUtil.nls_get_A(this.nls);
+
+				assert(clientPublicKey.length === 32, 'client public key wrong length')
+			}
+
+			this.sendPackets(BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
+		}
+
+		// # check, then SEND_SID_AUTH_ACCOUNTLOGON
+		// if d.keyState != bnetprotocol.KR_GOOD:
+		//     atomic_debug('CD Key or version problem. See above.')
+		//     self.socket.close()
+		// else:
+		//     if self.__dict__.get('nls', None) is None:
+		//         self.nls = bncsutil.nls_init(self.username, self.password)
+		//     clientPublicKey = bncsutil.nls_get_A(self.nls)
+		//     if len(clientPublicKey) != 32: # retry since bncsutil randomly fails
+		//         bncsutil.init(force=True)
+		//         self.nls = bncsutil.nls_init(self.username, self.password)
+		//         clientPublicKey = bncsutil.nls_get_A(self.nls)
+		//         assert len(clientPublicKey) == 32
+		//     p = bnetprotocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, self.username)
+		//     self.send_packet(p)
 	}
 
 	static HANDLE_SID_REQUIREDWORK() {
 		debug('HANDLE_SID_REQUIREDWORK');
 	}
 
-	static HANDLE_SID_AUTH_ACCOUNTLOGON() {
+	static HANDLE_SID_AUTH_ACCOUNTLOGON(d) {
 		debug('HANDLE_SID_AUTH_ACCOUNTLOGON');
+		var buff;
+
+		info(`username ${this.username} accepted`);
+
+		if (this.passwordHashType === 'pvpgn') {
+			info('using pvpgn logon type (for pvpgn servers only)');
+
+			buff = BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
+				BNCSUtil.hashPassword(this.password)
+			);
+
+		} else {
+			info('using battle.net logon type (for official battle.net servers only)');
+
+			buff = BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
+				BNCSUtil.nls_get_M1(this.nls, d.serverPublicKey, d.salt)
+			);
+		}
+
+		this.sendPackets(buff);
 	}
 
-	static HANDLE_SID_AUTH_ACCOUNTLOGONPROOF() {
+	static HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(d) {
 		debug('HANDLE_SID_AUTH_ACCOUNTLOGONPROOF');
+
+		if (!d) {
+			error('Logon proof rejected.');
+			return;
+		}
+
+		this.emit('loggedIn', this, d);
+
+		info(`[${this.alias}] logon successful`);
+
+		this.sendPackets([
+			BNetProtocol.SEND_SID_NETGAMEPORT(this.hostPort),
+			BNetProtocol.SEND_SID_ENTERCHAT(),
+			BNetProtocol.SEND_SID_FRIENDSLIST(),
+			BNetProtocol.SEND_SID_CLANMEMBERLIST()
+		]);
+
+		// hook.call_wait('before-handle_sid_accountlogonproof', self, d)
+		// if not d:
+		//     atomic_debug('Logon proof rejected.')
+		//     self.socket.close()
+		//     return
+		// hook.call_wait('before-handle_sid_accountlogonproof', self, d)
+		// #p = bnetprotocol.SEND_SID_NETGAMEPORT(self.hostPort)
+		// #self.send_packet(p)
+		// p = bnetprotocol.SEND_SID_ENTERCHAT()
+		// self.send_packet(p)
+		// hook.call_nowait('after-handle_sid_accountlogonproof', self, d)
 	}
 
 	static HANDLE_SID_NULL() {
 		debug('HANDLE_SID_NULL');
+
+		return;
 	}
 
-	static HANDLE_SID_ENTERCHAT() {
+	static HANDLE_SID_ENTERCHAT(d) {
 		debug('HANDLE_SID_ENTERCHAT');
+
+		if ('#' === d.toString()[0]) {
+			debug('Warning: Account already logged in.')
+		}
+
+		this.emit('joinChannel', this, d);
+		this.sendPackets(BNetProtocol.SEND_SID_JOINCHANNEL(this.firstChannel));
 	}
 
 	static HANDLE_SID_CHATEVENT() {
@@ -324,11 +423,13 @@ class BNet {
 
 export const handlers = {
 	[BNetProtocol.SID_PING.charCodeAt(0)]: BNet.HANDLE_SID_PING,
+
 	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_INFO,
 	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_CHECK,
-	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: BNet.HANDLE_SID_REQUIREDWORK,
 	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_ACCOUNTLOGON,
 	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
+	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: BNet.HANDLE_SID_REQUIREDWORK,
+
 	[BNetProtocol.SID_NULL.charCodeAt(0)]: BNet.HANDLE_SID_NULL,
 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: BNet.HANDLE_SID_ENTERCHAT,
 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: BNet.HANDLE_SID_CHATEVENT,

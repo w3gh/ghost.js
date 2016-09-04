@@ -37,18 +37,7 @@ class BNCSUtil {
 
 		lib.libbncsutil.bncsutil_getVersionString(verChar);
 
-		var version = bp.unpack('<S', verChar);
-
-		return version.join('')
-	}
-
-	static hasPassword(password) {
-		var char = ref.alloc(ref.types.CString);
-		var charRef = ref.ref(char);
-
-		lib.libbncsutil.hashPassword(password, char);
-
-		console.log('pass', char)
+		return verChar.toString();
 	}
 
 	/**
@@ -108,8 +97,6 @@ class BNCSUtil {
 			checksum
 		);
 
-		console.log('checksum', checksum);
-
 		return checksum.toString();
 	}
 
@@ -159,6 +146,54 @@ class BNCSUtil {
 			product: product.toString('hex'),
 			hash: hashBuffer.toString('hex')
 		};
+	}
+
+	/*
+
+	 */
+	static nls_init(username, password) {
+		/**
+		 * MEXP(nls_t*) nls_init_l(const char* username, unsigned long username_length,
+    const char* password, unsigned long password_length)
+		 */
+		return lib.libbncsutil.nls_init_l(username, username.length, password, password.length)
+	}
+
+	/**
+	 * Gets the public key (A). (32 bytes)
+	 */
+	static nls_get_A(nls_t) {
+		var buffer = Buffer.alloc(32);
+
+		lib.libbncsutil.nls_get_A(nls_t, buffer);
+
+		return buffer;
+	}
+
+	/**
+	 * Gets the "M[1]" value, which proves that you know your password.
+	 * The buffer "out" must be at least 20 bytes long.
+	 */
+	static nls_get_M1(nls_t, B, salt) {
+		//MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt);
+		var buffer = Buffer.alloc(20);
+
+		lib.libbncsutil.nls_get_M1(nls_t, buffer, B, salt);
+
+		return buffer;
+	}
+
+	/**
+	 * Single-hashes the password for account creation and password changes.
+	 */
+	static hashPassword(password) {
+		var buffer = Buffer.alloc(20);
+
+		lib.libbncsutil.hashPassword(password, buffer);
+
+		console.log('pass', buffer);
+
+		return buffer
 	}
 
 	HELP_SID_AUTH_CHECK(TFT, war3Path, CDKeyROC, CDKeyTFT, formula, IX86VerFileName, clientToken, serverToken) {
