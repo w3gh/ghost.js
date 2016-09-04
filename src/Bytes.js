@@ -1,16 +1,46 @@
 'use strict';
 
+import bp from 'bufferpack';
+
 /**
  *
  * @param {Array} bytes
  * @returns {Buffer}
  */
 export function ByteArray(bytes) {
-	var buffers = bytes.map(function (el) {
-		return new Buffer(el);
-	});
+	return Buffer.concat(bytes.map((el) => {
+		if (Buffer.isBuffer(el)) {
+			return el;
+		}
 
-	return Buffer.concat(buffers);
+		if (Array.isArray(el)) {
+			return Buffer.from(el);
+		} else {
+			return Buffer.from(el, 'binary');
+		}
+	}));
+}
+
+/**
+ * Assigns length of bytes
+ * @param buff
+ * @returns {*}
+ * @constructor
+ */
+export function AssignLength(buff) {
+	var len = buff.length;
+	// l = len(p)
+	//   #p[2] = l % 256
+	//   #p[3] = l / 256
+	//   p[2:4] = pack('<H', l)
+	// arr.splice(2, 1, l.toString(16));
+
+	buff[2] = len % 256;
+	buff[3] = len / 256;
+
+	//buff.write(len.toString(16), 2, 'hex');
+
+	return buff;
 }
 
 export function ByteArrayUInt32(num) {
@@ -21,7 +51,7 @@ export function ByteArrayUInt32(num) {
 	result.push(num >> 16);
 	result.push(num >> 24);
 
-	return new Buffer(result);
+	return Buffer.from(result);
 }
 
 /**

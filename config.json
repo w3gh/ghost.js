@@ -1,5 +1,11 @@
 {
-  "bot": {
-    "path": "asdasd"
-  }
+  "server": "server.pvpgn.pro",
+  "alias": "pvpgn.pro",
+  "username": "jilizart",
+  "password": "jilizart",
+  "war3version": "26",
+  "localeid": 1033,
+  "war3exe": "./war3/1.26a/war3.exe",
+  "stormdll": "./war3/1.26a/Storm.dll",
+  "gamedll": "./war3/1.26a/game.dll"
 }

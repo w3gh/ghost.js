@@ -1,7 +1,16 @@
 {
   "presets": [
-    "es2015",
+    "es2016",
+    ["es2015", { "loose": true }],
     "stage-0"
   ],
-  "plugins": ["transform-class-properties"]
+  "plugins": [
+    "transform-class-properties",
+    [
+      "transform-es2015-classes",
+      {
+        "loose": true
+      }
+    ]
+  ]
 }
