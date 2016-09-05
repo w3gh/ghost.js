@@ -1,10 +1,38 @@
-import log from './../log';
 import bp from 'bufferpack';
 import hex from 'hex';
 import assert from 'assert';
 import {ByteArray, AssignLength} from './../Bytes';
 import Protocol from './../Protocol';
-import {debug, info, error} from './../Logger';
+import {debugLogger, info, error} from './../Logger';
+import chalk from 'chalk';
+
+const debug = debugLogger('BNetProtocol');
+
+/**
+ * Converts hex string as BNetProtocol.EID_SHOWUSER to js hex number
+ * @param hexString
+ * @returns {string}
+ */
+function asHex(hexString) {
+	return Buffer.from(hexString).toString('hex');
+}
+
+function hexCompare(hexString, buff) {
+	return asHex(hexString) === buff.toString('hex');
+}
+
+function printChat(id, username, message) {
+	switch (id) {
+		case 'ERROR':
+			console.log(chalk.red(message));
+			break;
+		case 'INFO':
+			console.log(chalk.blue(message));
+			break;
+		default:
+			console.log(`[${username}] ${message}`);
+	}
+}
 
 class BNetProtocol extends Protocol {
 
@@ -139,11 +167,11 @@ class BNetProtocol extends Protocol {
 			language,
 			localIP,
 			timeZoneBias,
-			String(localeID), // locale 3081 (en-au)
-			localeID,
-			countryAbbrev,
+			bp.pack('<I', localeID), // locale 3081 (en-au)
+			bp.pack('<I', localeID),
+			String(countryAbbrev),
 			this.NULL,
-			country,
+			String(country),
 			this.NULL
 		];
 
@@ -397,16 +425,58 @@ class BNetProtocol extends Protocol {
 	static RECEIVE_SID_CHATEVENT(buff) {
 		debug('RECEIVE_SID_CHATEVENT');
 
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 20);
+		assert(BNetProtocol.validateLength(buff) && buff.length >= 29);
 
-		const event = bp.unpack('<I', buff.slice(4, 8)).join('');
+		// 2 bytes					-> Header
+		// 2 bytes					-> Length
+		// 4 bytes					-> EventID
+		// 4 bytes					-> ???
+		// 4 bytes					-> Ping
+		// 12 bytes					-> ???
+		// null terminated string	-> User
+		// null terminated string	-> Message
+
+		const event = buff.slice(4, 8) ;
 		const ping = bp.unpack('<I', buff.slice(12, 16)).join('');
 		const user = buff.slice(28).toString().split(BNetProtocol.NULL, 1)[0];
 		const message = buff.slice(29 + user.length).toString().split(BNetProtocol.NULL, 1)[0];
 
-		console.log(event, ping, user, message);
+		var info = {
+			event: BNetProtocol.CHATEVENT_ID(event),
+			ping,
+			user,
+			message
+		};
 
-		return {event, ping, user, message};
+		printChat(info.event, info.user, info.message);
+
+		return info;
+	}
+
+	/**
+	 *
+	 * @param {Buffer} eventBuff
+	 * @returns {*}
+	 * @constructor
+	 */
+	static CHATEVENT_ID(eventBuff) {
+		switch (eventBuff.toString('hex')) {
+			case asHex(BNetProtocol.EID_SHOWUSER): return 'SHOWUSER';
+			case asHex(BNetProtocol.EID_JOIN): return 'JOIN';
+			case asHex(BNetProtocol.EID_LEAVE): return 'LEAVE';
+			case asHex(BNetProtocol.EID_WHISPER): return 'WHISPER';
+			case asHex(BNetProtocol.EID_TALK): return 'TALK';
+			case asHex(BNetProtocol.EID_BROADCAST): return 'BROADCAST';
+			case asHex(BNetProtocol.EID_CHANNEL): return 'CHANNEL';
+			case asHex(BNetProtocol.EID_USERFLAGS): return 'USERFLAGS';
+			case asHex(BNetProtocol.EID_WHISPERSENT): return 'WHISPERSENT';
+			case asHex(BNetProtocol.EID_CHANNELFULL): return 'CHANNELFULL';
+			case asHex(BNetProtocol.EID_CHANNELDOESNOTEXIST): return 'CHANNELDOESNOTEXIST';
+			case asHex(BNetProtocol.EID_CHANNELRESTRICTED): return 'CHANNELRESTRICTED';
+			case asHex(BNetProtocol.EID_INFO): return 'INFO';
+			case asHex(BNetProtocol.EID_ERROR): return 'ERROR';
+			case asHex(BNetProtocol.EID_EMOTE): return 'EMOTE';
+		}
 	}
 
 	static RECEIVE_SID_CHECKAD(buff) {

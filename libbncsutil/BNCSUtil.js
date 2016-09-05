@@ -191,8 +191,6 @@ class BNCSUtil {
 
 		lib.libbncsutil.hashPassword(password, buffer);
 
-		console.log('pass', buffer);
-
 		return buffer
 	}
 

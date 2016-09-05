@@ -8,19 +8,9 @@ import {ByteArray} from './../Bytes';
 import BNetProtocol, {receivers} from './BNetProtocol';
 import CommandPacket from '../CommandPacket';
 import BNCSUtil from './../../libbncsutil/BNCSUtil';
-import {debug, info, error} from '../Logger';
+import {debugLogger, info, error} from '../Logger';
 
-const defaults = {
-	war3version: '26',
-	tft: 1,
-	localeID: '1033',
-	countryAbbrev: 'USA',
-	country: 'United States',
-	port: 6112,
-
-	exeversion: [1, 0, 26, 1],
-	exeversionhash: [194, 206, 231, 242]
-};
+const debug = debugLogger('BNet');
 
 /**
  *
@@ -38,8 +28,6 @@ function createKeyInfo(key, clientToken, serverToken) {
 		'\x00\x00\x00\x00',
 		info.hash
 	];
-
-	console.log('create key info', info, bytes);
 
 	return ByteArray(bytes);
 }
@@ -72,7 +60,7 @@ class BNet extends EventEmitter {
 
 		this.war3version = config.item('war3version', '26');
 		this.TFT = config.item('tft', true);
-		this.localeId = config.item('localeid', 1033);
+		this.localeID = config.item('localeid', '1033');
 		this.countryAbbrev = config.item('countryabbrev', 'USA');
 		this.country = config.item('country', 'United States');
 		this.war3exePath = path.resolve(config.item('war3exe', 'war3.exe'));
@@ -86,7 +74,7 @@ class BNet extends EventEmitter {
 		assert(this.username !== '', 'username empty');
 		this.password = config.item('password', '');
 		assert(this.password !== '', 'password empty');
-		this.firstChannel = config.item('firstchannel', 'The Void');
+		this.firstChannel = config.item('firstChannel', 'The Void');
 		this.passwordHashType = config.item('passwordHashType', '');
 
 		// this.handlers[BNetProtocol.SID_CLANINVITATION] =            this.HANDLE_SID_CLANINVITATION;
@@ -176,11 +164,11 @@ class BNet extends EventEmitter {
 		this.sendPackets([
 			BNetProtocol.SEND_PROTOCOL_INITIALIZE_SELECTOR(),
 			BNetProtocol.SEND_SID_AUTH_INFO(
-				defaults.war3version,
-				defaults.tft,
-				defaults.localeID,
-				defaults.countryAbbrev,
-				defaults.country
+				this.war3version,
+				this.TFT,
+				this.localeID,
+				this.countryAbbrev,
+				this.country
 			)
 		]);
 	};
