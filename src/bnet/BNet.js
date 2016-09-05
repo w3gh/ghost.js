@@ -53,12 +53,12 @@ function createKeyInfo(key, clientToken, serverToken) {
  * @constructor
  */
 class BNet extends EventEmitter {
-	constructor(config, options) {
+	constructor(config) {
 		super();
 
-		this.packets = [];
-		this.buffer = new Buffer('');
-		this.socket = new net.Socket(options);
+		this.data = Buffer.from('');
+		this.incomingPackets = [];
+		this.incomingBuffer = Buffer.from('');
 
 		this.clientToken = Buffer.from('\xdc\x01\xcb\x07', 'binary');
 
@@ -113,31 +113,35 @@ class BNet extends EventEmitter {
 		}
 	}
 
-	/**
-	 *
-	 * @param {Buffer} buffer
-	 * @returns {null}
-	 */
-	extractPackets(buffer) {
-		var len;
+	extractPackets() {
+		while (this.incomingBuffer.length >= 4) {
+			var buffer = this.incomingBuffer;
 
-		if (String.fromCharCode(buffer[0]) !== BNetProtocol.BNET_HEADER_CONSTANT) {
-			error('received invalid packet from battle.net (bad header constant), disconnecting');
-			this.socket.end();
-		}
+			if (String.fromCharCode(buffer[0]) !== BNetProtocol.BNET_HEADER_CONSTANT) {
+				error('received invalid packet from battle.net (bad header constant), disconnecting');
+				this.socket.end();
+			}
 
-		len = BNetProtocol.getLength(buffer);
+			const len = BNetProtocol.getLength(buffer);
 
-		if (len < 4) {
-			error('received invalid packet from battle.net (bad length), disconnecting');
-			this.socket.end();
-		}
+			if (len < 4) {
+				error('received invalid packet from battle.net (bad length), disconnecting');
+				return;
+			}
 
-		if (buffer.length >= len) {
-			this.packets.push(new CommandPacket(BNetProtocol.BNET_HEADER_CONSTANT, buffer[1], buffer));
-			this.buffer = buffer.slice(len);
-		} else { // still waiting for rest of the packet
-			return null;
+			if (buffer.length >= len) {
+				this.incomingPackets.push(
+					new CommandPacket(
+						BNetProtocol.BNET_HEADER_CONSTANT,
+						buffer[1],
+						buffer.slice(0, len)
+					)
+				);
+
+				this.incomingBuffer = buffer.slice(len);
+			} else { // still waiting for rest of the packet
+				return;
+			}
 		}
 	}
 
@@ -146,8 +150,8 @@ class BNet extends EventEmitter {
 		var receiver;
 		var handler;
 
-		while (this.packets.length) {
-			packet = this.packets.pop();
+		while (this.incomingPackets.length) {
+			packet = this.incomingPackets.pop();
 
 			if (packet.type === BNetProtocol.BNET_HEADER_CONSTANT) {
 				receiver = receivers[packet.id];
@@ -185,7 +189,9 @@ class BNet extends EventEmitter {
 		debug('data');
 		hex(buffer);
 
-		this.extractPackets(buffer);
+		this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
+
+		this.extractPackets();
 		this.processPackets();
 	};
 
@@ -197,12 +203,14 @@ class BNet extends EventEmitter {
 		debug('error ' + error);
 	};
 
-	run() {
+	run(options) {
+		this.socket = net.createConnection(this.port, this.server);
+
 		this.socket.on('connect', this.onConnect);
 		this.socket.on('data', this.onData);
 		this.socket.on('end', this.onEnd);
 		this.socket.on('error', this.onError);
-		this.socket.connect(this.port, this.server);
+		//this.socket.connect(this.port, this.server);
 	}
 
 	static HANDLE_SID_PING(d) {
@@ -213,10 +221,7 @@ class BNet extends EventEmitter {
 	static HANDLE_SID_AUTH_INFO(d) {
 		debug('HANDLE_SID_AUTH_INFO', d);
 
-		console.log(this.war3exePath);
-
 		const info = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
-		console.log('exeInfo, exeVersion', info);
 
 		let {exeInfo, exeVersion} = info;
 
@@ -256,30 +261,6 @@ class BNet extends EventEmitter {
 			exeInfo,
 			'GHost.js'
 		));
-
-		//
-		// #atomic_debug('In HANDLE_SID_AUTH_INFO')
-		// #exeInfo, exeVersion = tpool.execute(bncsutil.getExeInfo, self.war3exePath, bncsutil.PLATFORM_X86)
-		// exeInfo, exeVersion = bncsutil.getExeInfo(self.war3exePath, bncsutil.PLATFORM_X86)
-		// exeVersion = pack('<I', exeVersion)
-		// #exeVersionHash = tpool.execute(bncsutil.checkRevisionFlat, bytes(d.valueStringFormula), self.war3exePath, self.stormdllPath, self.gamedllPath, bncsutil.extractMPQNumber(bytes(d.ix86VerFileName)))
-		// exeVersionHash = bncsutil.checkRevisionFlat(bytes(d.valueStringFormula), self.war3exePath, self.stormdllPath, self.gamedllPath, bncsutil.extractMPQNumber(bytes(d.ix86VerFileName)))
-		// keyInfoRoc = ''
-		// keyInfoRoc = create_key_info(self.keyRoc, unpack('<I', self.clientToken)[0], unpack('<I', bytes(d.serverToken))[0])
-		// if len(keyInfoRoc) != 36:
-		//     bncsutil.init(force=True)
-		//     keyInfoRoc = create_key_info(self.keyRoc, unpack('<I', self.clientToken)[0], unpack('<I', bytes(d.serverToken))[0])
-		// assert len(keyInfoRoc) == 36
-		// keyInfoTft = ''
-		// if self.tft:
-		//     keyInfoTft = create_key_info(self.keyTft, unpack('<I', self.clientToken)[0], unpack('<I', bytes(d.serverToken))[0])
-		//     if len(keyInfoTft) != 36:
-		//         bncsutil.init(force=True)
-		//         keyInfoTft = create_key_info(self.keyTft, unpack('<I', self.clientToken)[0], unpack('<I', bytes(d.serverToken))[0])
-		//     assert len(keyInfoTft) == 36
-		// p = bnetprotocol.SEND_SID_AUTH_CHECK(self.tft, self.clientToken, exeVersion, pack('<I', exeVersionHash), keyInfoRoc, keyInfoTft, exeInfo, 'GHost')
-		// self.send_packet(p)
-
 	}
 
 	static HANDLE_SID_AUTH_CHECK(d) {
@@ -305,26 +286,11 @@ class BNet extends EventEmitter {
 
 			this.sendPackets(BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
 		}
-
-		// # check, then SEND_SID_AUTH_ACCOUNTLOGON
-		// if d.keyState != bnetprotocol.KR_GOOD:
-		//     atomic_debug('CD Key or version problem. See above.')
-		//     self.socket.close()
-		// else:
-		//     if self.__dict__.get('nls', None) is None:
-		//         self.nls = bncsutil.nls_init(self.username, self.password)
-		//     clientPublicKey = bncsutil.nls_get_A(self.nls)
-		//     if len(clientPublicKey) != 32: # retry since bncsutil randomly fails
-		//         bncsutil.init(force=True)
-		//         self.nls = bncsutil.nls_init(self.username, self.password)
-		//         clientPublicKey = bncsutil.nls_get_A(self.nls)
-		//         assert len(clientPublicKey) == 32
-		//     p = bnetprotocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, self.username)
-		//     self.send_packet(p)
 	}
 
 	static HANDLE_SID_REQUIREDWORK() {
 		debug('HANDLE_SID_REQUIREDWORK');
+		return;
 	}
 
 	static HANDLE_SID_AUTH_ACCOUNTLOGON(d) {
@@ -396,12 +362,14 @@ class BNet extends EventEmitter {
 			debug('Warning: Account already logged in.')
 		}
 
-		this.emit('joinChannel', this, d);
+		this.emit('enterChat', this, d);
 		this.sendPackets(BNetProtocol.SEND_SID_JOINCHANNEL(this.firstChannel));
 	}
 
-	static HANDLE_SID_CHATEVENT() {
+	static HANDLE_SID_CHATEVENT(d) {
 		debug('HANDLE_SID_CHATEVENT');
+
+		this.emit('chatEvent', this, d);
 	}
 
 	static HANDLE_SID_CLANINFO() {
@@ -418,6 +386,10 @@ class BNet extends EventEmitter {
 
 	static HANDLE_SID_MESSAGEBOX() {
 		debug('HANDLE_SID_MESSAGEBOX');
+	}
+
+	static HANDLE_SID_FRIENDSLIST(d) {
+		debug('HANDLE_SID_FRIENDSLIST', d);
 	}
 }
 

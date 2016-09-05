@@ -290,6 +290,16 @@ class BNetProtocol extends Protocol {
 		return AssignLength(ByteArray(bytes));
 	}
 
+	static RECEIVE_SID_NULL(buff) {
+		debug('RECEIVE_SID_NULL');
+
+		return BNetProtocol.validateLength(buff);
+	}
+
+	static RECEIVE_SID_GETADVLISTEX(buff) {
+		debug('RECEIVE_SID_GETADVLISTEX');
+	}
+
 	static RECEIVE_SID_AUTH_INFO(buff) {
 		debug('RECEIVE_SID_AUTH_INFO');
 		assert(BNetProtocol.validateLength(buff) && buff.length >= 25);
@@ -377,12 +387,6 @@ class BNetProtocol extends Protocol {
 	    // return (status == NULL_4 or status == b'\x0e000000')
 	}
 
-	static RECEIVE_SID_NULL(buff) {
-		debug('RECEIVE_SID_NULL');
-
-		return BNetProtocol.validateLength(buff);
-	}
-
 	static RECEIVE_SID_ENTERCHAT(buff) {
 		debug('RECEIVE_SID_ENTERCHAT');
 		assert(BNetProtocol.validateLength(buff) && buff.length >= 5);
@@ -391,10 +395,38 @@ class BNetProtocol extends Protocol {
 	}
 
 	static RECEIVE_SID_CHATEVENT(buff) {
-		debug('RECEIVE_SID_CHATEVENT')
+		debug('RECEIVE_SID_CHATEVENT');
+
+		assert(BNetProtocol.validateLength(buff) && buff.length >= 20);
+
+		const event = bp.unpack('<I', buff.slice(4, 8)).join('');
+		const ping = bp.unpack('<I', buff.slice(12, 16)).join('');
+		const user = buff.slice(28).toString().split(BNetProtocol.NULL, 1)[0];
+		const message = buff.slice(29 + user.length).toString().split(BNetProtocol.NULL, 1)[0];
+
+		console.log(event, ping, user, message);
+
+		return {event, ping, user, message};
 	}
 
-	static RECEIVE_SID_CLANINFO() {
+	static RECEIVE_SID_CHECKAD(buff) {
+		debug('RECEIVE_SID_CHECKAD');
+	}
+
+	static RECEIVE_SID_STARTADVEX3(buff) {
+		debug('RECEIVE_SID_STARTADVEX3');
+	}
+
+	static RECEIVE_SID_WARDEN(buff) {
+		debug('RECEIVE_SID_WARDEN');
+	}
+
+	static RECEIVE_SID_FRIENDSLIST(buff) {
+		debug('RECEIVE_SID_FRIENDSLIST');
+	}
+
+	static RECEIVE_SID_CLANINFO(buff) {
+		debug('RECEIVE_SID_CLANINFO');
 	}
 }
 
@@ -409,6 +441,7 @@ export const receivers = {
 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_ENTERCHAT,
 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CHATEVENT,
 	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CLANINFO,
+	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_FRIENDSLIST
 };
 
 export default BNetProtocol;
