@@ -3,11 +3,11 @@ import hex from 'hex';
 import assert from 'assert';
 import {ByteArray, AssignLength} from './../Bytes';
 import Protocol from './../Protocol';
-import {debugLogger, info, error} from './../Logger';
 import chalk from 'chalk';
 
-const debug = debugLogger('BNetProtocol');
+import {create} from '../Logger';
 
+const {debug, info, error} = create('BNetProtocol');
 /**
  * Converts hex string as BNetProtocol.EID_SHOWUSER to js hex number
  * @param hexString
@@ -32,6 +32,23 @@ function printChat(id, username, message) {
 		default:
 			console.log(`[${username}] ${message}`);
 	}
+}
+
+/**
+ *
+ * @param {Buffer} buff
+ * @returns {*}
+ */
+export function getLength(buff) {
+	//buff.toString('hex', 2, 4)
+	var d = buff.slice(2, 4);
+	var val = bp.unpack('<H', d);
+
+	return Number(val.join(''));
+}
+
+export function validateLength(buff) {
+	return getLength(buff) === buff.length;
 }
 
 class BNetProtocol extends Protocol {
@@ -125,7 +142,7 @@ class BNetProtocol extends Protocol {
 	}
 
 	static validateLength(buff) {
-		return BNetProtocol.getLength(buff) === buff.length;
+		return getLength(buff) === buff.length;
 	}
 
 	static SEND_SID_PING(payload) {
@@ -181,24 +198,24 @@ class BNetProtocol extends Protocol {
 	static SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName) {
 		var numKeys = (tft) ? 2 : 1;
 
-    // p = bytearray()
-    // p.append(BNET_HEADER_CONSTANT)
-    // p.append(SID_AUTH_CHECK)
-    // p.extend(NULL_2) # length
-    // p.extend(clientToken)
-    // p.extend(exeVersion)
-    // p.extend(exeVersionHash)
-    // numKeys = 2 if tft else 1
-    // p.append(numKeys); p.extend(NULL_3)
-    // p.extend(NULL_4) # boolean Using Spawn (32 bit)
-    // p.extend(keyInfoRoc)
-    // if tft:
-    //     p.extend(keyInfoTft)
-    // p.extend(exeInfo); p.append(NULL)
-    // p.extend(keyOwnerName); p.append(NULL)
-    //
-    // assign_length(p)
-    // return p
+		// p = bytearray()
+		// p.append(BNET_HEADER_CONSTANT)
+		// p.append(SID_AUTH_CHECK)
+		// p.extend(NULL_2) # length
+		// p.extend(clientToken)
+		// p.extend(exeVersion)
+		// p.extend(exeVersionHash)
+		// numKeys = 2 if tft else 1
+		// p.append(numKeys); p.extend(NULL_3)
+		// p.extend(NULL_4) # boolean Using Spawn (32 bit)
+		// p.extend(keyInfoRoc)
+		// if tft:
+		//     p.extend(keyInfoTft)
+		// p.extend(exeInfo); p.append(NULL)
+		// p.extend(keyOwnerName); p.append(NULL)
+		//
+		// assign_length(p)
+		// return p
 
 		var bytes = [
 			this.BNET_HEADER_CONSTANT,
@@ -240,7 +257,7 @@ class BNetProtocol extends Protocol {
 			this.NULL
 		];
 
-	    return AssignLength(ByteArray(bytes));
+		return AssignLength(ByteArray(bytes));
 	}
 
 	static SEND_SID_AUTH_ACCOUNTLOGONPROOF(M1) {
@@ -253,7 +270,7 @@ class BNetProtocol extends Protocol {
 			M1
 		];
 
-	    return AssignLength(ByteArray(bytes));
+		return AssignLength(ByteArray(bytes));
 	}
 
 	static SEND_SID_NETGAMEPORT(serverPort) {
@@ -321,7 +338,7 @@ class BNetProtocol extends Protocol {
 	static RECEIVE_SID_NULL(buff) {
 		debug('RECEIVE_SID_NULL');
 
-		return BNetProtocol.validateLength(buff);
+		return validateLength(buff);
 	}
 
 	static RECEIVE_SID_GETADVLISTEX(buff) {
@@ -330,7 +347,7 @@ class BNetProtocol extends Protocol {
 
 	static RECEIVE_SID_AUTH_INFO(buff) {
 		debug('RECEIVE_SID_AUTH_INFO');
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 25);
+		assert(validateLength(buff) && buff.length >= 25);
 		// 2 bytes					-> Header
 		// 2 bytes					-> Length
 		// 4 bytes					-> LogonType
@@ -363,7 +380,7 @@ class BNetProtocol extends Protocol {
 
 	static RECEIVE_SID_AUTH_CHECK(buff) {
 		debug('RECEIVE_SID_AUTH_CHECK');
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 9);
+		assert(validateLength(buff) && buff.length >= 9);
 		// 2 bytes					-> Header
 		// 2 bytes					-> Length
 		// 4 bytes					-> KeyState
@@ -377,11 +394,11 @@ class BNetProtocol extends Protocol {
 	static RECEIVE_SID_REQUIREDWORK(buff) {
 		debug('RECEIVE_SID_REQUIREDWORK');
 
-		return BNetProtocol.validateLength(buff);
+		return validateLength(buff);
 	}
 
 	static RECEIVE_SID_AUTH_ACCOUNTLOGON(buff) {
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 8);
+		assert(validateLength(buff) && buff.length >= 8);
 
 		const status = buff.slice(4, 8);
 
@@ -400,7 +417,7 @@ class BNetProtocol extends Protocol {
 	static RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF(buff) {
 		debug('RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF');
 
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 8);
+		assert(validateLength(buff) && buff.length >= 8);
 
 		const statusExpected = '\x0e000000';
 
@@ -411,21 +428,21 @@ class BNetProtocol extends Protocol {
 		);
 
 		// assert (validate_length(p) and len(p) >= 8)
-	    // status = bytes(p[4:8])
-	    // return (status == NULL_4 or status == b'\x0e000000')
+		// status = bytes(p[4:8])
+		// return (status == NULL_4 or status == b'\x0e000000')
 	}
 
 	static RECEIVE_SID_ENTERCHAT(buff) {
 		debug('RECEIVE_SID_ENTERCHAT');
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 5);
+		assert(validateLength(buff) && buff.length >= 5);
 
-        return buff.slice(4);
+		return buff.slice(4);
 	}
 
 	static RECEIVE_SID_CHATEVENT(buff) {
 		debug('RECEIVE_SID_CHATEVENT');
 
-		assert(BNetProtocol.validateLength(buff) && buff.length >= 29);
+		assert(validateLength(buff) && buff.length >= 29);
 
 		// 2 bytes					-> Header
 		// 2 bytes					-> Length
@@ -436,7 +453,7 @@ class BNetProtocol extends Protocol {
 		// null terminated string	-> User
 		// null terminated string	-> Message
 
-		const event = buff.slice(4, 8) ;
+		const event = buff.slice(4, 8);
 		const ping = bp.unpack('<I', buff.slice(12, 16)).join('');
 		const user = buff.slice(28).toString().split(BNetProtocol.NULL, 1)[0];
 		const message = buff.slice(29 + user.length).toString().split(BNetProtocol.NULL, 1)[0];
@@ -461,21 +478,36 @@ class BNetProtocol extends Protocol {
 	 */
 	static CHATEVENT_ID(eventBuff) {
 		switch (eventBuff.toString('hex')) {
-			case asHex(BNetProtocol.EID_SHOWUSER): return 'SHOWUSER';
-			case asHex(BNetProtocol.EID_JOIN): return 'JOIN';
-			case asHex(BNetProtocol.EID_LEAVE): return 'LEAVE';
-			case asHex(BNetProtocol.EID_WHISPER): return 'WHISPER';
-			case asHex(BNetProtocol.EID_TALK): return 'TALK';
-			case asHex(BNetProtocol.EID_BROADCAST): return 'BROADCAST';
-			case asHex(BNetProtocol.EID_CHANNEL): return 'CHANNEL';
-			case asHex(BNetProtocol.EID_USERFLAGS): return 'USERFLAGS';
-			case asHex(BNetProtocol.EID_WHISPERSENT): return 'WHISPERSENT';
-			case asHex(BNetProtocol.EID_CHANNELFULL): return 'CHANNELFULL';
-			case asHex(BNetProtocol.EID_CHANNELDOESNOTEXIST): return 'CHANNELDOESNOTEXIST';
-			case asHex(BNetProtocol.EID_CHANNELRESTRICTED): return 'CHANNELRESTRICTED';
-			case asHex(BNetProtocol.EID_INFO): return 'INFO';
-			case asHex(BNetProtocol.EID_ERROR): return 'ERROR';
-			case asHex(BNetProtocol.EID_EMOTE): return 'EMOTE';
+			case asHex(BNetProtocol.EID_SHOWUSER):
+				return 'SHOWUSER';
+			case asHex(BNetProtocol.EID_JOIN):
+				return 'JOIN';
+			case asHex(BNetProtocol.EID_LEAVE):
+				return 'LEAVE';
+			case asHex(BNetProtocol.EID_WHISPER):
+				return 'WHISPER';
+			case asHex(BNetProtocol.EID_TALK):
+				return 'TALK';
+			case asHex(BNetProtocol.EID_BROADCAST):
+				return 'BROADCAST';
+			case asHex(BNetProtocol.EID_CHANNEL):
+				return 'CHANNEL';
+			case asHex(BNetProtocol.EID_USERFLAGS):
+				return 'USERFLAGS';
+			case asHex(BNetProtocol.EID_WHISPERSENT):
+				return 'WHISPERSENT';
+			case asHex(BNetProtocol.EID_CHANNELFULL):
+				return 'CHANNELFULL';
+			case asHex(BNetProtocol.EID_CHANNELDOESNOTEXIST):
+				return 'CHANNELDOESNOTEXIST';
+			case asHex(BNetProtocol.EID_CHANNELRESTRICTED):
+				return 'CHANNELRESTRICTED';
+			case asHex(BNetProtocol.EID_INFO):
+				return 'INFO';
+			case asHex(BNetProtocol.EID_ERROR):
+				return 'ERROR';
+			case asHex(BNetProtocol.EID_EMOTE):
+				return 'EMOTE';
 		}
 	}
 

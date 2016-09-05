@@ -1,16 +1,15 @@
 import net from 'net';
-import hex from 'hex';
 import bp from 'bufferpack';
 import assert from 'assert';
 import path from 'path';
 import EventEmitter from 'events';
 import {ByteArray} from './../Bytes';
-import BNetProtocol, {receivers} from './BNetProtocol';
+import BNetProtocol, {receivers, getLength} from './BNetProtocol';
 import CommandPacket from '../CommandPacket';
 import BNCSUtil from './../../libbncsutil/BNCSUtil';
-import {debugLogger, info, error} from '../Logger';
+import {create, hex} from '../Logger';
 
-const debug = debugLogger('BNet');
+const {debug, info, error} = create('BNet');
 
 /**
  *
@@ -110,7 +109,7 @@ class BNet extends EventEmitter {
 				this.socket.end();
 			}
 
-			const len = BNetProtocol.getLength(buffer);
+			const len = getLength(buffer);
 
 			if (len < 4) {
 				error('received invalid packet from battle.net (bad length), disconnecting');
@@ -209,9 +208,9 @@ class BNet extends EventEmitter {
 	static HANDLE_SID_AUTH_INFO(d) {
 		debug('HANDLE_SID_AUTH_INFO', d);
 
-		const info = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
+		const exe = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
 
-		let {exeInfo, exeVersion} = info;
+		let {exeInfo, exeVersion} = exe;
 
 		exeVersion = bp.pack('<I', exeVersion);
 
@@ -237,6 +236,10 @@ class BNet extends EventEmitter {
 				bp.unpack('<I', this.clientToken)[0],
 				bp.unpack('<I', d.serverToken)[0]
 			);
+
+			info('attempting to auth as Warcraft III: The Frozen Throne');
+		} else {
+			info('attempting to auth as Warcraft III: Reign of Chaos');
 		}
 
 		this.sendPackets(BNetProtocol.SEND_SID_AUTH_CHECK(
