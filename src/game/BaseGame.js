@@ -2,12 +2,14 @@
 
 import net from 'net';
 import util from 'util';
-import log from './../log';
 import {ByteArrayUInt32} from './../Bytes';
 import {EventEmitter} from 'events';
 import GameProtocol from './GameProtocol';
 import GameMap from './Map';
 import GamePlayer from './GamePlayer';
+import {create} from '../Logger';
+
+const {debug, info, error} = create('BaseGame');
 
 const GAME_REHOST_INTERVAL = 5000;
 
@@ -57,7 +59,7 @@ export default class BaseGame extends EventEmitter {
 	 * @param {IncomingJoinPlayer} joinPlayer
 	 */
 	onPlayerJoined(potentialPlayer, joinPlayer) {
-		log('BaseGame player joined', arguments);
+		info('BaseGame player joined', arguments);
 
 		// check if the new player's name is empty or too long
 		if (!joinPlayer.name.length || joinPlayer.name.length > 15) {
@@ -97,7 +99,7 @@ export default class BaseGame extends EventEmitter {
 			this.deleteVirtualHost();
 		}
 
-		log('Game', this.gameName, ' player', joinPlayer.name, '|', potentialPlayer.getExternalIP(), 'joined the game');
+		info('Game', this.gameName, ' player', joinPlayer.name, '|', potentialPlayer.getExternalIP(), 'joined the game');
 
 		var Player = new GamePlayer(
 			potentialPlayer,
@@ -155,21 +157,21 @@ export default class BaseGame extends EventEmitter {
 	}
 
 	onListening = () => {
-		log('BaseGame listening');
+		info('BaseGame listening');
 	};
 
 	onConnection = (socket) => {
-		log('BaseGame Potential Player connected', socket.remoteAddress + ':' + socket.remotePort);
+		info('BaseGame Potential Player connected', socket.remoteAddress + ':' + socket.remotePort);
 
 		this.potentials.push(new GamePlayer.Potential(this.protocol, this, socket));
 	};
 
 	onError = (...args) => {
-		log('BaseGame', 'error', ...args);
+		info('BaseGame', 'error', ...args);
 	};
 
 	onClose = (...args) => {
-		log('BaseGame', 'close', ...args);
+		info('BaseGame', 'close', ...args);
 	};
 
 	getEmptySlot() {

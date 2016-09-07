@@ -110,7 +110,7 @@ class GameProtocol extends Protocol {
 			reason // reason
 		]);
 
-		return this.assignLength(ByteArray(packet));
+		return Protocol.assignLength(ByteArray(packet));
 	}
 
 	SEND_W3GS_PLAYERINFO() {
@@ -241,7 +241,7 @@ statString
 			packet.push(bp.pack('<I', [upTime])); // upTime
 			packet.push(bp.pack('<H', [port]));
 
-			var bytes = this.assignLength(ByteArray(packet));
+			var bytes = Protocol.assignLength(ByteArray(packet));
 
 			if (bytes.toJSON().length > 166) {
 				log('erro bytes to big', bytes.toJSON().length);

@@ -1,13 +1,9 @@
 require('babel-register');
-var hex = require('hex');
-var BNet = require('./src/bnet/BNet').default;
-var Config = require('./src/Config').default;
-var BNetProtocol = require('./src/bnet/BNetProtocol').default;
-
+const BNet = require('./src/bnet/BNet').default;
+const Config = require('./src/Config').default;
 const argv = require('yargs').config().argv;
 
-var config = new Config(argv);
-var inst = new BNet(config);
+const inst = new BNet(new Config(argv));
 
 inst.run();
 

@@ -1,5 +1,8 @@
 'use strict';
 
+// <I 4 bytes
+// <H 2 bytes
+
 import bp from 'bufferpack';
 
 /**
@@ -8,50 +11,68 @@ import bp from 'bufferpack';
  * @returns {Buffer}
  */
 export function ByteArray(bytes) {
-	return Buffer.concat(bytes.map((el) => {
-		if (Buffer.isBuffer(el)) {
-			return el;
-		}
+	return Buffer.concat(bytes
+		.filter((el) => el !== false) //filter falsy elements by excluding it
+		.map((el) => (
+			//if Buffer just return, if Array, create Buffer and return, else just create Buffer
+			Buffer.isBuffer(el) ? el : (Array.isArray(el) ? Buffer.from(el) : Buffer.from(el, 'binary'))
+		))
+	);
+}
 
-		if (Array.isArray(el)) {
-			return Buffer.from(el);
-		} else {
-			return Buffer.from(el, 'binary');
-		}
-	}));
+/**
+ * Check if given buffer have valid length bytes
+ * @param {Buffer} buffer
+ * @returns {Boolean}
+ */
+export function ValidateLength(buffer) {
+	return buffer.length === GetLength(buffer);
 }
 
 /**
  * Assigns length of bytes
- * @param buff
- * @returns {*}
+ * @param {Buffer} buffer
+ * @returns {Buffer}
  * @constructor
  */
-export function AssignLength(buff) {
-	var len = buff.length;
-	// l = len(p)
-	//   #p[2] = l % 256
-	//   #p[3] = l / 256
-	//   p[2:4] = pack('<H', l)
-	// arr.splice(2, 1, l.toString(16));
+export function AssignLength(buffer) {
+	const len = buffer.length;
 
-	buff[2] = len % 256;
-	buff[3] = len / 256;
+	buffer[2] = len % 256;
+	buffer[3] = len / 256;
 
-	//buff.write(len.toString(16), 2, 'hex');
-
-	return buff;
+	return buffer;
 }
 
+/**
+ * @param {Buffer} buffer
+ * @returns {Number}
+ */
+export function GetLength(buffer) {
+	return buffer.readUInt8(2);
+}
+
+/**
+ * Converts hex string as '\x03\x00\x00\x00' to js hex number
+ * @param {String} hexString
+ * @returns {String}
+ */
+export function AsHex(hexString) {
+	return Buffer.from(hexString).toString('hex');
+}
+
+/**
+ * Creates UInt32 length Buffer from number
+ * @param {Number} num
+ * @returns {Buffer}
+ */
 export function ByteArrayUInt32(num) {
-	var result = [];
-
-	result.push(num);
-	result.push(num >> 8);
-	result.push(num >> 16);
-	result.push(num >> 24);
-
-	return Buffer.from(result);
+	return Buffer.from([
+		num,
+		num >> 8,
+		num >> 16,
+		num >> 24
+	]);
 }
 
 /**
@@ -59,7 +80,6 @@ export function ByteArrayUInt32(num) {
  * @param {String} text
  * @param {Number} count
  * @returns {Buffer}
- * @constructor
  */
 export function BytesExtract(text, count) {
 	var bytes = text.split(' ').map(function (el) {
@@ -94,6 +114,3 @@ export function ByteHeader(buffer) {
 	var byteArray = buffer.toJSON();
 	return Number(byteArray.data[0]);
 }
-
-// <I 4 bytes
-// <H 2 bytes

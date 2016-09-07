@@ -50,22 +50,22 @@ export default class Map {
 	static FILTER_OBS_FULL = 1;
 	static FILTER_OBS_ONDEATH = 2;
 	static FILTER_OBS_NONE = 4;
-	static GAMETYPE_UNKNOWN0 = 1;
+	static TYPE_UNKNOWN0 = 1;
 	// always set except for saved games?
 	// AuthenticatedMakerBlizzard = 1 << 3
 	// OfficialMeleeGame = 1 << 5
-	static GAMETYPE_SAVEDGAME = 1 << 9;
-	static GAMETYPE_PRIVATEGAME = 1 << 11;
-	static GAMETYPE_MAKERUSER = 1 << 13;
-	static GAMETYPE_MAKERBLIZZARD = 1 << 14;
-	static GAMETYPE_TYPEMELEE = 1 << 15;
-	static GAMETYPE_TYPESCENARIO = 1 << 16;
-	static GAMETYPE_SIZESMALL = 1 << 17;
-	static GAMETYPE_SIZEMEDIUM = 1 << 18;
-	static GAMETYPE_SIZELARGE = 1 << 19;
-	static GAMETYPE_OBSFULL = 1 << 20;
-	static GAMETYPE_OBSONDEATH = 1 << 21;
-	static GAMETYPE_OBSNONE = 1 << 22;
+	static TYPE_SAVEDGAME = 1 << 9;
+	static TYPE_PRIVATEGAME = 1 << 11;
+	static TYPE_MAKERUSER = 1 << 13;
+	static TYPE_MAKERBLIZZARD = 1 << 14;
+	static TYPE_TYPEMELEE = 1 << 15;
+	static TYPE_TYPESCENARIO = 1 << 16;
+	static TYPE_SIZESMALL = 1 << 17;
+	static TYPE_SIZEMEDIUM = 1 << 18;
+	static TYPE_SIZELARGE = 1 << 19;
+	static TYPE_OBSFULL = 1 << 20;
+	static TYPE_OBSONDEATH = 1 << 21;
+	static TYPE_OBSNONE = 1 << 22;
 
 	constructor(path) {
 		this.gameFlags = 0;
@@ -84,7 +84,7 @@ export default class Map {
 		this.mapCRC = BytesExtract('108 250 204 59', 4);
 		this.mapSHA1 = BytesExtract('35 81 104 182 223 63 204 215 1 17 87 234 220 66 3 185 82 99 6 13', 20);
 
-		debug('Map', 'using hardcoded Emerald Gardens map data for Warcraft 3 version 1.24 & 1.24b');
+		info('using hardcoded Emerald Gardens map data for Warcraft 3 version 1.24 & 1.24b');
 
 		this.SPEED = Map.SPEED_FAST;
 		this.VISibility = Map.VIS_DEFAULT;
@@ -131,10 +131,10 @@ export default class Map {
 
 		this.valid = true;
 		this.mapPath = file.path;
-		this.mapSize = Array.isArray(file.size) ? new Buffer(file.size) : BytesExtract(file.size, 4);
-		this.mapInfo = Array.isArray(file.info) ? new Buffer(file.info) : BytesExtract(file.info, 4);
-		this.mapCRC = Array.isArray(file.crc) ? new Buffer(file.crc) : BytesExtract(file.crc, 4);
-		this.mapSHA1 = Array.isArray(file.sha1) ? new Buffer(file.sha1) : BytesExtract(file.sha1, 20);
+		this.mapSize = Array.isArray(file.size) ? Buffer.from(file.size) : BytesExtract(file.size, 4);
+		this.mapInfo = Array.isArray(file.info) ? Buffer.from(file.info) : BytesExtract(file.info, 4);
+		this.mapCRC = Array.isArray(file.crc) ? Buffer.from(file.crc) : BytesExtract(file.crc, 4);
+		this.mapSHA1 = Array.isArray(file.sha1) ? Buffer.from(file.sha1) : BytesExtract(file.sha1, 20);
 
 		debug('Map', 'using loaded', this.mapPath);
 

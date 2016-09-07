@@ -1,25 +1,35 @@
 import net from 'net';
 import dgram from 'dgram';
-import {debug, info} from './Logger';
 import Bytes from './Bytes';
 import AdminGame from './game/AdminGame';
 import Map from './game/Map';
 import Bot from './Bot';
 import BNet from './bnet/BNet';
 import GameProtocol from './game/GameProtocol';
+import {create} from './Logger';
+
+const {debug, info, error} = create('GProxy');
 
 export default class GProxy extends Bot {
+	static version = 'Public Alpha 1.0 (Tue Sep 06 2016)';
+
 	static run = (config) => {
-		return new GProxy(config);
+		const gproxy = new GProxy(config);
+
+		while (true) {
+			if (gproxy.update(4000)) {
+				break;
+			}
+		}
+
+		info('shutting down');
 	};
 
 	constructor(cfg) {
 		super(cfg);
 
-		this.version = 'Public Test Release 1.0 (March 11, 2010)';
-
 		this.localServer = net.createServer();
-		this.localSocket = null;
+		this.localSocket = net.createConnection();
 
 		this.remoteSocket = net.createConnection();
 		this.udpSocket = dgram.createSocket('udp4');
@@ -63,10 +73,12 @@ export default class GProxy extends Bot {
 		//this.BNET = new BNet(this.server, '', this.port);
 
 		this.localServer.listen(this.port);
+
+		this.BNet = new BNet(cfg);
 //
 // 	m_BNET = new CBNET( this, m_Server, string( ), 0, 0, m_CDKeyROC, m_CDKeyTFT, "USA", "United States", m_Username, m_Password, m_Channel, m_War3Version, nEXEVersion, nEXEVersionHash, nPasswordHashType, 200 );
 
-		info('GProxy', 'version', this.version);
+		info(`GProxy version ${this.version}`);
 	}
 
 	configure() {

@@ -1,6 +1,5 @@
 import path from 'path';
 import Config from './Config';
-import {debug} from './Logger';
 import dgram from 'dgram';
 
 export default class Bot {

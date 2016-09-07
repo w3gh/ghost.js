@@ -1,13 +1,28 @@
 import dgram from 'dgram';
-import log from './log';
-import Bytes from './Bytes';
+import net from 'net';
 import AdminGame from './game/AdminGame';
 import Map from './game/Map';
 import Bot from './Bot';
+import {create} from './Logger';
+
+const {debug, info, error} = create('GProxy');
 
 export default class GHost extends Bot {
 	static run = (config) => {
-		return new GHost(config);
+		const g = new GHost(config);
+
+		while (true) {
+
+			// block for 50ms on all sockets -
+			// if you intend to perform any timed actions more frequently you should change this
+			// that said it's likely we'll loop more often than this
+			// due to there being data waiting on one of the sockets but there aren't any guarantees
+			if (g.update(50)) {
+				break;
+			}
+		}
+
+		info('shutting down');
 	};
 
 	constructor(cfg) {
@@ -15,13 +30,54 @@ export default class GHost extends Bot {
 
 		this.currentGame = null;
 		this.exiting = false;
-		this.hostCounter = 1;
+		this.exitingNice = false;
 
+		this.hostCounter = 1;
 		this.lastUpdateTime = Date.now();
+		this.BNets = [];
+		this.games = [];
 
 		this.configure();
 		this.udpSocketSetup();
 		this.adminGameSetup();
+	}
+
+	update(msec) {
+
+		if (this.exitingNice) {
+			if (this.BNets.length) {
+				info('deleting all battle.net connections in preparation for exiting nicely');
+
+				this.BNets.forEach((bn) => bn.close());
+				this.BNets = [];
+			}
+
+			if (this.currentGame) {
+				info('deleting current game in preparation for exiting nicely');
+				this.currentGame.close();
+				this.currentGame = null;
+			}
+
+			if (this.adminGame) {
+				info('deleting admin game in preparation for exiting nicely');
+				this.adminGame.close();
+				this.adminGame = null;
+			}
+
+			if (!this.games.length) {
+				//@TODO handle games and child processes
+			}
+		}
+
+		this.lastUpdateTime = Date.now();
+
+		if (this.adminGame) {
+			if (this.adminGame.update()) {
+				info('deleting admin game');
+				delete this.adminGame;
+				this.adminExit = true;
+			}
+		}
 	}
 
 	udpSocketSetup() {
@@ -61,18 +117,6 @@ export default class GHost extends Bot {
 		this.adminGameMap = this.cfg.item('admingame.map', 'map');
 
 		this.LANWar3Version = this.cfg.item('lan.war3version', 26);
-	}
-
-	update() {
-		this.lastUpdateTime = Date.now();
-
-		if (this.adminGame) {
-			if (this.adminGame.update()) {
-				log('deleting admin game');
-				delete this.adminGame;
-				this.adminExit = true;
-			}
-		}
 	}
 
 	adminGameSetup() {

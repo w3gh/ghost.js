@@ -29,7 +29,7 @@ export function hex(buffer) {
 export function create(category) {
 	return {
 		info: (message, ...vars) => console.log([chalk.gray(isoDate()), chalk.green(category), chalk.blue('info'), message, ...vars].join(' ')),
-		debug: (message, ...vars) => debuglog([chalk.gray(isoDate()), chalk.green(category), chalk.yellow('debug'), message, ...vars].join(' ')),
+		debug: (message, ...vars) => console.log([chalk.gray(isoDate()), chalk.green(category), chalk.yellow('debug'), message, ...vars].join(' ')),
 		error: (message, ...vars) => console.log([chalk.gray(isoDate()), chalk.green(category), chalk.red('error'), message, ...vars].join(' '))
 	}
 }
