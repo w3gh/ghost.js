@@ -31,7 +31,7 @@ export default class GameSlot {
 		this.handicap = Number(Handicap);
 	}
 
-	toBytes() {
+	toBuffer() {
 		return ByteArray([
 			this.PID,
 			this.downloadStatus,

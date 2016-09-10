@@ -7,7 +7,7 @@ import {EventEmitter} from 'events';
 import GameProtocol from './GameProtocol';
 import GameMap from './Map';
 import GamePlayer from './GamePlayer';
-import {create} from '../Logger';
+import {create, hex} from '../Logger';
 
 const {debug, info, error} = create('BaseGame');
 
@@ -63,19 +63,19 @@ export default class BaseGame extends EventEmitter {
 
 		// check if the new player's name is empty or too long
 		if (!joinPlayer.name.length || joinPlayer.name.length > 15) {
-			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(GameProtocol.REJECTJOIN_FULL));
+			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
 		}
 
 		// check if the new player's name is the same as the virtual host name
 		if (joinPlayer.name === this.virtualHostName) {
-			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(GameProtocol.REJECTJOIN_FULL));
+			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
 			potentialPlayer.setDeleteMe(true);
 			return null;
 		}
 
 		// check if the new player's name is already taken
 		if (this.getPlayerFromName(joinPlayer.name, false)) {
-			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(GameProtocol.REJECTJOIN_FULL));
+			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
 			potentialPlayer.setDeleteMe(true);
 			return null;
 		}
@@ -90,7 +90,7 @@ export default class BaseGame extends EventEmitter {
 		var gameSlot = [255, 0, 0, 0, 0, 0, 0];
 
 		if (SID >= this.slots.length) {
-			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(GameProtocol.REJECTJOIN_FULL));
+			potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
 			potentialPlayer.setDeleteMe(true);
 			return null;
 		}
@@ -101,15 +101,15 @@ export default class BaseGame extends EventEmitter {
 
 		info('Game', this.gameName, ' player', joinPlayer.name, '|', potentialPlayer.getExternalIP(), 'joined the game');
 
-		var Player = new GamePlayer(
+		this.players.push(new GamePlayer(
 			potentialPlayer,
 			this.getNewPID(),
 			null,
 			joinPlayer.name,
 			joinPlayer.getInternalIP(),
-			Reserved);
+			Reserved
+		));
 
-		this.players.push(Player);
 		potentialPlayer.setDeleteMe(true);
 
 		/*
@@ -225,8 +225,8 @@ export default class BaseGame extends EventEmitter {
 			if (!this.countDownStarted) {
 				const buffer = this.protocol.SEND_W3GS_GAMEINFO(
 					this.ghost.tft,
-					this.ghost.LANWar3Version,
-					ByteArrayUInt32(GameMap.GAMETYPE_UNKNOWN0),
+					this.ghost.lanWar3Version,
+					ByteArrayUInt32(GameMap.TYPE_UNKNOWN0),
 					this.map.getGameFlags(),
 					this.map.getWidth(),
 					this.map.getHeight(),
@@ -235,8 +235,8 @@ export default class BaseGame extends EventEmitter {
 					Date.now() - this.creationTime,
 					this.map.getPath(),
 					this.map.getCRC(),
-					12,
-					12,
+					[12],
+					[12],
 					this.hostPort,
 					fixedHostCounter
 				);
@@ -244,7 +244,7 @@ export default class BaseGame extends EventEmitter {
 				socket.send(buffer, 0, buffer.length, 6112, 'localhost', (err, bytes) => {
 					if (err) throw err;
 
-					log('localhost', 6112, 'BaseGame bytes sent', bytes);
+					info('localhost', 6112, 'BaseGame bytes sent', bytes);
 				});
 			}
 

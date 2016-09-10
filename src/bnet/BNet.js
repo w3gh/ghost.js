@@ -3,6 +3,7 @@ import bp from 'bufferpack';
 import assert from 'assert';
 import path from 'path';
 import EventEmitter from 'events';
+import {getTicks, getTime} from './../util';
 import {ByteArray, GetLength} from './../Bytes';
 import BNetProtocol, {receivers} from './BNetProtocol';
 import CommandPacket from '../CommandPacket';
@@ -31,27 +32,26 @@ function createKeyInfo(key, clientToken, serverToken) {
 	return ByteArray(bytes);
 }
 
-const UPDATE_INTERVAL = 50; //50ms
-
-function getTime() {
-	return Math.floor(Date.now() / 1000);
-}
-
-function getTicks() {
-	return Date.now();
-}
-
 /**
- *
- * @param {String} server
- * @param {String} alias
- * @param {Number} port
+ * Class for connecting to
  * @param {Object} options
  * @constructor
  */
 class BNet extends EventEmitter {
-	constructor(config) {
+	constructor(config, TFT, hostPort, hostCounterID) {
 		super();
+
+		if (!config) {
+			info(`empty config for battle.net connection #${this.id}`);
+			return;
+		}
+
+		this.id = hostCounterID;
+		this.hostPort = hostPort;
+		this.tft = TFT;
+
+		this.socket = new net.Socket();
+		this.protocol = new BNetProtocol(this);
 
 		this.data = Buffer.from('');
 		this.incomingPackets = [];
@@ -65,33 +65,51 @@ class BNet extends EventEmitter {
 
 		this.server = config.item('server');
 		this.alias = config.item('alias');
-		this.port = config.item('port', 6112);
-		this.hostPort = config.item('hostPort', 6112);
 
-		this.war3version = config.item('war3version', '26');
-		this.TFT = config.item('tft', true);
+		this.bnlsServer = config.item('bnls.server', false);
+		this.bnlsPort = config.item('bnls.port', 9367);
+		this.bnlsWardenCookie = config.item('bnls.wardencookie', false);
+
+		this.commandTrigger = config.item('commandtrigger', '!');
+		assert(this.commandTrigger !== '', 'command trigger empty');
+
+		this.war3version = config.item('custom.war3version', '26');
+		this.exeVersion = config.item('custom.exeversion', false);
+		this.exeVersionHash = config.item('custom.exeversionhash', false);
+		this.passwordHashType = config.item('custom.passwordhashyype', '');
+		this.pvpgnRealmName = config.item('custom.pvpgnrealmName', 'PvPGN Realm');
+		this.maxMessageLength = config.item('custom.maxmessagelength', 200);
+
+		console.log('this.passwordHashType', this.passwordHashType);
+
 		this.localeID = config.item('localeid', '1033');
 		this.countryAbbrev = config.item('countryabbrev', 'USA');
 		this.country = config.item('country', 'United States');
+
 		this.war3exePath = path.resolve(config.item('war3exe', 'war3.exe'));
 		this.stormdllPath = path.resolve(config.item('stormdll', 'Storm.dll'));
 		this.gamedllPath = path.resolve(config.item('gamedll', 'game.dll'));
+
 		this.keyROC = config.item('keyroc', 'FFFFFFFFFFFFFFFFFFFFFFFFFF');
 		assert(this.keyROC !== '', 'ROC CD-Key empty');
 		this.keyTFT = config.item('keytft', 'FFFFFFFFFFFFFFFFFFFFFFFFFF');
 		assert(this.keyTFT !== '', 'TFT CD-Key empty');
+
 		this.username = config.item('username', '');
 		assert(this.username !== '', 'username empty');
 		this.password = config.item('password', '');
 		assert(this.password !== '', 'password empty');
-		this.firstChannel = config.item('firstChannel', 'The Void');
-		this.passwordHashType = config.item('passwordHashType', '');
-		this.rootAdmin = config.item('rootAdmin', false);
+
+		this.firstChannel = config.item('firstchannel', 'The Void');
+		this.rootAdmin = config.item('rootadmin', false);
+
+		info(`found battle.net connection #${this.id} for server ${this.server}`);
 
 		this.loggedIn = false;
 		this.inChat = false;
 
 		this.connected = false;
+		this.connecting = false;
 		this.exiting = false;
 
 		this.lastDisconnectedTime = 0;
@@ -100,6 +118,110 @@ class BNet extends EventEmitter {
 		this.lastOutPacketTicks = 0;
 		this.lastOutPacketSize = 0;
 		this.frequencyDelayTimes = 0;
+
+		this.firstConnect = true;
+
+		this.configureSocket();
+		this.configureHandlers();
+
+		// this.handlers = {
+		// 	[BNetProtocol.SID_PING.charCodeAt(0)]: this.HANDLE_SID_PING,
+		//
+		// 	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: this.HANDLE_SID_AUTH_INFO,
+		// 	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: this.HANDLE_SID_AUTH_CHECK,
+		// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
+		// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
+		// 	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: this.HANDLE_SID_REQUIREDWORK,
+		//
+		// 	[BNetProtocol.SID_NULL.charCodeAt(0)]: this.HANDLE_SID_NULL,
+		// 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: this.HANDLE_SID_ENTERCHAT,
+		// 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: this.HANDLE_SID_CHATEVENT,
+		// 	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: this.HANDLE_SID_CLANINFO,
+		// 	[BNetProtocol.SID_CLANMEMBERLIST.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERLIST,
+		// 	[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
+		// 	[BNetProtocol.SID_MESSAGEBOX.charCodeAt(0)]: this.HANDLE_SID_MESSAGEBOX,
+		//
+		// 	[BNetProtocol.SID_CLANINVITATION.charCodeAt(0)]: this.HANDLE_SID_CLANINVITATION,
+		// 	[BNetProtocol.SID_CLANMEMBERREMOVED.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERREMOVED,
+		// 	[BNetProtocol.SID_FRIENDSUPDATE.charCodeAt(0)]: this.HANDLE_SID_FRIENDSUPDATE,
+		// 	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: this.HANDLE_SID_FRIENDSLIST,
+		// 	[BNetProtocol.SID_FLOODDETECTED.charCodeAt(0)]: this.HANDLE_SID_FLOODDETECTED,
+		// 	[BNetProtocol.SID_FRIENDSADD.charCodeAt(0)]: this.HANDLE_SID_FRIENDSADD
+		// };
+	}
+
+	configureSocket() {
+		this.socket
+			.on('close', () => {
+				info('connection close');
+			})
+
+			.on('connect', () => {
+				this.connected = true;
+				this.connecting = true;
+			})
+
+			.on('data', (buffer) => {
+				hex(buffer);
+
+				this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
+
+				this.extractPackets();
+				this.processPackets();
+			})
+
+			.on('drain', (...args) => {
+				info('connection drain', ...args);
+			})
+
+			.on('end', () => {
+				info('connection end');
+			})
+
+			.on('error', (err) => {
+				info(`${this.alias} disconnected from battle.net due to socket error ${err}`);
+
+				this.lastDisconnectedTime = getTime();
+				this.loggedIn = false;
+				this.inChat = false;
+				this.waitingToConnect = true;
+			})
+
+			.on('lookup', () => {
+				info('connection lookup');
+			})
+
+			.on('timeout', () => {
+				info('connection timeout');
+			});
+	}
+
+	configureHandlers() {
+		this.handlers = {};
+
+		for (let type of [
+			'SID_PING',
+			'SID_AUTH_INFO',
+			'SID_AUTH_CHECK',
+			'SID_AUTH_ACCOUNTLOGON',
+			'SID_AUTH_ACCOUNTLOGONPROOF',
+			'SID_REQUIREDWORK',
+			'SID_NULL',
+			'SID_ENTERCHAT',
+			'SID_CHATEVENT',
+			'SID_CLANINFO',
+			'SID_CLANMEMBERLIST',
+			'SID_CLANMEMBERSTATUSCHANGE',
+			'SID_MESSAGEBOX',
+			'SID_CLANINVITATION',
+			'SID_CLANMEMBERREMOVED',
+			'SID_FRIENDSUPDATE',
+			'SID_FRIENDSLIST',
+			'SID_FLOODDETECTED',
+			'SID_FRIENDSADD'
+		]) {
+			this.handlers[this.protocol[type].charCodeAt(0)] = this[`HANDLE_${type}`];
+		}
 	}
 
 	/**
@@ -118,7 +240,7 @@ class BNet extends EventEmitter {
 		while (this.incomingBuffer.length >= 4) {
 			var buffer = this.incomingBuffer;
 
-			if (!BNetProtocol.haveHeader(buffer)) {
+			if (!this.protocol.haveHeader(buffer)) {
 				error('received invalid packet from battle.net (bad header constant), disconnecting');
 				this.socket.end();
 			}
@@ -133,7 +255,7 @@ class BNet extends EventEmitter {
 			if (buffer.length >= len) {
 				this.incomingPackets.push(
 					new CommandPacket(
-						BNetProtocol.BNET_HEADER_CONSTANT,
+						this.protocol.BNET_HEADER_CONSTANT,
 						buffer[1],
 						buffer.slice(0, len)
 					)
@@ -147,104 +269,45 @@ class BNet extends EventEmitter {
 	}
 
 	processPackets() {
-		var packet;
-		var receiver;
-		var handler;
-
 		while (this.incomingPackets.length) {
-			packet = this.incomingPackets.pop();
+			const packet = this.incomingPackets.pop();
 
-			if (packet.type === BNetProtocol.BNET_HEADER_CONSTANT) {
-				receiver = receivers[packet.id];
-				handler = handlers[packet.id];
+			if (packet.type === this.protocol.BNET_HEADER_CONSTANT) {
+				const receiver = this.protocol.receivers[packet.id];
+				const handler = this.handlers[packet.id];
 
 				(!handler) && error(`handler for packet '${packet.id}' not found`);
 				(!receiver) && error(`receiver for packet '${packet.id}' not found`);
 
-				handler && receiver && handler.call(this, receiver.call(this, packet.buffer));
+				handler && receiver && handler.call(this, receiver.call(this.protocol, packet.buffer));
 			}
 		}
 	}
 
-	onConnect = () => {
-		this.connected = true;
-		this.connecting = true;
-	};
-
-	onData = (buffer) => {
-		hex(buffer);
-
-		this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
-
-		this.extractPackets();
-		this.processPackets();
-	};
-
-	onClose = () => {
-		info('connection close');
-	};
-
-	onEnd = () => {
-		info('connection end');
-	};
-
-	onError = (err) => {
-		error('connection error ' + err);
-		this.exiting = true;
-	};
-
-	onDrain = (...args) => {
-		info('connection drain', ...args);
-	};
-
-	onLookup = () => {
-		info('connection lookup');
-	};
-
-	onTimeout = () => {
-		info('connection timeout');
-	};
-
-	run(options) {
-		info('connection start');
-		this.socket = net.createConnection(this.port, this.server);
-
-		this.socket.on('close', this.onClose);
-		this.socket.on('connect', this.onConnect);
-		this.socket.on('data', this.onData);
-		this.socket.on('drain', this.onDrain);
-		this.socket.on('end', this.onEnd);
-		this.socket.on('error', this.onError);
-		this.socket.on('lookup', this.onLookup);
-		this.socket.on('timeout', this.onTimeout);
-		//this.socket.connect(this.port, this.server);
-
-		this.start();
-	}
-
-	start() {
-		this.intervalID = setInterval(() => {
-			if (this.update()) {
-				this.socket.end();
-				process.exit(0);
-				clearInterval(this.intervalID);
-			}
-		}, UPDATE_INTERVAL);
-
-		process.on('SIGTERM', function () {
-			info('process exiting');
-			this.exiting = true;
-		});
-	}
+	//
+	// start() {
+	// 	this.intervalID = setInterval(() => {
+	// 		if (this.update()) {
+	// 			this.socket.end();
+	// 			process.exit(0);
+	// 			clearInterval(this.intervalID);
+	// 		}
+	// 	}, UPDATE_INTERVAL);
+	//
+	// 	process.on('SIGTERM', function () {
+	// 		info('process exiting');
+	// 		this.exiting = true;
+	// 	});
+	// }
 
 	update() {
 		if (this.connecting) {
 			info('connected', this.alias, this.server, this.port);
 			this.sendPackets([
-				BNetProtocol.SEND_PROTOCOL_INITIALIZE_SELECTOR(),
-				BNetProtocol.SEND_SID_AUTH_INFO(
+				this.protocol.SEND_PROTOCOL_INITIALIZE_SELECTOR(),
+				this.protocol.SEND_SID_AUTH_INFO(
 					this.war3version,
-					this.TFT,
+					this.tft,
 					this.localeID,
 					this.countryAbbrev,
 					this.country
@@ -259,31 +322,42 @@ class BNet extends EventEmitter {
 
 		if (this.connected) {
 			// the connection attempt completed
-
 			if (getTime() - this.lastNullTime >= 60) {
-				this.sendPackets(BNetProtocol.SEND_SID_NULL());
+				this.sendPackets(this.protocol.SEND_SID_NULL());
 				this.lastNullTime = getTime();
 			}
+		}
+
+		if (!this.connecting && !this.connected && this.firstConnect) {
+			info(`${this.alias} connecting to server ${this.server} on port 6112`);
+
+			this.firstConnect = false;
+
+			this.socket.connect(6112, this.server);
 		}
 
 		return this.exiting;
 	}
 
+	close() {
+		this.socket.end();
+	}
+
 	sendJoinChannel(channel) {
 		if (this.loggedIn && this.inChat) {
-			this.sendPackets(BNetProtocol.SEND_SID_JOINCHANNEL(channel));
+			this.sendPackets(this.protocol.SEND_SID_JOINCHANNEL(channel));
 		}
 	}
 
 	sendGetFriendsList() {
 		if (this.loggedIn) {
-			this.sendPackets(BNetProtocol.SEND_SID_FRIENDSLIST());
+			this.sendPackets(this.protocol.SEND_SID_FRIENDSLIST());
 		}
 	}
 
 	sendGetClanList() {
 		if (this.loggedIn) {
-			this.sendPackets(BNetProtocol.SEND_SID_CLANMEMBERLIST());
+			this.sendPackets(this.protocol.SEND_SID_CLANMEMBERLIST());
 		}
 	}
 
@@ -334,12 +408,12 @@ class BNet extends EventEmitter {
 		return this.rootAdmin === user;
 	}
 
-	static HANDLE_SID_PING(d) {
+	HANDLE_SID_PING(d) {
 		debug('HANDLE_SID_PING', d);
-		this.sendPackets(BNetProtocol.SEND_SID_PING(d));
+		this.sendPackets(this.protocol.SEND_SID_PING(d));
 	}
 
-	static HANDLE_SID_AUTH_INFO(d) {
+	HANDLE_SID_AUTH_INFO(d) {
 		debug('HANDLE_SID_AUTH_INFO', d);
 
 		const exe = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
@@ -376,8 +450,8 @@ class BNet extends EventEmitter {
 			info('attempting to auth as Warcraft III: Reign of Chaos');
 		}
 
-		this.sendPackets(BNetProtocol.SEND_SID_AUTH_CHECK(
-			this.TFT,
+		this.sendPackets(this.protocol.SEND_SID_AUTH_CHECK(
+			this.tft,
 			this.clientToken,
 			exeVersion,
 			bp.pack('<I', exeVersionHash),
@@ -388,16 +462,16 @@ class BNet extends EventEmitter {
 		));
 	}
 
-	static HANDLE_SID_AUTH_CHECK(d) {
+	HANDLE_SID_AUTH_CHECK(d) {
 		debug('HANDLE_SID_AUTH_CHECK', d);
 
-		if (d.keyState.toString() !== BNetProtocol.KR_GOOD.toString()) {
+		if (d.keyState.toString() !== this.protocol.KR_GOOD.toString()) {
 			error('CD Key or version problem. See above');
 		} else {
 			let clientPublicKey;
 
 			if (!this.nls) {
-				this.nls = BNCSUtil.nls_init(this.username, this.password)
+				this.nls = BNCSUtil.nls_init(this.username, this.password);
 			}
 
 			clientPublicKey = BNCSUtil.nls_get_A(this.nls);
@@ -406,19 +480,19 @@ class BNet extends EventEmitter {
 				this.nls = BNCSUtil.nls_init(this.username, this.password);
 				clientPublicKey = BNCSUtil.nls_get_A(this.nls);
 
-				assert(clientPublicKey.length === 32, 'client public key wrong length')
+				assert(clientPublicKey.length === 32, 'client public key wrong length');
 			}
 
-			this.sendPackets(BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
+			this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
 		}
 	}
 
-	static HANDLE_SID_REQUIREDWORK() {
+	HANDLE_SID_REQUIREDWORK() {
 		debug('HANDLE_SID_REQUIREDWORK');
 		return;
 	}
 
-	static HANDLE_SID_AUTH_ACCOUNTLOGON(d) {
+	HANDLE_SID_AUTH_ACCOUNTLOGON(d) {
 		debug('HANDLE_SID_AUTH_ACCOUNTLOGON');
 		var buff;
 
@@ -427,14 +501,14 @@ class BNet extends EventEmitter {
 		if (this.passwordHashType === 'pvpgn') {
 			info('using pvpgn logon type (for pvpgn servers only)');
 
-			buff = BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
+			buff = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
 				BNCSUtil.hashPassword(this.password)
 			);
 
 		} else {
 			info('using battle.net logon type (for official battle.net servers only)');
 
-			buff = BNetProtocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
+			buff = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
 				BNCSUtil.nls_get_M1(this.nls, d.serverPublicKey, d.salt)
 			);
 		}
@@ -442,7 +516,7 @@ class BNet extends EventEmitter {
 		this.sendPackets(buff);
 	}
 
-	static HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(d) {
+	HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(d) {
 		debug('HANDLE_SID_AUTH_ACCOUNTLOGONPROOF');
 
 		if (!d) {
@@ -457,26 +531,14 @@ class BNet extends EventEmitter {
 		info(`[${this.alias}] logon successful`);
 
 		this.sendPackets([
-			BNetProtocol.SEND_SID_NETGAMEPORT(this.hostPort),
-			BNetProtocol.SEND_SID_ENTERCHAT(),
-			BNetProtocol.SEND_SID_FRIENDSLIST(),
-			BNetProtocol.SEND_SID_CLANMEMBERLIST()
+			this.protocol.SEND_SID_NETGAMEPORT(this.hostPort),
+			this.protocol.SEND_SID_ENTERCHAT(),
+			this.protocol.SEND_SID_FRIENDSLIST(),
+			this.protocol.SEND_SID_CLANMEMBERLIST()
 		]);
-
-		// hook.call_wait('before-handle_sid_accountlogonproof', self, d)
-		// if not d:
-		//     atomic_debug('Logon proof rejected.')
-		//     self.socket.close()
-		//     return
-		// hook.call_wait('before-handle_sid_accountlogonproof', self, d)
-		// #p = bnetprotocol.SEND_SID_NETGAMEPORT(self.hostPort)
-		// #self.send_packet(p)
-		// p = bnetprotocol.SEND_SID_ENTERCHAT()
-		// self.send_packet(p)
-		// hook.call_nowait('after-handle_sid_accountlogonproof', self, d)
 	}
 
-	static HANDLE_SID_NULL() {
+	HANDLE_SID_NULL() {
 		debug('HANDLE_SID_NULL');
 		// warning: we do not respond to NULL packets with a NULL packet of our own
 		// this is because PVPGN servers are programmed to respond to NULL packets so it will create a vicious cycle of useless traffic
@@ -484,11 +546,11 @@ class BNet extends EventEmitter {
 		return;
 	}
 
-	static HANDLE_SID_ENTERCHAT(d) {
+	HANDLE_SID_ENTERCHAT(d) {
 		debug('HANDLE_SID_ENTERCHAT');
 
 		if ('#' === d.toString()[0]) {
-			debug('Warning: Account already logged in.')
+			debug('Warning: Account already logged in.');
 		}
 
 		info(`joining channel [${this.firstChannel}]`);
@@ -496,61 +558,61 @@ class BNet extends EventEmitter {
 		this.inChat = true;
 
 		this.emit('SID_ENTERCHAT', this, d);
-		this.sendPackets(BNetProtocol.SEND_SID_JOINCHANNEL(this.firstChannel));
+		this.sendPackets(this.protocol.SEND_SID_JOINCHANNEL(this.firstChannel));
 	}
 
-	static HANDLE_SID_CHATEVENT(d) {
+	HANDLE_SID_CHATEVENT(d) {
 		debug('HANDLE_SID_CHATEVENT');
 
 		this.emit('SID_CHATEVENT', this, d);
 	}
 
-	static HANDLE_SID_CLANINFO() {
+	HANDLE_SID_CLANINFO() {
 		debug('HANDLE_SID_CLANINFO');
 	}
 
-	static HANDLE_SID_CLANMEMBERLIST() {
+	HANDLE_SID_CLANMEMBERLIST() {
 		debug('HANDLE_SID_CLANMEMBERLIST');
 	}
 
-	static HANDLE_SID_CLANMEMBERSTATUSCHANGE() {
+	HANDLE_SID_CLANMEMBERSTATUSCHANGE() {
 		debug('HANDLE_SID_CLANMEMBERSTATUSCHANGE');
 	}
 
-	static HANDLE_SID_MESSAGEBOX(d) {
+	HANDLE_SID_MESSAGEBOX(d) {
 		debug('HANDLE_SID_MESSAGEBOX');
 	}
 
-	static HANDLE_SID_FRIENDSLIST(friends) {
+	HANDLE_SID_FRIENDSLIST(friends) {
 		debug('HANDLE_SID_FRIENDSLIST');
 
-		this.emit('SID_FRIENDSLIST', this, friends)
+		this.emit('SID_FRIENDSLIST', this, friends);
 	}
 }
 
-export const handlers = {
-	[BNetProtocol.SID_PING.charCodeAt(0)]: BNet.HANDLE_SID_PING,
-
-	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_INFO,
-	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_CHECK,
-	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_ACCOUNTLOGON,
-	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: BNet.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
-	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: BNet.HANDLE_SID_REQUIREDWORK,
-
-	[BNetProtocol.SID_NULL.charCodeAt(0)]: BNet.HANDLE_SID_NULL,
-	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: BNet.HANDLE_SID_ENTERCHAT,
-	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: BNet.HANDLE_SID_CHATEVENT,
-	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: BNet.HANDLE_SID_CLANINFO,
-	[BNetProtocol.SID_CLANMEMBERLIST.charCodeAt(0)]: BNet.HANDLE_SID_CLANMEMBERLIST,
-	[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE.charCodeAt(0)]: BNet.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
-	[BNetProtocol.SID_MESSAGEBOX.charCodeAt(0)]: BNet.HANDLE_SID_MESSAGEBOX,
-
-	[BNetProtocol.SID_CLANINVITATION.charCodeAt(0)]: BNet.HANDLE_SID_CLANINVITATION,
-	[BNetProtocol.SID_CLANMEMBERREMOVED.charCodeAt(0)]: BNet.HANDLE_SID_CLANMEMBERREMOVED,
-	[BNetProtocol.SID_FRIENDSUPDATE.charCodeAt(0)]: BNet.HANDLE_SID_FRIENDSUPDATE,
-	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: BNet.HANDLE_SID_FRIENDSLIST,
-	[BNetProtocol.SID_FLOODDETECTED.charCodeAt(0)]: BNet.HANDLE_SID_FLOODDETECTED,
-	[BNetProtocol.SID_FRIENDSADD.charCodeAt(0)]: BNet.HANDLE_SID_FRIENDSADD
-};
+// export const handlers = {
+// 	[BNetProtocol.SID_PING.charCodeAt(0)]: this.HANDLE_SID_PING,
+//
+// 	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: this.HANDLE_SID_AUTH_INFO,
+// 	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: this.HANDLE_SID_AUTH_CHECK,
+// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
+// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
+// 	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: this.HANDLE_SID_REQUIREDWORK,
+//
+// 	[BNetProtocol.SID_NULL.charCodeAt(0)]: this.HANDLE_SID_NULL,
+// 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: this.HANDLE_SID_ENTERCHAT,
+// 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: this.HANDLE_SID_CHATEVENT,
+// 	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: this.HANDLE_SID_CLANINFO,
+// 	[BNetProtocol.SID_CLANMEMBERLIST.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERLIST,
+// 	[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
+// 	[BNetProtocol.SID_MESSAGEBOX.charCodeAt(0)]: this.HANDLE_SID_MESSAGEBOX,
+//
+// 	[BNetProtocol.SID_CLANINVITATION.charCodeAt(0)]: this.HANDLE_SID_CLANINVITATION,
+// 	[BNetProtocol.SID_CLANMEMBERREMOVED.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERREMOVED,
+// 	[BNetProtocol.SID_FRIENDSUPDATE.charCodeAt(0)]: this.HANDLE_SID_FRIENDSUPDATE,
+// 	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: this.HANDLE_SID_FRIENDSLIST,
+// 	[BNetProtocol.SID_FLOODDETECTED.charCodeAt(0)]: this.HANDLE_SID_FLOODDETECTED,
+// 	[BNetProtocol.SID_FRIENDSADD.charCodeAt(0)]: this.HANDLE_SID_FRIENDSADD
+// };
 
 export default BNet;

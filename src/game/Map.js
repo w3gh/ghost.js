@@ -6,7 +6,8 @@ var bp = require('bufferpack');
 var fs = require('fs');
 var path = require('path');
 
-import {debug, info} from '../Logger';
+import {create} from '../Logger';
+const {debug, info, error} = create('Map');
 import {BytesExtract} from '../Bytes';
 import GameSlot from './GameSlot';
 

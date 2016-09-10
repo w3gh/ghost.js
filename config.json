@@ -1,13 +1,49 @@
 {
-  "server": "server.pvpgn.pro",
-  "alias": "pvpgn.pro",
-  "passwordHashType": "pvpgn",
-  "username": "jilizart",
-  "password": "jilizart",
-  "firstChannel": "w3",
-  "war3version": "26",
-  "localeid": 1033,
-  "war3exe": "./war3/1.26a/war3.exe",
-  "stormdll": "./war3/1.26a/Storm.dll",
-  "gamedll": "./war3/1.26a/game.dll"
+  "bnet": [
+    {
+      "server": "server.pvpgn.pro",
+      "alias": "pvpgn.pro",
+      "username": "jilizart",
+      "password": "jilizart",
+      "firstchannel": "w3",
+      "custom": {
+        "war3version": "26",
+        "passwordhashyype": "pvpgn"
+      },
+      "localeid": 1033,
+      "war3exe": "./war3/1.26a/war3.exe",
+      "stormdll": "./war3/1.26a/Storm.dll",
+      "gamedll": "./war3/1.26a/game.dll"
+    },
+    {
+      "server": "server.pvpgn.pro",
+      "alias": "pvpgn.pro",
+      "username": "jilizart3",
+      "password": "jilizart3",
+      "firstchannel": "w3",
+      "custom": {
+        "war3version": "26",
+        "passwordhashyype": "pvpgn"
+      },
+      "localeid": 1033,
+      "war3exe": "./war3/1.26a/war3.exe",
+      "stormdll": "./war3/1.26a/Storm.dll",
+      "gamedll": "./war3/1.26a/game.dll"
+    }
+  ],
+
+  "bot": {
+    "hostport": 6112,
+    "defaultmap": "map",
+    "mapcfgpath": "./maps"
+  },
+
+  "admingame": {
+    "create": true,
+    "port": 6114
+  },
+
+  "lan": {
+    "war3version": "27"
+  }
 }

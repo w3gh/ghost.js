@@ -1,35 +1,21 @@
 import dgram from 'dgram';
 import net from 'net';
+import path from 'path';
+
+import {getTicks, getTime} from './util';
+import BNet from './bnet/BNet';
 import AdminGame from './game/AdminGame';
 import Map from './game/Map';
 import Bot from './Bot';
 import {create} from './Logger';
 
-const {debug, info, error} = create('GProxy');
+const {debug, info, error} = create('GHost');
 
 export default class GHost extends Bot {
-	static run = (config) => {
-		const g = new GHost(config);
-
-		while (true) {
-
-			// block for 50ms on all sockets -
-			// if you intend to perform any timed actions more frequently you should change this
-			// that said it's likely we'll loop more often than this
-			// due to there being data waiting on one of the sockets but there aren't any guarantees
-			if (g.update(50)) {
-				break;
-			}
-		}
-
-		info('shutting down');
-	};
-
 	constructor(cfg) {
 		super(cfg);
 
 		this.currentGame = null;
-		this.exiting = false;
 		this.exitingNice = false;
 
 		this.hostCounter = 1;
@@ -38,11 +24,15 @@ export default class GHost extends Bot {
 		this.games = [];
 
 		this.configure();
+		this.configureBNet();
 		this.udpSocketSetup();
 		this.adminGameSetup();
+
+		this.on('update', this.onUpdate)
 	}
 
-	update(msec) {
+	onUpdate = () => {
+		this.lastUpdateTime = getTime();
 
 		if (this.exitingNice) {
 			if (this.BNets.length) {
@@ -69,7 +59,13 @@ export default class GHost extends Bot {
 			}
 		}
 
-		this.lastUpdateTime = Date.now();
+		if (this.BNets.length) {
+			for (let bnet of this.BNets) {
+				if (bnet.update()) {
+					this.bnetExit = true;
+				}
+			}
+		}
 
 		if (this.adminGame) {
 			if (this.adminGame.update()) {
@@ -78,7 +74,11 @@ export default class GHost extends Bot {
 				this.adminExit = true;
 			}
 		}
-	}
+	};
+
+	getMapPath(filename) {
+		return path.resolve(path.join(this.mapCfgPath, `${filename}.json`))
+	};
 
 	udpSocketSetup() {
 		this.udpSocket = dgram.createSocket('udp4');
@@ -86,7 +86,7 @@ export default class GHost extends Bot {
 		this.udpSocket.on('message', this.onMessage);
 		this.udpSocket.on('error', this.onError);
 		this.udpSocket.on('close', this.onClose);
-		this.udpSocket.bind();
+		//this.udpSocket.bind();
 	}
 
 	onMessage = (...args) => {
@@ -106,17 +106,36 @@ export default class GHost extends Bot {
 	};
 
 	configure() {
-		this.tft = this.cfg.item('tft', 1);
-		this.hostPort = this.cfg.item('bot.hostport', 6112);
-		this.defaultMap = this.cfg.item('bot.defaultmap', 'map');
-		this.mapCfgPath = this.cfg.item('bot.mapcfgpath', './maps');
+		const config = this.cfg;
 
-		this.adminGameCreate = this.cfg.item('admingame.create', 1);
-		this.adminGamePort = this.cfg.item('admingame.create', 6114);
+		this.tft = config.item('tft', 1);
+		this.hostPort = config.item('bot.hostport', 6112);
+		this.defaultMap = config.item('bot.defaultmap', 'map');
+		this.mapCfgPath = config.item('bot.mapcfgpath', './maps');
+
+		this.adminGameCreate = this.cfg.item('admingame.create', false);
+		this.adminGamePort = this.cfg.item('admingame.port', 6114);
 		this.adminGamePassword = this.cfg.item('admingame.password', '');
 		this.adminGameMap = this.cfg.item('admingame.map', 'map');
 
-		this.LANWar3Version = this.cfg.item('lan.war3version', 26);
+		this.lanWar3Version = this.cfg.item('lan.war3version', "26");
+	}
+
+	configureBNet() {
+		const config = this.cfg;
+
+		for (let i = 0; i < 32; ++i) {
+			const prefix = `bnet.${i}`;
+			const prefixConfig = config.slice(prefix);
+
+			if (prefixConfig) {
+				this.BNets.push(new BNet(prefixConfig, this.tft, this.hostPort, i));
+			}
+		}
+
+		if (this.BNets.length == 0) {
+			info('warning - no battle.net connections found in config file')
+		}
 	}
 
 	adminGameSetup() {

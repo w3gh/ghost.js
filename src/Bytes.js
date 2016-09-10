@@ -3,8 +3,6 @@
 // <I 4 bytes
 // <H 2 bytes
 
-import bp from 'bufferpack';
-
 /**
  *
  * @param {Array} bytes
@@ -13,10 +11,25 @@ import bp from 'bufferpack';
 export function ByteArray(bytes) {
 	return Buffer.concat(bytes
 		.filter((el) => el !== false) //filter falsy elements by excluding it
-		.map((el) => (
-			//if Buffer just return, if Array, create Buffer and return, else just create Buffer
-			Buffer.isBuffer(el) ? el : (Array.isArray(el) ? Buffer.from(el) : Buffer.from(el, 'binary'))
-		))
+		.map((el) => {
+			if (Buffer.isBuffer(el)) {
+				return el;
+			}
+
+			if (Number.isInteger(el)) {
+				return Buffer.from([el]);
+			}
+
+			if (Array.isArray(el)) {
+				return Buffer.from(el);
+			}
+
+			if (typeof el === 'string') {
+				return Buffer.from(el, 'binary');
+			}
+
+			console.error('ByteArray does not expect element as', el);
+		})
 	);
 }
 

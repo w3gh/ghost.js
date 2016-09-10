@@ -5,11 +5,14 @@ import hex from 'hex';
 import net from 'net';
 import _ from 'lodash';
 import bp from 'bufferpack';
-import log from './../log';
 import { ByteHeader } from './../Bytes';
 import GameProtocol from './GameProtocol';
 import CommandPacket from '../CommandPacket';
 import Protocol from '../Protocol';
+
+import {create} from '../Logger';
+
+const {debug, info, error} = create('GamePlayer');
 
 /**
  * Potential connecting player
@@ -51,15 +54,15 @@ export class PotentialPlayer extends Protocol {
 	}
 
 	onLookup() {
-		log('PotentialPlayer lookup', arguments);
+		info('PotentialPlayer lookup', arguments);
 	}
 
 	onConnect() {
-		log('PotentialPlayer connect', arguments);
+		info('PotentialPlayer connect', arguments);
 	}
 
 	onData(buffer) {
-		log('PotentialPlayer data');
+		info('PotentialPlayer data');
 		hex(buffer);
 
 		this.extractPackets(buffer);
@@ -67,23 +70,23 @@ export class PotentialPlayer extends Protocol {
 	}
 
 	onEnd() {
-		log('PotentialPlayer end');
+		info('PotentialPlayer end');
 	}
 
 	onTimeout() {
-		log('PotentialPlayer timeout', arguments);
+		info('PotentialPlayer timeout', arguments);
 	}
 
 	onDrain() {
-		log('PotentialPlayer drain', arguments);
+		info('PotentialPlayer drain', arguments);
 	}
 
 	onError() {
-		log('PotentialPlayer error', arguments);
+		info('PotentialPlayer error', arguments);
 	}
 
 	onClose() {
-		log('PotentialPlayer close', arguments);
+		info('PotentialPlayer close', arguments);
 	}
 
 	setDeleteMe(value) {
@@ -102,12 +105,12 @@ export class PotentialPlayer extends Protocol {
 		var len = this.getLength(buffer);
 
 		if (ByteHeader(buffer) !== GameProtocol.W3GS_HEADER_CONSTANT) {
-			log('error - received invalid packet from player (bad header constant)');
+			info('error - received invalid packet from player (bad header constant)');
 			this.socket.end();
 		}
 
 		if (len < 4) {
-			log('error - received invalid packet from player (bad length)');
+			info('error - received invalid packet from player (bad length)');
 			this.socket.end();
 		}
 
