@@ -1,28 +1,12 @@
 import bp from 'bufferpack';
-import hex from 'hex';
 import assert from 'assert';
-import {ValidateLength, AsHex} from './../Bytes';
+import {ValidateLength} from './../Bytes';
 import Protocol from './../Protocol';
-import BNetBuffer from './BNetBuffer';
 import Friend from './Friend';
-import chalk from 'chalk';
 
 import {create} from '../Logger';
 
 const {debug, info, error} = create('BNetProtocol');
-
-function printChat(id, username, message) {
-	switch (id) {
-		case 'ERROR':
-			console.log(chalk.red(message));
-			break;
-		case 'INFO':
-			console.log(chalk.blue(message));
-			break;
-		default:
-			console.log(`[${username}] ${message}`);
-	}
-}
 
 class BNetProtocol extends Protocol {
 
@@ -64,21 +48,37 @@ class BNetProtocol extends Protocol {
 	NULL_3 = '\x00\x00\x00';
 	NULL_4 = '\x00\x00\x00\x00';
 
-	EID_SHOWUSER = '\x01\x00\x00\x00';
-	EID_JOIN = '\x02\x00\x00\x00';
-	EID_LEAVE = '\x03\x00\x00\x00';
-	EID_WHISPER = '\x04\x00\x00\x00';
-	EID_TALK = '\x05\x00\x00\x00';
-	EID_BROADCAST = '\x06\x00\x00\x00';
-	EID_CHANNEL = '\x07\x00\x00\x00';
-	EID_USERFLAGS = '\x09\x00\x00\x00';
-	EID_WHISPERSENT = '\x0a\x00\x00\x00';
-	EID_CHANNELFULL = '\x0d\x00\x00\x00';
-	EID_CHANNELDOESNOTEXIST = '\x0e\x00\x00\x00';
-	EID_CHANNELRESTRICTED = '\x0f\x00\x00\x00';
-	EID_INFO = '\x12\x00\x00\x00';
-	EID_ERROR = '\x13\x00\x00\x00';
-	EID_EMOTE = '\x17\x00\x00\x00';
+	// EID_SHOWUSER = '\x01\x00\x00\x00';
+	// EID_JOIN = '\x02\x00\x00\x00';
+	// EID_LEAVE = '\x03\x00\x00\x00';
+	// EID_WHISPER = '\x04\x00\x00\x00';
+	// EID_TALK = '\x05\x00\x00\x00';
+	// EID_BROADCAST = '\x06\x00\x00\x00';
+	// EID_CHANNEL = '\x07\x00\x00\x00';
+	// EID_USERFLAGS = '\x09\x00\x00\x00';
+	// EID_WHISPERSENT = '\x0a\x00\x00\x00';
+	// EID_CHANNELFULL = '\x0d\x00\x00\x00';
+	// EID_CHANNELDOESNOTEXIST = '\x0e\x00\x00\x00';
+	// EID_CHANNELRESTRICTED = '\x0f\x00\x00\x00';
+	// EID_INFO = '\x12\x00\x00\x00';
+	// EID_ERROR = '\x13\x00\x00\x00';
+	// EID_EMOTE = '\x17\x00\x00\x00';
+
+	EID_SHOWUSER = 1;	// received when you join a channel (includes users in the channel and their information)
+	EID_JOIN = 2;	// received when someone joins the channel you're currently in
+	EID_LEAVE = 3;	// received when someone leaves the channel you're currently in
+	EID_WHISPER = 4;	// received a whisper message
+	EID_TALK = 5;	// received when someone talks in the channel you're currently in
+	EID_BROADCAST = 6;	// server broadcast
+	EID_CHANNEL = 7;	// received when you join a channel (includes the channel's name, flags)
+	EID_USERFLAGS = 9;	// user flags updates
+	EID_WHISPERSENT = 10;	// sent a whisper message
+	EID_CHANNELFULL = 13;	// channel is full
+	EID_CHANNELDOESNOTEXIST = 14;	// channel does not exist
+	EID_CHANNELRESTRICTED = 15;	// channel is restricted
+	EID_INFO = 18;	// broadcast/information message
+	EID_ERROR = 19;	// error message
+	EID_EMOTE = 23;	// emote
 
 	CLANRANK_INITIATE = 0;
 	CLANRANK_PEON = 1;
@@ -108,7 +108,6 @@ class BNetProtocol extends Protocol {
 	configureReceivers() {
 		this.receivers = {};
 
-
 		for (let type of [
 			'SID_PING',
 			'SID_AUTH_INFO',
@@ -132,32 +131,6 @@ class BNetProtocol extends Protocol {
 		]) {
 			this.receivers[this[type].charCodeAt(0)] = this[`RECEIVE_${type}`];
 		}
-
-		// export const receivers = {
-		// 	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_AUTH_INFO,
-		// 	[BNetProtocol.SID_PING.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_PING,
-		// 	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_AUTH_CHECK,
-		// 	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_REQUIREDWORK,
-		// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_AUTH_ACCOUNTLOGON,
-		// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF,
-		// 	[BNetProtocol.SID_NULL.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_NULL,
-		// 	[BNetProtocol.SID_NETGAMEPORT.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_NETGAMEPORT,
-		// 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_ENTERCHAT,
-		// 	[BNetProtocol.SID_JOINCHANNEL.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_JOINCHANNEL,
-		// 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CHATEVENT,
-		// 	[BNetProtocol.SID_CHATCOMMAND.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CHATCOMMAND,
-		// 	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CLANINFO,
-		// 	[BNetProtocol.SID_CLANMEMBERLIST.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CLANMEMBERLIST,
-		// 	[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CLANMEMBERSTATUSCHANGE,
-		// 	[BNetProtocol.SID_MESSAGEBOX.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_MESSAGEBOX,
-		// 	[BNetProtocol.SID_CLANINVITATION.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CLANINVITATION,
-		// 	[BNetProtocol.SID_CLANMEMBERREMOVED.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_CLANMEMBERREMOVED,
-		// 	[BNetProtocol.SID_FRIENDSUPDATE.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_FRIENDSUPDATE,
-		// 	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_FRIENDSLIST,
-		// 	[BNetProtocol.SID_FLOODDETECTED.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_FLOODDETECTED,
-		// 	[BNetProtocol.SID_FRIENDSADD.charCodeAt(0)]: BNetProtocol.RECEIVE_SID_FRIENDSADD,
-		// };
-
 	}
 
 	/**
@@ -289,6 +262,26 @@ class BNetProtocol extends Protocol {
 		);
 	}
 
+	SEND_SID_JOINCHANNEL(channel) {
+		const noCreateJoin = '\x02\x00\x00\x00';
+		const firstJoin = '\x01\x00\x00\x00';
+
+		return this.asPacket(
+			this.SID_JOINCHANNEL,
+			channel.length > 0 ? noCreateJoin : firstJoin,
+			channel,
+			this.NULL
+		);
+	}
+
+	SEND_SID_CHATCOMMAND(command) {
+		return this.asPacket(
+			this.SID_CHATCOMMAND,
+			String(command),
+			this.NULL
+		);
+	}
+
 	SEND_SID_FRIENDSLIST() {
 		return this.asPacket(
 			this.SID_FRIENDSLIST
@@ -301,18 +294,6 @@ class BNetProtocol extends Protocol {
 		return this.asPacket(
 			this.SID_CLANMEMBERLIST,
 			cookie
-		);
-	}
-
-	SEND_SID_JOINCHANNEL(channel) {
-		const noCreateJoin = '\x02\x00\x00\x00';
-		const firstJoin = '\x01\x00\x00\x00';
-
-		return this.asPacket(
-			this.SID_JOINCHANNEL,
-			channel.length > 0 ? noCreateJoin : firstJoin,
-			channel,
-			this.NULL
 		);
 	}
 
@@ -478,62 +459,12 @@ class BNetProtocol extends Protocol {
 		// null terminated string	-> User
 		// null terminated string	-> Message
 
-		const event = buff.slice(4, 8);
+		const id = buff.readInt32LE(4); //buff.slice(4, 8)
 		const ping = buff.readInt32LE(12); //bp.unpack('<I', buff.slice(12, 16)).join('');
 		const user = buff.slice(28).toString().split(this.NULL, 1)[0];
 		const message = buff.slice(29 + user.length).toString().split(this.NULL, 1)[0];
 
-		var info = {
-			event: this.CHATEVENT_ID(event),
-			ping,
-			user,
-			message
-		};
-
-		printChat(info.event, info.user, info.message);
-
-		return info;
-	}
-
-	/**
-	 *
-	 * @param {Buffer} eventBuff
-	 * @returns {*}
-	 * @constructor
-	 */
-	CHATEVENT_ID(eventBuff) {
-		switch (eventBuff.toString('hex')) {
-			case AsHex(this.EID_SHOWUSER):
-				return 'SHOWUSER';
-			case AsHex(this.EID_JOIN):
-				return 'JOIN';
-			case AsHex(this.EID_LEAVE):
-				return 'LEAVE';
-			case AsHex(this.EID_WHISPER):
-				return 'WHISPER';
-			case AsHex(this.EID_TALK):
-				return 'TALK';
-			case AsHex(this.EID_BROADCAST):
-				return 'BROADCAST';
-			case AsHex(this.EID_CHANNEL):
-				return 'CHANNEL';
-			case AsHex(this.EID_USERFLAGS):
-				return 'USERFLAGS';
-			case AsHex(this.EID_WHISPERSENT):
-				return 'WHISPERSENT';
-			case AsHex(this.EID_CHANNELFULL):
-				return 'CHANNELFULL';
-			case AsHex(this.EID_CHANNELDOESNOTEXIST):
-				return 'CHANNELDOESNOTEXIST';
-			case AsHex(this.EID_CHANNELRESTRICTED):
-				return 'CHANNELRESTRICTED';
-			case AsHex(this.EID_INFO):
-				return 'INFO';
-			case AsHex(this.EID_ERROR):
-				return 'ERROR';
-			case AsHex(this.EID_EMOTE):
-				return 'EMOTE';
-		}
+		return {id, ping, user, message};
 	}
 
 	RECEIVE_SID_CHECKAD(buff) {
@@ -605,7 +536,7 @@ class BNetProtocol extends Protocol {
 				break;
 			}
 
-			const account =  bp.unpack('<S', buff.slice(i))[0];
+			const account = bp.unpack('<S', buff.slice(i))[0];
 
 			i += account.length + 1;
 

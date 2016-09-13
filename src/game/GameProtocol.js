@@ -54,8 +54,6 @@ function encodeStatString(data) {
 		}
 	}
 
-	console.log('encodeStatString', result);
-
 	return result;
 }
 

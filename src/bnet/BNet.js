@@ -5,7 +5,7 @@ import path from 'path';
 import EventEmitter from 'events';
 import {getTicks, getTime} from './../util';
 import {ByteArray, GetLength} from './../Bytes';
-import BNetProtocol, {receivers} from './BNetProtocol';
+import BNetProtocol from './BNetProtocol';
 import CommandPacket from '../CommandPacket';
 import BNCSUtil from './../../libbncsutil/BNCSUtil';
 import {create, hex} from '../Logger';
@@ -59,9 +59,9 @@ class BNet extends EventEmitter {
 
 		this.clientToken = Buffer.from('\xdc\x01\xcb\x07', 'binary');
 
-		this.lastPacketTime = 0;
-		this.packetInterval = 4.0;
 		this.admins = [];
+
+		this.outPackets = [];
 
 		this.server = config.item('server');
 		this.alias = config.item('alias');
@@ -79,8 +79,6 @@ class BNet extends EventEmitter {
 		this.passwordHashType = config.item('custom.passwordhashyype', '');
 		this.pvpgnRealmName = config.item('custom.pvpgnrealmName', 'PvPGN Realm');
 		this.maxMessageLength = config.item('custom.maxmessagelength', 200);
-
-		console.log('this.passwordHashType', this.passwordHashType);
 
 		this.localeID = config.item('localeid', '1033');
 		this.countryAbbrev = config.item('countryabbrev', 'USA');
@@ -102,11 +100,9 @@ class BNet extends EventEmitter {
 
 		this.firstChannel = config.item('firstchannel', 'The Void');
 		this.rootAdmin = config.item('rootadmin', false);
+		this.plugins = config.item('plugins', {});
 
 		info(`found battle.net connection #${this.id} for server ${this.server}`);
-
-		this.loggedIn = false;
-		this.inChat = false;
 
 		this.connected = false;
 		this.connecting = false;
@@ -120,34 +116,23 @@ class BNet extends EventEmitter {
 		this.frequencyDelayTimes = 0;
 
 		this.firstConnect = true;
+		this.waitingToConnect = true;
+		this.loggedIn = false;
+		this.inChat = false;
 
 		this.configureSocket();
 		this.configureHandlers();
+		this.configurePlugins();
 
-		// this.handlers = {
-		// 	[BNetProtocol.SID_PING.charCodeAt(0)]: this.HANDLE_SID_PING,
-		//
-		// 	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: this.HANDLE_SID_AUTH_INFO,
-		// 	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: this.HANDLE_SID_AUTH_CHECK,
-		// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
-		// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
-		// 	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: this.HANDLE_SID_REQUIREDWORK,
-		//
-		// 	[BNetProtocol.SID_NULL.charCodeAt(0)]: this.HANDLE_SID_NULL,
-		// 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: this.HANDLE_SID_ENTERCHAT,
-		// 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: this.HANDLE_SID_CHATEVENT,
-		// 	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: this.HANDLE_SID_CLANINFO,
-		// 	[BNetProtocol.SID_CLANMEMBERLIST.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERLIST,
-		// 	[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
-		// 	[BNetProtocol.SID_MESSAGEBOX.charCodeAt(0)]: this.HANDLE_SID_MESSAGEBOX,
-		//
-		// 	[BNetProtocol.SID_CLANINVITATION.charCodeAt(0)]: this.HANDLE_SID_CLANINVITATION,
-		// 	[BNetProtocol.SID_CLANMEMBERREMOVED.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERREMOVED,
-		// 	[BNetProtocol.SID_FRIENDSUPDATE.charCodeAt(0)]: this.HANDLE_SID_FRIENDSUPDATE,
-		// 	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: this.HANDLE_SID_FRIENDSLIST,
-		// 	[BNetProtocol.SID_FLOODDETECTED.charCodeAt(0)]: this.HANDLE_SID_FLOODDETECTED,
-		// 	[BNetProtocol.SID_FRIENDSADD.charCodeAt(0)]: this.HANDLE_SID_FRIENDSADD
-		// };
+		this.on('talk', (that, event) => {
+			if (event.message === '?trigger') {
+				this.queueChatCommand(`Command trigger is ${this.commandTrigger}`);
+			}
+		});
+
+		this.on('command', (that, argv) => {
+			console.log('got command', argv);
+		});
 	}
 
 	configureSocket() {
@@ -224,6 +209,21 @@ class BNet extends EventEmitter {
 		}
 	}
 
+	configurePlugins() {
+		Object.keys(this.plugins).forEach((name) => {
+			try {
+				const plugin = require(path.resolve(name))(this.plugins[name]);
+
+				if (typeof plugin.bnet === 'function') {
+					info(`${name} bnet init`);
+					plugin.bnet(this);
+				}
+			} catch (e) {
+				error(`failed loading plugin ${name}`, e);
+			}
+		});
+	}
+
 	/**
 	 * @param {Buffer|Array} buffer
 	 * @returns {*|Number}
@@ -284,22 +284,6 @@ class BNet extends EventEmitter {
 		}
 	}
 
-	//
-	// start() {
-	// 	this.intervalID = setInterval(() => {
-	// 		if (this.update()) {
-	// 			this.socket.end();
-	// 			process.exit(0);
-	// 			clearInterval(this.intervalID);
-	// 		}
-	// 	}, UPDATE_INTERVAL);
-	//
-	// 	process.on('SIGTERM', function () {
-	// 		info('process exiting');
-	// 		this.exiting = true;
-	// 	});
-	// }
-
 	update() {
 		if (this.connecting) {
 			info('connected', this.alias, this.server, this.port);
@@ -321,7 +305,46 @@ class BNet extends EventEmitter {
 		}
 
 		if (this.connected) {
-			// the connection attempt completed
+			// the socket is connected and everything appears to be working properly
+
+			this.waitTicks = 0;
+
+			if (this.lastOutPacketSize < 10)
+				this.waitTicks = 1300;
+			else if (this.lastOutPacketSize < 30)
+				this.waitTicks = 3400;
+			else if (this.lastOutPacketSize < 50)
+				this.waitTicks = 3600;
+			else if (this.lastOutPacketSize < 100)
+				this.waitTicks = 3900;
+			else
+				this.waitTicks = 5500;
+
+			// add on frequency delay
+			this.waitTicks += this.frequencyDelayTimes * 60;
+
+			if (this.outPackets.length && getTicks() - this.lastOutPacketTicks >= this.waitTicks) {
+				if (this.outPackets.length > 7) {
+					info(`packet queue warning - there are ${this.outPackets.length} packets waiting to be sent`);
+				}
+
+				const packet = this.outPackets.shift();
+
+				this.sendPackets(packet);
+
+				//m_Socket->PutBytes( m_OutPackets.front( ) );
+				this.lastOutPacketSize = packet.length; //m_OutPackets.front( ).size( );
+				//m_OutPackets.pop( );
+
+				// reset frequency delay (or increment it)
+				if (this.frequencyDelayTimes >= 100 || getTicks() > this.lastOutPacketTicks + this.waitTicks + 500)
+					this.frequencyDelayTimes = 0;
+				else
+					this.frequencyDelayTimes++;
+
+				this.lastOutPacketTicks = getTicks();
+			}
+
 			if (getTime() - this.lastNullTime >= 60) {
 				this.sendPackets(this.protocol.SEND_SID_NULL());
 				this.lastNullTime = getTime();
@@ -333,13 +356,17 @@ class BNet extends EventEmitter {
 
 			this.firstConnect = false;
 
-			this.socket.connect(6112, this.server);
+			this.connect();
 		}
 
 		return this.exiting;
 	}
 
-	close() {
+	connect() {
+		this.socket.connect(6112, this.server);
+	}
+
+	disconnect() {
 		this.socket.end();
 	}
 
@@ -372,28 +399,20 @@ class BNet extends EventEmitter {
 		}
 
 		if (this.loggedIn) {
+			if (this.passwordHashType === 'pvpgn' && command.length > this.maxMessageLength) {
+				command = command.substr(0, this.maxMessageLength);
+			}
 
+			if (command.length > 255) {
+				command = command.substr(0, 255);
+			}
+
+			if (this.outPackets.length > 10) {
+				info(`attempted to queue chat command [${command}] but there are too many (${this.outPackets.length}) packets queued, discarding`);
+			} else {
+				this.outPackets.push(this.protocol.SEND_SID_CHATCOMMAND(command));
+			}
 		}
-
-		// if( chatCommand.empty( ) )
-		// return;
-		//
-		// if( m_LoggedIn )
-		// {
-		// 	if( m_PasswordHashType == "pvpgn" && chatCommand.size( ) > m_MaxMessageLength )
-		// 		chatCommand = chatCommand.substr( 0, m_MaxMessageLength );
-		//
-		// 	if( chatCommand.size( ) > 255 )
-		// 		chatCommand = chatCommand.substr( 0, 255 );
-		//
-		// 	if( m_OutPackets.size( ) > 10 )
-		// 		CONSOLE_Print( "[BNET: " + m_ServerAlias + "] attempted to queue chat command [" + chatCommand + "] but there are too many (" + UTIL_ToString( m_OutPackets.size( ) ) + ") packets queued, discarding" );
-		// 	else
-		// 	{
-		// 		CONSOLE_Print( "[QUEUED: " + m_ServerAlias + "] " + chatCommand );
-		// 		m_OutPackets.push( m_Protocol->SEND_SID_CHATCOMMAND( chatCommand ) );
-		// 	}
-		// }
 	}
 
 	queueWhisperCommand(user, command) {
@@ -410,6 +429,7 @@ class BNet extends EventEmitter {
 
 	HANDLE_SID_PING(d) {
 		debug('HANDLE_SID_PING', d);
+		this.emit('SID_PING', this, d);
 		this.sendPackets(this.protocol.SEND_SID_PING(d));
 	}
 
@@ -450,6 +470,7 @@ class BNet extends EventEmitter {
 			info('attempting to auth as Warcraft III: Reign of Chaos');
 		}
 
+		this.emit('SID_AUTH_INFO', this, d);
 		this.sendPackets(this.protocol.SEND_SID_AUTH_CHECK(
 			this.tft,
 			this.clientToken,
@@ -483,13 +504,14 @@ class BNet extends EventEmitter {
 				assert(clientPublicKey.length === 32, 'client public key wrong length');
 			}
 
+			this.emit('SID_AUTH_CHECK', this, d);
 			this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
 		}
 	}
 
 	HANDLE_SID_REQUIREDWORK() {
 		debug('HANDLE_SID_REQUIREDWORK');
-		return;
+		return null;
 	}
 
 	HANDLE_SID_AUTH_ACCOUNTLOGON(d) {
@@ -513,6 +535,7 @@ class BNet extends EventEmitter {
 			);
 		}
 
+		this.emit('SID_AUTH_ACCOUNTLOGON', this, d);
 		this.sendPackets(buff);
 	}
 
@@ -526,10 +549,9 @@ class BNet extends EventEmitter {
 
 		this.loggedIn = true;
 
-		this.emit('SID_AUTH_ACCOUNTLOGONPROOF', this, d);
-
 		info(`[${this.alias}] logon successful`);
 
+		this.emit('SID_AUTH_ACCOUNTLOGONPROOF', this, d);
 		this.sendPackets([
 			this.protocol.SEND_SID_NETGAMEPORT(this.hostPort),
 			this.protocol.SEND_SID_ENTERCHAT(),
@@ -589,30 +611,5 @@ class BNet extends EventEmitter {
 		this.emit('SID_FRIENDSLIST', this, friends);
 	}
 }
-
-// export const handlers = {
-// 	[BNetProtocol.SID_PING.charCodeAt(0)]: this.HANDLE_SID_PING,
-//
-// 	[BNetProtocol.SID_AUTH_INFO.charCodeAt(0)]: this.HANDLE_SID_AUTH_INFO,
-// 	[BNetProtocol.SID_AUTH_CHECK.charCodeAt(0)]: this.HANDLE_SID_AUTH_CHECK,
-// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGON.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
-// 	[BNetProtocol.SID_AUTH_ACCOUNTLOGONPROOF.charCodeAt(0)]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
-// 	[BNetProtocol.SID_REQUIREDWORK.charCodeAt(0)]: this.HANDLE_SID_REQUIREDWORK,
-//
-// 	[BNetProtocol.SID_NULL.charCodeAt(0)]: this.HANDLE_SID_NULL,
-// 	[BNetProtocol.SID_ENTERCHAT.charCodeAt(0)]: this.HANDLE_SID_ENTERCHAT,
-// 	[BNetProtocol.SID_CHATEVENT.charCodeAt(0)]: this.HANDLE_SID_CHATEVENT,
-// 	[BNetProtocol.SID_CLANINFO.charCodeAt(0)]: this.HANDLE_SID_CLANINFO,
-// 	[BNetProtocol.SID_CLANMEMBERLIST.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERLIST,
-// 	[BNetProtocol.SID_CLANMEMBERSTATUSCHANGE.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
-// 	[BNetProtocol.SID_MESSAGEBOX.charCodeAt(0)]: this.HANDLE_SID_MESSAGEBOX,
-//
-// 	[BNetProtocol.SID_CLANINVITATION.charCodeAt(0)]: this.HANDLE_SID_CLANINVITATION,
-// 	[BNetProtocol.SID_CLANMEMBERREMOVED.charCodeAt(0)]: this.HANDLE_SID_CLANMEMBERREMOVED,
-// 	[BNetProtocol.SID_FRIENDSUPDATE.charCodeAt(0)]: this.HANDLE_SID_FRIENDSUPDATE,
-// 	[BNetProtocol.SID_FRIENDSLIST.charCodeAt(0)]: this.HANDLE_SID_FRIENDSLIST,
-// 	[BNetProtocol.SID_FLOODDETECTED.charCodeAt(0)]: this.HANDLE_SID_FLOODDETECTED,
-// 	[BNetProtocol.SID_FRIENDSADD.charCodeAt(0)]: this.HANDLE_SID_FRIENDSADD
-// };
 
 export default BNet;

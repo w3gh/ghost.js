@@ -1,3 +1,6 @@
+/**
+ * Represents friend from Battle.net friends list
+ */
 class Friend {
 	constructor(account, status, area, client, location) {
 		this.account = account;
@@ -19,7 +22,7 @@ class Friend {
 		if (status & 4)
 			result += "<Away>";
 
-		if (Result.empty())
+		if (result.length === 0)
 			result = "<None>";
 
 		return result;

@@ -35,7 +35,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node run.js",
+    "start": "node ./bin/w3host --config=./config.json",
     "build": "babel src -d lib"
   },
   "repository": {

@@ -13,7 +13,13 @@
       "localeid": 1033,
       "war3exe": "./war3/1.26a/war3.exe",
       "stormdll": "./war3/1.26a/Storm.dll",
-      "gamedll": "./war3/1.26a/game.dll"
+      "gamedll": "./war3/1.26a/game.dll",
+      "commandtrigger": "!",
+      "plugins": {
+        "./src/plugins/chat": {
+          "consolePrint": true
+        }
+      }
     },
     {
       "server": "server.pvpgn.pro",
@@ -28,14 +34,21 @@
       "localeid": 1033,
       "war3exe": "./war3/1.26a/war3.exe",
       "stormdll": "./war3/1.26a/Storm.dll",
-      "gamedll": "./war3/1.26a/game.dll"
+      "gamedll": "./war3/1.26a/game.dll",
+      "commandtrigger": "!",
+      "plugins": {
+        "./src/plugins/chat": {
+          "consolePrint": true
+        }
+      }
     }
   ],
 
   "bot": {
     "hostport": 6112,
     "defaultmap": "map",
-    "mapcfgpath": "./maps"
+    "mapcfgpath": "./maps",
+    "commandtrigger": "!"
   },
 
   "admingame": {
