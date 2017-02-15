@@ -1975,10 +1975,10 @@ exports.Storm = new FFI.Library('Storm', {
     voidPtr,
     ref.types.int32,
   ]],
-  SetLastError: [ref.types.void, [
-    ref.types.int32,
-  ]],
-  GetLastError: [ref.types.int32, [
-  ]],
+  // SetLastError: [ref.types.void, [
+  //   ref.types.int32,
+  // ]],
+  // GetLastError: [ref.types.int32, [
+  // ]],
 });
 
