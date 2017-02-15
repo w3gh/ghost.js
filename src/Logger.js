@@ -38,9 +38,9 @@ export function create(category) {
 		};
 	} else {
 		return {
-			info: noop,
+			info: (message, ...vars) => console.log([chalk.gray(isoDate()), chalk.green(category), chalk.blue('info'), message, ...vars].join(' ')),
 			debug: noop,
-			error: noop
+			error: (message, ...vars) => console.log([chalk.gray(isoDate()), chalk.green(category), chalk.red('error'), message, ...vars].join(' '))
 		};
 	}
 }

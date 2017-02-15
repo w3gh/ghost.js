@@ -33,7 +33,11 @@ export default class GProxy extends Bot {
 
 		this.remoteSocket = net.createConnection();
 		this.udpSocket = dgram.createSocket('udp4');
-		//this.udpSocket.setBroadcast(true);
+		this.udpSocket.setBroadcast(true);
+
+		this.networkInterfaces().forEach((iface) => {
+			this.udpSocket.addMembership(iface.address);
+		});
 
 		this.gameProtocol = new GameProtocol();
 		this.GPSProtocol = null;
@@ -43,7 +47,7 @@ export default class GProxy extends Bot {
 
 		this.exiting = false;
 
-		this.tft = this.cfg.item('tft', 1);
+		this.TFT = this.cfg.item('tft', 1);
 		this.war3Path = this.cfg.item('war3path', false);
 		this.cdKeyROC = this.cfg.item('cdkeyroc');
 		this.cdKeyTFT = this.cfg.item('cdkeytft');
@@ -82,7 +86,7 @@ export default class GProxy extends Bot {
 	}
 
 	configure() {
-		this.tft = this.cfg.item('tft', 1);
+		this.TFT = this.cfg.item('tft', 1);
 		this.hostPort = this.cfg.item('bot.hostport', 6112);
 		this.defaultMap = this.cfg.item('bot.defaultmap', 'map');
 		this.mapCfgPath = this.cfg.item('bot.mapcfgpath', 'maps');

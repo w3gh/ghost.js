@@ -4,10 +4,10 @@ import assert from 'assert';
 import path from 'path';
 import EventEmitter from 'events';
 import {getTicks, getTime} from './../util';
-import {ByteArray, GetLength} from './../Bytes';
+import {ByteArray, BytesExtract, ByteInt32, GetLength, AsHex} from './../Bytes';
 import BNetProtocol from './BNetProtocol';
 import CommandPacket from '../CommandPacket';
-import BNCSUtil from './../../libbncsutil/BNCSUtil';
+import BNCSUtil from './../BNCSUtil';
 import {create, hex} from '../Logger';
 
 const {debug, info, error} = create('BNet');
@@ -33,7 +33,7 @@ function createKeyInfo(key, clientToken, serverToken) {
 }
 
 /**
- * Class for connecting to
+ * Class for connecting to battle.net
  * @param {Object} options
  * @constructor
  */
@@ -48,21 +48,61 @@ class BNet extends EventEmitter {
 
 		this.id = hostCounterID;
 		this.hostPort = hostPort;
-		this.tft = TFT;
+		this.TFT = TFT;
+		this.configure(config);
+
+		if (!this.enabled) {
+			return;
+		}
+
+		info(`found battle.net connection [#${this.id}] for server [${this.server}]`);
 
 		this.socket = new net.Socket();
 		this.protocol = new BNetProtocol(this);
+		this.bncs = new BNCSUtil();
 
 		this.data = Buffer.from('');
 		this.incomingPackets = [];
 		this.incomingBuffer = Buffer.from('');
 
 		this.clientToken = Buffer.from('\xdc\x01\xcb\x07', 'binary');
-
 		this.admins = [];
-
 		this.outPackets = [];
 
+		this.connected = false;
+		this.connecting = false;
+		this.exiting = false;
+
+		this.lastDisconnectedTime = 0;
+		this.lastConnectionAttemptTime = 0;
+		this.lastNullTime = 0;
+		this.lastOutPacketTicks = 0;
+		this.lastOutPacketSize = 0;
+		this.frequencyDelayTimes = 0;
+
+		this.firstConnect = true;
+		this.waitingToConnect = true;
+		this.loggedIn = false;
+		this.inChat = false;
+		this.inGame = false;
+
+		this.configureSocket();
+		this.configureHandlers();
+		this.configurePlugins();
+
+		this.on('talk', (that, event) => {
+			if (event.message === '?trigger') {
+				this.queueChatCommand(`Command trigger is ${this.commandTrigger}`);
+			}
+		});
+
+		this.on('command', (that, argv) => {
+			console.log('got command', argv);
+		});
+	}
+
+	configure(config) {
+		this.enabled = config.item('enabled', true);
 		this.server = config.item('server');
 		this.alias = config.item('alias');
 
@@ -77,13 +117,16 @@ class BNet extends EventEmitter {
 		this.exeVersion = config.item('custom.exeversion', false);
 		this.exeVersionHash = config.item('custom.exeversionhash', false);
 		this.passwordHashType = config.item('custom.passwordhashyype', '');
-		this.pvpgnRealmName = config.item('custom.pvpgnrealmName', 'PvPGN Realm');
+		this.pvpgnRealmName = config.item('custom.pvpgnrealmname', 'PvPGN Realm');
 		this.maxMessageLength = config.item('custom.maxmessagelength', 200);
 
-		this.localeID = config.item('localeid', '1033');
-		this.countryAbbrev = config.item('countryabbrev', 'USA');
-		this.country = config.item('country', 'United States');
+		this.localeID = config.item('localeid', 1049); //Russian
+		this.countryAbbrev = config.item('countryabbrev', 'RUS');
+		this.country = config.item('country', 'Russia');
+		this.language = config.item('language', 'ruRU');
+		this.timezone = config.item('timezone', 300);
 
+		this.war3Path = path.resolve(config.item('war3path', './war3'));
 		this.war3exePath = path.resolve(config.item('war3exe', 'war3.exe'));
 		this.stormdllPath = path.resolve(config.item('stormdll', 'Storm.dll'));
 		this.gamedllPath = path.resolve(config.item('gamedll', 'game.dll'));
@@ -101,44 +144,14 @@ class BNet extends EventEmitter {
 		this.firstChannel = config.item('firstchannel', 'The Void');
 		this.rootAdmin = config.item('rootadmin', false);
 		this.plugins = config.item('plugins', {});
-
-		info(`found battle.net connection #${this.id} for server ${this.server}`);
-
-		this.connected = false;
-		this.connecting = false;
-		this.exiting = false;
-
-		this.lastDisconnectedTime = 0;
-		this.lastConnectionAttemptTime = 0;
-		this.lastNullTime = 0;
-		this.lastOutPacketTicks = 0;
-		this.lastOutPacketSize = 0;
-		this.frequencyDelayTimes = 0;
-
-		this.firstConnect = true;
-		this.waitingToConnect = true;
-		this.loggedIn = false;
-		this.inChat = false;
-
-		this.configureSocket();
-		this.configureHandlers();
-		this.configurePlugins();
-
-		this.on('talk', (that, event) => {
-			if (event.message === '?trigger') {
-				this.queueChatCommand(`Command trigger is ${this.commandTrigger}`);
-			}
-		});
-
-		this.on('command', (that, argv) => {
-			console.log('got command', argv);
-		});
 	}
 
 	configureSocket() {
 		this.socket
-			.on('close', () => {
-				info('connection close');
+			.on('close', (...args) => {
+				info(`[${this.alias}] connection close`, ...args);
+				this.connected = false;
+				this.connecting = false;
 			})
 
 			.on('connect', () => {
@@ -147,6 +160,7 @@ class BNet extends EventEmitter {
 			})
 
 			.on('data', (buffer) => {
+				info(`[${this.alias}] connection receive`);
 				hex(buffer);
 
 				this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
@@ -156,28 +170,30 @@ class BNet extends EventEmitter {
 			})
 
 			.on('drain', (...args) => {
-				info('connection drain', ...args);
+				info(`[${this.alias}] connection drain`, ...args);
 			})
 
-			.on('end', () => {
-				info('connection end');
+			.on('end', (...args) => {
+				info(`[${this.alias}] connection end`, ...args);
 			})
 
 			.on('error', (err) => {
-				info(`${this.alias} disconnected from battle.net due to socket error ${err}`);
+				info(`[${this.alias}] disconnected from battle.net due to socket error ${err}`);
 
 				this.lastDisconnectedTime = getTime();
 				this.loggedIn = false;
 				this.inChat = false;
 				this.waitingToConnect = true;
+				this.connected = false;
+				this.connecting = false;
 			})
 
 			.on('lookup', () => {
-				info('connection lookup');
+				info(`[${this.alias}] connection lookup`);
 			})
 
 			.on('timeout', () => {
-				info('connection timeout');
+				info(`[${this.alias}] connection timeout`);
 			});
 	}
 
@@ -203,7 +219,8 @@ class BNet extends EventEmitter {
 			'SID_FRIENDSUPDATE',
 			'SID_FRIENDSLIST',
 			'SID_FLOODDETECTED',
-			'SID_FRIENDSADD'
+			'SID_FRIENDSADD',
+			'SID_GETADVLISTEX'
 		]) {
 			this.handlers[this.protocol[type].charCodeAt(0)] = this[`HANDLE_${type}`];
 		}
@@ -286,17 +303,19 @@ class BNet extends EventEmitter {
 
 	update() {
 		if (this.connecting) {
-			info('connected', this.alias, this.server, this.port);
-			this.sendPackets([
-				this.protocol.SEND_PROTOCOL_INITIALIZE_SELECTOR(),
+			info(`[${this.alias}] connected`);
+
+			this.sendPackets(this.protocol.SEND_PROTOCOL_INITIALIZE_SELECTOR());
+			this.sendPackets(
 				this.protocol.SEND_SID_AUTH_INFO(
 					this.war3version,
-					this.tft,
+					this.TFT,
 					this.localeID,
 					this.countryAbbrev,
-					this.country
+					this.country,
+					this.language
 				)
-			]);
+			);
 
 			this.lastNullTime = getTime();
 			this.lastOutPacketTicks = getTicks();
@@ -352,7 +371,7 @@ class BNet extends EventEmitter {
 		}
 
 		if (!this.connecting && !this.connected && this.firstConnect) {
-			info(`${this.alias} connecting to server ${this.server} on port 6112`);
+			info(`[${this.alias}] connecting to server [${this.server}] on port 6112`);
 
 			this.firstConnect = false;
 
@@ -419,6 +438,24 @@ class BNet extends EventEmitter {
 		return this.queueChatCommand(`/w ${user} ${command}`);
 	}
 
+	queueGetGameList(gameName = '', numGames = 1) {
+		if (this.loggedIn) {
+			if (this.outPackets.length > 10) {
+				info(`attempted to queue games list but there are too many (${this.outPackets.length}) packets queued, discarding`);
+			} else {
+				this.outPackets.push(this.protocol.SEND_SID_GETADVLISTEX(gameName, numGames));
+			}
+		}
+	}
+
+	queueJoinGame(gameName) {
+		if (this.loggedIn) {
+			this.outPackets.push(this.protocol.SEND_SID_NOTIFYJOIN(gameName));
+			this.inChat = false;
+			this.inGame = true;
+		}
+	}
+
 	isAdmin(user) {
 		return Boolean(this.admins.find((name) => name === user));
 	}
@@ -434,21 +471,53 @@ class BNet extends EventEmitter {
 	}
 
 	HANDLE_SID_AUTH_INFO(d) {
-		debug('HANDLE_SID_AUTH_INFO', d);
+		debug('HANDLE_SID_AUTH_INFO');
+
+		// if (BNCSUtil.HELP_SID_AUTH_CHECK(
+		// 		this.TFT,
+		// 		this.war3Path,
+		// 		this.keyROC,
+		// 		this.keyTFT,
+		// 		d.valueStringFormula,
+		// 		d.ix86VerFileName,
+		// 		this.clientToken,
+		// 		d.serverToken)) {
+		//
+		// }
 
 		const exe = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
-
 		let {exeInfo, exeVersion} = exe;
 
-		exeVersion = bp.pack('<I', exeVersion);
+		if (this.exeVersion.length) {
+			exeVersion = BytesExtract(this.exeVersion, 4);
 
-		let exeVersionHash = BNCSUtil.checkRevisionFlat(
-			d.valueStringFormula,
-			this.war3exePath,
-			this.stormdllPath,
-			this.gamedllPath,
-			BNCSUtil.extractMPQNumber(d.ix86VerFileName)
-		);
+			info(`using custom exe version custom.exeversion ${JSON.stringify(exeVersion.toJSON().data)}`);
+		} else {
+			//exeVersion = bp.pack('<I', exeVersion);
+			//exeVersion = ByteInt32()
+
+			info(`using exe version ${JSON.stringify(exeVersion.toJSON().data)}`);
+		}
+
+		let exeVersionHash;
+
+		if (this.exeVersionHash.length) {
+			exeVersionHash = BytesExtract(this.exeVersionHash, 4);
+
+			info(`using custom exe version hash custom.exeversionhash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
+		} else {
+			exeVersionHash = BNCSUtil.checkRevisionFlat(
+				d.valueStringFormula,
+				this.war3exePath,
+				this.stormdllPath,
+				this.gamedllPath,
+				BNCSUtil.extractMPQNumber(d.ix86VerFileName)
+			);
+
+			//exeVersionHash = bp.pack('<I', exeVersionHash);
+
+			info(`using exe version hash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
+		}
 
 		let keyInfoROC = createKeyInfo(
 			this.keyROC,
@@ -472,10 +541,10 @@ class BNet extends EventEmitter {
 
 		this.emit('SID_AUTH_INFO', this, d);
 		this.sendPackets(this.protocol.SEND_SID_AUTH_CHECK(
-			this.tft,
+			this.TFT,
 			this.clientToken,
 			exeVersion,
-			bp.pack('<I', exeVersionHash),
+			exeVersionHash,
 			keyInfoROC,
 			keyInfoTFT,
 			exeInfo,
@@ -484,10 +553,25 @@ class BNet extends EventEmitter {
 	}
 
 	HANDLE_SID_AUTH_CHECK(d) {
-		debug('HANDLE_SID_AUTH_CHECK', d);
+		debug('HANDLE_SID_AUTH_CHECK');
 
-		if (d.keyState.toString() !== this.protocol.KR_GOOD.toString()) {
-			error('CD Key or version problem. See above');
+		if (d.keyState.toString('hex') !== AsHex(this.protocol.KR_GOOD)) {
+			switch (d.keyState.toString('hex')) {
+				case AsHex(this.protocol.KR_ROC_KEY_IN_USE):
+					error(`logon failed - ROC CD key in use by user [${d.keyStateDescription}], disconnecting`);
+					break;
+				case AsHex(this.protocol.KR_TFT_KEY_IN_USE):
+					error(`logon failed - TFT CD key in use by user [${d.keyStateDescription}], disconnecting`);
+					break;
+				case AsHex(this.protocol.KR_OLD_GAME_VERSION):
+					error(`logon failed - game version is too old, disconnecting`);
+					break;
+				case AsHex(this.protocol.KR_INVALID_VERSION):
+					error(`logon failed - game version is invalid, disconnecting`);
+					break;
+				default:
+					error('logon failed - cd keys not accepted, disconnecting');
+			}
 		} else {
 			let clientPublicKey;
 
@@ -556,8 +640,12 @@ class BNet extends EventEmitter {
 			this.protocol.SEND_SID_NETGAMEPORT(this.hostPort),
 			this.protocol.SEND_SID_ENTERCHAT(),
 			this.protocol.SEND_SID_FRIENDSLIST(),
-			this.protocol.SEND_SID_CLANMEMBERLIST()
+			this.protocol.SEND_SID_CLANMEMBERLIST(),
 		]);
+
+		setInterval(() => {
+			this.queueGetGameList('', 20);
+		}, 15000);
 	}
 
 	HANDLE_SID_NULL() {
@@ -609,6 +697,10 @@ class BNet extends EventEmitter {
 		debug('HANDLE_SID_FRIENDSLIST');
 
 		this.emit('SID_FRIENDSLIST', this, friends);
+	}
+
+	HANDLE_SID_GETADVLISTEX(d) {
+
 	}
 }
 

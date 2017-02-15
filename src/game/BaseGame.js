@@ -2,7 +2,7 @@
 
 import net from 'net';
 import util from 'util';
-import {ByteArrayUInt32} from './../Bytes';
+import {ByteUInt32} from './../Bytes';
 import {EventEmitter} from 'events';
 import GameProtocol from './GameProtocol';
 import GameMap from './Map';
@@ -224,9 +224,9 @@ export default class BaseGame extends EventEmitter {
 
 			if (!this.countDownStarted) {
 				const buffer = this.protocol.SEND_W3GS_GAMEINFO(
-					this.ghost.tft,
+					this.ghost.TFT,
 					this.ghost.lanWar3Version,
-					ByteArrayUInt32(GameMap.TYPE_UNKNOWN0),
+					ByteUInt32(GameMap.TYPE_UNKNOWN0),
 					this.map.getGameFlags(),
 					this.map.getWidth(),
 					this.map.getHeight(),
@@ -241,11 +241,18 @@ export default class BaseGame extends EventEmitter {
 					fixedHostCounter
 				);
 
-				socket.send(buffer, 0, buffer.length, 6112, 'localhost', (err, bytes) => {
+				const errCallback = (err, bytes) => {
 					if (err) throw err;
 
 					info('localhost', 6112, 'BaseGame bytes sent', bytes);
-				});
+				};
+
+				// this.ghost.networkInterfaces().forEach((iface) => {
+				// 	//this.udpSocket.addMembership(iface.address);
+				// 	socket.send(buffer, 0, buffer.length, 6112, iface.address, errCallback);
+				// });
+
+				socket.send(buffer, 0, buffer.length, 6112, 'localhost', errCallback);
 			}
 
 			this.lastPingTime = Date.now();

@@ -1,8 +1,91 @@
 {
   "bnet": [
     {
+      "enabled": false,
+      "server": "server.eurobattle.net",
+      "alias": "eurobattle.net",
+      "username": "jilizart",
+      "password": "jilizart",
+      "keyroc": "HTC4JXFHT9FNGE92EDVW9M4TGH",
+      "keytft": "HTC4JXFHT9FNGE92EDVW9M4TGH",
+      "firstchannel": "w3",
+      "custom": {
+        "war3version": "27",
+        "exeversion": "16 0 27 1",
+        "exeversionhash": "110 248 20 87",
+        "passwordhashyype": "pvpgn"
+      },
+      "countryabbrev": "USA",
+      "country": "United States",
+      "language": "enUS",
+      "localeid": 1033,
+      "war3path": "./war3/1.26a/",
+      "war3exe": "./war3/1.26a/war3.exe",
+      "stormdll": "./war3/1.26a/Storm.dll",
+      "gamedll": "./war3/1.26a/game.dll",
+      "commandtrigger": "!",
+      "plugins": {
+        "./src/plugins/chat": {
+          "consolePrint": true
+        }
+      }
+    },
+    {
+      "enabled": false,
+      "server": "rubattle.net",
+      "alias": "rubattle.net",
+      "username": "JELEZORT",
+      "password": "4549",
+      "keyroc": "HTC4JXFHT9FNGE92EDVW9M4TGH",
+      "keytft": "HTC4JXFHT9FNGE92EDVW9M4TGH",
+      "firstchannel": "w3",
+      "custom": {
+        "war3version": "26",
+        "passwordhashyype": "pvpgn"
+      },
+      "countryabbrev": "USA",
+      "country": "United States",
+      "language": "enUS",
+      "localeid": 1033,
+      "war3exe": "./war3/1.26a/war3.exe",
+      "stormdll": "./war3/1.26a/Storm.dll",
+      "gamedll": "./war3/1.26a/game.dll",
+      "commandtrigger": "!",
+      "plugins": {
+        "./src/plugins/chat": {
+          "consolePrint": true
+        }
+      }
+    },
+    {
+      "enabled": false,
+      "server": "battle.gamers.host",
+      "alias": "battle.gamers.host",
+      "username": "jilizart",
+      "password": "jilizart",
+      "firstchannel": "w3",
+      "custom": {
+        "war3version": "26",
+        "passwordhashyype": "pvpgn"
+      },
+      "countryabbrev": "RUS",
+      "country": "Russia",
+      "language": "ruRU",
+      "localeid": 1049,
+      "war3exe": "./war3/1.26a/war3.exe",
+      "stormdll": "./war3/1.26a/Storm.dll",
+      "gamedll": "./war3/1.26a/game.dll",
+      "commandtrigger": "!",
+      "plugins": {
+        "./src/plugins/chat": {
+          "consolePrint": true
+        }
+      }
+    },
+    {
+      "enabled": true,
       "server": "server.pvpgn.pro",
-      "alias": "pvpgn.pro",
+      "alias": "pvpgn.pro 1",
       "username": "jilizart",
       "password": "jilizart",
       "firstchannel": "w3",
@@ -22,8 +105,9 @@
       }
     },
     {
+      "enabled": false,
       "server": "server.pvpgn.pro",
-      "alias": "pvpgn.pro",
+      "alias": "pvpgn.pro 2",
       "username": "jilizart3",
       "password": "jilizart3",
       "firstchannel": "w3",
@@ -43,20 +127,18 @@
       }
     }
   ],
-
   "bot": {
     "hostport": 6112,
     "defaultmap": "map",
     "mapcfgpath": "./maps",
-    "commandtrigger": "!"
+    "commandtrigger": "!",
+    "war3path": "./war3/1.26a/"
   },
-
   "admingame": {
-    "create": true,
+    "create": false,
     "port": 6114
   },
-
   "lan": {
-    "war3version": "27"
+    "war3version": "26"
   }
 }
