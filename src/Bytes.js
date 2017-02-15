@@ -2,7 +2,7 @@
 
 // <I 4 bytes
 // <H 2 bytes
-
+//DWORD == 32bit unsigned long int
 /**
  *
  * @param {Array} bytes
@@ -75,17 +75,38 @@ export function AsHex(hexString) {
 }
 
 /**
- * Creates UInt32 length Buffer from number
+ * Creates 4bytes DWORD UInt32 length Buffer from number
  * @param {Number} num
  * @returns {Buffer}
  */
-export function ByteArrayUInt32(num) {
-	return Buffer.from([
-		num,
-		num >> 8,
-		num >> 16,
-		num >> 24
-	]);
+export function ByteUInt32(num) {
+	const buff = Buffer.alloc(4);
+
+	buff.writeUInt32LE(Number(num), 0);
+
+	return buff;
+}
+
+/**
+ * Creates 4bytes DWORD Int32 length Buffer from number
+ * @param {Number} num
+ * @returns {Buffer}
+ */
+export function ByteInt32(num) {
+	const buff = Buffer.alloc(4);
+
+	buff.writeInt32LE(Number(num), 0);
+
+	return buff;
+}
+
+/**
+ * Returns Buffer of null terminated string (CString)
+ * @param {String} string
+ * @returns {Buffer}
+ */
+export function ByteString(string) {
+	return Buffer.concat([Buffer.from(String(string)), Buffer.from([0])]);
 }
 
 /**
@@ -103,19 +124,7 @@ export function BytesExtract(text, count) {
 		throw 'invalid length bytes given ' + bytes.length + ', expected ' + count;
 	}
 
-	return new Buffer(bytes);
-}
-
-/**
- * Returns array of bytes of null terminated string
- * @param {String} string
- * @returns {Array}
- */
-export function ByteString(string) {
-	var buffArray = Buffer.from(string).toJSON();
-	buffArray.data.push(0); // all strings need to be null terminated
-
-	return buffArray.data;
+	return Buffer.from(bytes);
 }
 
 /**
@@ -124,6 +133,5 @@ export function ByteString(string) {
  * @constructor
  */
 export function ByteHeader(buffer) {
-	var byteArray = buffer.toJSON();
-	return Number(byteArray.data[0]);
+	return buffer.readInt8(0);
 }

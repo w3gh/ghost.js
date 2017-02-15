@@ -261,18 +261,16 @@ class GameProtocol extends Protocol {
 	                   port,
 	                   hostCounter) {
 
-		/**
-		 000000   F7 30 38 34 50 58 33 57 1A 00 00 00 01 00 00 00   ÷084PX3W........
-		 000010   00 00 00 00 47 48 6F 73 74 2B 2B 20 41 64 6D 69   ....GHost++ Admi
-		 000020   6E 20 47 61 6D 65 00 01 03 49 07 01 01 AD 01 C1   n Game...I...­.Á
-		 000030   AD 01 6D FB CD 3B 4D 8B 61 71 73 5D 47 73 6F 85   ­.mûÍ;M.aqs]Gso.
-		 000040   7B 65 6F 55 69 73 6F A5 6F 65 5D 29 31 33 29 2F   {eoUiso¥oe])13)/
+/**
+000000   F7 30 38 34 50 58 33 57 1A 00 00 00 01 00 00 00   ÷084PX3W........
+000010   00 00 00 00 47 48 6F 73 74 2B 2B 20 41 64 6D 69   ....GHost++ Admi
+000020   6E 20 47 61 6D 65 00 01 03 49 07 01 01 AD 01 C1   n Game...I...­.Á
+000030   AD 01 6D FB CD 3B 4D 8B 61 71 73 5D 47 73 6F 85   ­.mûÍ;M.aqs]Gso.
+000040   7B 65 6F 55 69 73 6F A5 6F 65 5D 29 31 33 29 2F   {eoUiso¥oe])13)/
 000050   45 6D 65 73 61 6D 65 A7 47 61 73 65 65 6F 73 4D   Emesame§GaseeosM
 000060   2F 77 33 79 57 61 73 1D 6D 6F 63 6B 01 00 0C 00   /w3yWas.mock....
 000070   00 00 01 00 00 00 01 00 00 00 0C 00 00 00 05 00   ................
 000080   00 00 E2 17                                       ..â.
-
-
 
 // ghost++
 000000   F7 30 87 00 50 58 33 57 1A 00 00 00 01 00 00 00   ÷0..PX3W........
@@ -294,6 +292,7 @@ statString
 		var productID_ROC = '3RAW'; // "WAR3"
 		var productID_TFT = 'PX3W'; // "W3XP
 		var entryKey = [0, 0, 0, 0]; // game pass
+		var version = [String(war3Version), 0, 0, 0];
 		var unknown2 = [1, 0, 0, 0];
 
 		if (mapGameType.length === 4 &&
@@ -302,24 +301,26 @@ statString
 			mapHeight.length === 2 && gameName && hostName && mapPath &&
 			mapCRC.length === 4) {
 
-			var statArray = [].concat(
-				mapFlags.toJSON(),
-				[0],
-				mapWidth.toJSON(),
-				mapHeight.toJSON(),
-				mapCRC.toJSON(),
+			var statArray = [
+				mapFlags,
+				0, //filled in encodeStatString
+				mapWidth,
+				mapHeight,
+				mapCRC,
 				ByteString(mapPath),
 				ByteString(hostName),
-				[0]
-			);
+				0 //filled in encodeStatString
+			];
 
 			var stat = encodeStatString(statArray);
 
-			var buffer = this.buffer(
+			console.log('stat', stat);
+
+			var buffer = this.asPacket(
 				this.W3GS_GAMEINFO,
 				TFT ? productID_TFT : productID_ROC,
-				bp.pack('<I', [war3Version]),
-				bp.pack('<I', [hostCounter]),
+				version,
+				bp.pack('<I', hostCounter),
 				entryKey,
 				gameName,
 				this.NULL_2,
@@ -355,7 +356,7 @@ statString
 	SEND_W3GS_DECREATEGAME() {
 	}
 
-	static RECEIVE_W3GS_REQJOIN(buffer) {
+	RECEIVE_W3GS_REQJOIN(buffer) {
 		// 2 bytes					-> Header
 		// 2 bytes					-> Length
 		// 4 bytes					-> Host Counter (Game ID)

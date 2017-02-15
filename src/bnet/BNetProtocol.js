@@ -1,6 +1,7 @@
 import bp from 'bufferpack';
 import assert from 'assert';
-import {ValidateLength} from './../Bytes';
+import {localIP, getTimezone} from './../util';
+import {ValidateLength, ByteUInt32, ByteInt32, ByteString} from './../Bytes';
 import Protocol from './../Protocol';
 import Friend from './Friend';
 
@@ -13,6 +14,7 @@ class BNetProtocol extends Protocol {
 	BNET_HEADER_CONSTANT = '\xff';
 
 	INITIALIZE_SELECTOR = '\x01';
+
 
 	SID_AUTH_INFO = '\x50';
 	SID_PING = '\x25';
@@ -36,6 +38,15 @@ class BNetProtocol extends Protocol {
 	SID_FRIENDSLIST = '\x65';
 	SID_FLOODDETECTED = '\x13';
 	SID_FRIENDSADD = '\x67';
+
+	SID_GETADVLISTEX = '\x09';
+	SID_STOPADV = '\x02';	// 0x2
+	SID_CHECKAD = '\x15';	// 0x15
+	SID_STARTADVEX3 = '\x1c';	// 0x1C
+	SID_DISPLAYAD = '\x21';	// 0x21
+	SID_NOTIFYJOIN = '\x22';	// 0x22
+	SID_LOGONRESPONSE = '\x29';	// 0x29
+
 
 	KR_GOOD = '\x00\x00\x00\x00';
 	KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
@@ -99,6 +110,10 @@ class BNetProtocol extends Protocol {
 	FRIENDLOCATION_PRIVHIDE = 4;
 	FRIENDLOCATION_PRIVSHOW = 5;
 
+	PRODUCT_TFT = 'XP3W';
+	PRODUCT_ROC = '3RAW';
+	PLATFORM_X86 = '68XI';
+
 	constructor() {
 		super();
 
@@ -127,7 +142,8 @@ class BNetProtocol extends Protocol {
 			'SID_FRIENDSUPDATE',
 			'SID_FRIENDSLIST',
 			'SID_FLOODDETECTED',
-			'SID_FRIENDSADD'
+			'SID_FRIENDSADD',
+			'SID_GETADVLISTEX'
 		]) {
 			this.receivers[this[type].charCodeAt(0)] = this[`RECEIVE_${type}`];
 		}
@@ -176,33 +192,38 @@ class BNetProtocol extends Protocol {
 		return Buffer.from(this.INITIALIZE_SELECTOR, 'binary');
 	}
 
-	SEND_SID_AUTH_INFO(ver, tft, localeID, countryAbbrev, country) {
+	SEND_SID_AUTH_INFO(version, TFT, localeID, countryAbbrev, country, lang) {
 		debug('SEND_SID_AUTH_INFO');
 
+		// (DWORD)		 Protocol ID (0)
+		// (DWORD)		 Platform ID
+		// (DWORD)		 Product ID
+		// (DWORD)		 Version Byte
+		// (DWORD)		 Product language
+		// (DWORD)		 Local IP for NAT compatibility*
+		// (DWORD)		 Time zone bias*
+		// (DWORD)		 Locale ID*
+		// (DWORD)		 Language ID*
+		// (STRING) 	 Country abreviation
+		// (STRING) 	 Country
+
 		const protocolID = this.NULL_4;
-		const platformID = '68XI'; //[54, 56, 88, 73]; // "IX86"
-		const productIdROC = '3RAW'; //[51, 82, 65, 87]; // "WAR3"
-		const productIdTFT = 'XP3W'; //[80, 88, 51, 87]; // "W3XP"
-		const version = [String(ver), 0, 0, 0];
-		const language = 'SUne'; //[83, 85, 110, 101]; // "enUS"
-		const localIP = '\x7f\x00\x00\x01'; //[127, 0, 0, 1];
-		const timeZoneBias = '\x2c\x01\x00\x00'; //[44, 1, 0, 0];
+		const language = lang.split('').reverse().join(''); //[83, 85, 110, 101]; // "enUS"
+		const IP = localIP().split('.').map(Number); //[127, 0, 0, 1];
 
 		return this.asPacket(
 			this.SID_AUTH_INFO,
 			protocolID,
-			platformID,
-			tft ? productIdTFT : productIdROC,
-			version,
+			this.PLATFORM_X86,
+			TFT ? this.PRODUCT_TFT : this.PRODUCT_ROC,
+			ByteUInt32(version),
 			language,
-			localIP,
-			timeZoneBias,
-			bp.pack('<I', localeID), // locale 3081 (en-au)
-			bp.pack('<I', localeID),
-			String(countryAbbrev),
-			this.NULL,
-			String(country),
-			this.NULL
+			IP,
+			ByteUInt32(getTimezone()), //time zone bias
+			ByteUInt32(localeID),
+			ByteUInt32(localeID),
+			ByteString(countryAbbrev),
+			ByteString(country)
 		);
 	}
 
@@ -218,10 +239,8 @@ class BNetProtocol extends Protocol {
 			this.NULL_4,
 			keyInfoRoc,
 			tft ? keyInfoTft : false, //if it false, its excluded
-			exeInfo,
-			this.NULL,
-			keyOwnerName,
-			this.NULL
+			ByteString(exeInfo),
+			ByteString(keyOwnerName)
 		);
 	}
 
@@ -233,8 +252,7 @@ class BNetProtocol extends Protocol {
 		return this.asPacket(
 			this.SID_AUTH_ACCOUNTLOGON,
 			clientPublicKey,
-			accountName,
-			this.NULL
+			ByteString(accountName)
 		);
 	}
 
@@ -250,7 +268,7 @@ class BNetProtocol extends Protocol {
 	SEND_SID_NETGAMEPORT(serverPort) {
 		return this.asPacket(
 			this.SID_NETGAMEPORT,
-			bp.pack('<H', serverPort)
+			ByteUInt32(serverPort)
 		);
 	}
 
@@ -269,16 +287,14 @@ class BNetProtocol extends Protocol {
 		return this.asPacket(
 			this.SID_JOINCHANNEL,
 			channel.length > 0 ? noCreateJoin : firstJoin,
-			channel,
-			this.NULL
+			ByteString(channel)
 		);
 	}
 
 	SEND_SID_CHATCOMMAND(command) {
 		return this.asPacket(
 			this.SID_CHATCOMMAND,
-			String(command),
-			this.NULL
+			ByteString(command)
 		);
 	}
 
@@ -295,6 +311,42 @@ class BNetProtocol extends Protocol {
 			this.SID_CLANMEMBERLIST,
 			cookie
 		);
+	}
+
+	SEND_SID_GETADVLISTEX(gameName = '', numGames = 1) {
+		let cond1 = [0, 0];
+		let cond2 = [0, 0];
+		let cond3 = [0, 0, 0, 0];
+		let cond4 = [0, 0, 0, 0];
+
+		if (!gameName.length) {
+			cond1[0] = 0;
+			cond1[1] = 224;
+
+			cond2[0] = 127;
+			cond2[1] = 0;
+		} else {
+			cond1 = [255, 3];
+			cond2 = [0, 0];
+			cond3 = [255, 3, 0, 0];
+			numGames = 1;
+		}
+
+		return this.asPacket(
+			this.SID_GETADVLISTEX,
+			cond1,
+			cond2,
+			cond3,
+			cond4,
+			ByteUInt32(numGames),
+			ByteString(gameName),
+			this.NULL, // Game Password is NULL
+			this.NULL // Game Stats is NULL
+		);
+	}
+
+	SEND_SID_NOTIFYJOIN(gameName) {
+
 	}
 
 	RECEIVE_SID_NULL(buff) {
@@ -316,45 +368,88 @@ class BNetProtocol extends Protocol {
 		//		2 bytes				-> ???
 		//		8 bytes				-> HostCounter
 
+		let games = [];
+
 		if (ValidateLength(buff) && buff.length >= 8) {
-			const gamesFound = buff.readInt32LE(4);
+			let i = 8;
+			let gamesFound = buff.readInt32LE(4);
+
+			//console.log('gamesFound', gamesFound, buff);
 
 			if (gamesFound > 0 && buff.length >= 25) {
+				while (gamesFound > 0) {
+					gamesFound--;
+
+					if (buff.length < i + 33)
+						break;
+
+					let gameType = buff.readInt16LE(i);
+					i += 2;
+					let parameter = buff.readInt16LE(i);
+					i += 2;
+					let languageID = buff.readInt32LE(i);
+					i += 4;
+					// AF_INET
+					i += 2;
+					let port = buff.readInt32LE(i);
+					let ip = buff.slice(i, i + 4);
+					i += 4;
+					// zeros
+					i += 4;
+					// zeros
+					i += 4;
+					let status = buff.readInt32LE(i);
+					i += 4;
+					let elapsedTime = buff.readInt32LE(i);
+					i += 4;
+					let gameName = buff.slice(i).toString().split(this.NULL, 1)[0];
+					i += gameName.length + 1;
+
+					if (buff.length < i + 1)
+						break;
+
+					let gamePassword = buff.slice(i).toString().split(this.NULL, 1)[0];
+					i += gamePassword.length + 1;
+
+					if (buff.length < i + 10)
+						break;
+
+					// SlotsTotal is in ascii hex format
+					let slotsTotal = buff[i];
+					i++;
+
+					let hostCounterRaw = buff.slice(i, i + 8);
+					let hostCounterString = hostCounterRaw.toString();
+					let hostCounter = 0;
+
+					//@TODO handle hostCounter from hostCounterString
+
+					i += 8;
+					let statString = buff.slice(i).toString().split(this.NULL, 1)[0];
+					i += statString.length + 1;
+
+					games.push(
+						new IncomingGameHost(
+							gameType,
+							parameter,
+							languageID,
+							port,
+							ip,
+							status,
+							elapsedTime,
+							gameName,
+							slotsTotal,
+							hostCounter,
+							statString
+						)
+					);
+				}
 
 			}
 		}
 
-		//@TODO RECEIVE_SID_GETADVLISTEX
-		// DEBUG_Print( "RECEIVED SID_GETADVLISTEX" );
-		// DEBUG_Print( data );
+		return games;
 
-
-		// if( ValidateLength( data ) && data.size( ) >= 8 )
-		// {
-		// 	BYTEARRAY GamesFound = BYTEARRAY( data.begin( ) + 4, data.begin( ) + 8 );
-		//
-		// 	if( UTIL_ByteArrayToUInt32( GamesFound, false ) > 0 && data.size( ) >= 25 )
-		// 	{
-		// 		BYTEARRAY Port = BYTEARRAY( data.begin( ) + 18, data.begin( ) + 20 );
-		// 		BYTEARRAY IP = BYTEARRAY( data.begin( ) + 20, data.begin( ) + 24 );
-		// 		BYTEARRAY GameName = UTIL_ExtractCString( data, 24 );
-		//
-		// 		if( data.size( ) >= GameName.size( ) + 35 )
-		// 		{
-		// 			BYTEARRAY HostCounter;
-		// 			HostCounter.push_back( UTIL_ExtractHex( data, GameName.size( ) + 27, true ) );
-		// 			HostCounter.push_back( UTIL_ExtractHex( data, GameName.size( ) + 29, true ) );
-		// 			HostCounter.push_back( UTIL_ExtractHex( data, GameName.size( ) + 31, true ) );
-		// 			HostCounter.push_back( UTIL_ExtractHex( data, GameName.size( ) + 33, true ) );
-		// 			return new CIncomingGameHost(	IP,
-		// 											UTIL_ByteArrayToUInt16( Port, false ),
-		// 											string( GameName.begin( ), GameName.end( ) ),
-		// 											HostCounter );
-		// 		}
-		// 	}
-		// }
-		//
-		// return NULL;
 	}
 
 	RECEIVE_SID_AUTH_INFO(buff) {
@@ -368,6 +463,14 @@ class BNetProtocol extends Protocol {
 		// 8 bytes					-> MPQFileTime
 		// null terminated string	-> IX86VerFileName
 		// null terminated string	-> ValueStringFormula
+
+		// (DWORD)		 Logon Type
+		// (DWORD)		 Server Token
+		// (DWORD)		 UDPValue**
+		// (FILETIME)	 MPQ filetime
+		// (STRING) 	 IX86ver filename
+		// (STRING) 	 ValueString
+
 
 		const logonType = buff.slice(4, 8); // p[4:8]
 		const serverToken = buff.slice(8, 12); // p[8:12]
@@ -573,6 +676,22 @@ class BNetProtocol extends Protocol {
 
 	RECEIVE_SID_FRIENDSADD(buff) {
 		debug('RECEIVE_SID_FRIENDSADD');
+	}
+}
+
+class IncomingGameHost {
+	constructor(GameType,
+	            Parameter,
+	            LanguageID,
+	            Port,
+	            IP,
+	            Status,
+	            ElapsedTime,
+	            GameName,
+	            SlotsTotal,
+	            HostCounter,
+	            StatString) {
+		//console.log('IncomingGameHost', arguments);
 	}
 }
 

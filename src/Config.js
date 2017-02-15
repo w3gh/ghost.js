@@ -31,6 +31,6 @@ export default class Config {
 			if (typeof curr === 'undefined') return def;
 		}
 
-		return curr ? curr : def;
+		return typeof curr !== 'undefined' ? curr : def;
 	}
 }

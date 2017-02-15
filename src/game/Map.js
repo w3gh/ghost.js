@@ -249,7 +249,7 @@ export default class Map {
 			this.gameFlags |= 0x04000000;
 		}
 
-		return bp.pack('<I', [this.gameFlags]);
+		return bp.pack('<I', this.gameFlags);
 	}
 
 	getWidth() {

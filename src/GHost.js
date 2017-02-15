@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import net from 'net';
 import path from 'path';
 
-import {getTicks, getTime} from './util';
+import {getTicks, getTime, localIP} from './util';
 import BNet from './bnet/BNet';
 import AdminGame from './game/AdminGame';
 import Map from './game/Map';
@@ -25,6 +25,8 @@ export default class GHost extends Bot {
 
 		this.configure();
 		this.configureBNet();
+
+		this.extractScripts();
 		this.udpSocketSetup();
 		this.adminGameSetup();
 
@@ -86,7 +88,11 @@ export default class GHost extends Bot {
 		this.udpSocket.on('message', this.onMessage);
 		this.udpSocket.on('error', this.onError);
 		this.udpSocket.on('close', this.onClose);
-		//this.udpSocket.bind();
+		//this.udpSocket.setBroadcast(true);
+	}
+
+	extractScripts() {
+
 	}
 
 	onMessage = (...args) => {
@@ -108,10 +114,11 @@ export default class GHost extends Bot {
 	configure() {
 		const config = this.cfg;
 
-		this.tft = config.item('tft', 1);
+		this.TFT = config.item('tft', 1);
 		this.hostPort = config.item('bot.hostport', 6112);
 		this.defaultMap = config.item('bot.defaultmap', 'map');
 		this.mapCfgPath = config.item('bot.mapcfgpath', './maps');
+		this.war3Path = config.item('bot.war3path', 'war3');
 
 		this.adminGameCreate = this.cfg.item('admingame.create', false);
 		this.adminGamePort = this.cfg.item('admingame.port', 6114);
@@ -129,7 +136,7 @@ export default class GHost extends Bot {
 			const prefixConfig = config.slice(prefix);
 
 			if (prefixConfig) {
-				this.BNets.push(new BNet(prefixConfig, this.tft, this.hostPort, i));
+				this.BNets.push(new BNet(prefixConfig, this.TFT, this.hostPort, i));
 			}
 		}
 
