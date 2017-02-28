@@ -1,6 +1,6 @@
 import fs from 'fs';
 
-export default class Config {
+export class Config {
 	constructor(configPath) {
 		if (typeof configPath === 'string') {
 			this.data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));

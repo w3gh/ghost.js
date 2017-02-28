@@ -1,11 +1,12 @@
 import EventEmitter from 'events';
-import Config from './Config';
+import {Config} from './Config';
 import {create} from './Logger';
+import {Plugin} from './Plugin';
 
 const {debug, info, error} = create('Bot');
 const UPDATE_INTERVAL = 50; //50ms
 
-export default class Bot extends EventEmitter {
+export class Bot extends EventEmitter {
 	constructor(cfg) {
 		super();
 
@@ -13,9 +14,29 @@ export default class Bot extends EventEmitter {
 			throw new Error('No config given');
 		}
 
-		this.cfg = new Config(cfg);
+		const config = new Config(cfg);
+
+		this.cfg = config;
+		this.plugins = config.item('bot.plugins');
+
+		console.log('admingame', config.item('admingame'));
 
 		this.exiting = false;
+
+		this.loadPlugins();
+	}
+
+	loadPlugins() {
+		console.log('plugs', this.plugins);
+
+		Object.keys(this.plugins).forEach((key) => {
+			console.log('load', key, this.plugins[key]);
+
+
+			Plugin.load(key, this.plugins[key]);
+		});
+
+		Plugin.emit('onInit', this);
 	}
 
 	start() {

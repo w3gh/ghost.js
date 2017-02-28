@@ -4,7 +4,7 @@ import {ByteArray, AssignLength} from './Bytes';
  * Abstract class for BNet and Game protocols
  * have basic help methods
  */
-export default class Protocol {
+export class Protocol {
 	/**
 	 * Basic function for construct packets for hosted game
 	 * @param header Packet header constant

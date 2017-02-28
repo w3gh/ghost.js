@@ -1,26 +1,25 @@
 'use strict';
 
 import net from 'net';
-import util from 'util';
 import {ByteUInt32} from './../Bytes';
 import {EventEmitter} from 'events';
-import GameProtocol from './GameProtocol';
-import GameMap from './Map';
-import GamePlayer from './GamePlayer';
+import {GameProtocol} from './GameProtocol';
+import {Map} from './Map';
+import {GamePlayer} from './GamePlayer';
 import {create, hex} from '../Logger';
 
 const {debug, info, error} = create('BaseGame');
 
 const GAME_REHOST_INTERVAL = 5000;
 
-export default class BaseGame extends EventEmitter {
+export class BaseGame extends EventEmitter {
 	constructor(ghost, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer) {
 		super();
 
 		this.ghost = ghost;
 		this.socket = new net.Server();
 		this.protocol = new GameProtocol();
-		this.map = (map instanceof GameMap) ? map : new GameMap(map);
+		this.map = (map instanceof Map) ? map : new Map(map);
 
 		this.slots = this.map.getSlots();
 
@@ -226,7 +225,7 @@ export default class BaseGame extends EventEmitter {
 				const buffer = this.protocol.SEND_W3GS_GAMEINFO(
 					this.ghost.TFT,
 					this.ghost.lanWar3Version,
-					ByteUInt32(GameMap.TYPE_UNKNOWN0),
+					ByteUInt32(Map.TYPE_UNKNOWN0),
 					this.map.getGameFlags(),
 					this.map.getWidth(),
 					this.map.getHeight(),

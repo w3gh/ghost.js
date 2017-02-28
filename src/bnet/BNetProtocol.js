@@ -2,19 +2,19 @@ import bp from 'bufferpack';
 import assert from 'assert';
 import {localIP, getTimezone} from './../util';
 import {ValidateLength, ByteUInt32, ByteInt32, ByteString} from './../Bytes';
-import Protocol from './../Protocol';
-import Friend from './Friend';
+import {Protocol} from './../Protocol';
+import {Friend} from './Friend';
+import {IncomingGameHost} from './IncomingGameHost';
 
 import {create} from '../Logger';
 
 const {debug, info, error} = create('BNetProtocol');
 
-class BNetProtocol extends Protocol {
+export class BNetProtocol extends Protocol {
 
 	BNET_HEADER_CONSTANT = '\xff';
 
 	INITIALIZE_SELECTOR = '\x01';
-
 
 	SID_AUTH_INFO = '\x50';
 	SID_PING = '\x25';
@@ -677,22 +677,4 @@ class BNetProtocol extends Protocol {
 	RECEIVE_SID_FRIENDSADD(buff) {
 		debug('RECEIVE_SID_FRIENDSADD');
 	}
-}
-
-class IncomingGameHost {
-	constructor(GameType,
-	            Parameter,
-	            LanguageID,
-	            Port,
-	            IP,
-	            Status,
-	            ElapsedTime,
-	            GameName,
-	            SlotsTotal,
-	            HostCounter,
-	            StatString) {
-		//console.log('IncomingGameHost', arguments);
-	}
-}
-
-export default BNetProtocol;
+};

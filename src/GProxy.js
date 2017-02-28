@@ -1,16 +1,15 @@
 import net from 'net';
 import dgram from 'dgram';
-import Bytes from './Bytes';
-import AdminGame from './game/AdminGame';
-import Map from './game/Map';
-import Bot from './Bot';
-import BNet from './bnet/BNet';
-import GameProtocol from './game/GameProtocol';
+import {AdminGame} from './game/AdminGame';
+import {Map} from './game/Map';
+import {Bot} from './Bot';
+import {BNet} from './bnet/BNet';
+import {GameProtocol} from './game/GameProtocol';
 import {create} from './Logger';
 
 const {debug, info, error} = create('GProxy');
 
-export default class GProxy extends Bot {
+export GProxy extends Bot {
 	static version = 'Public Alpha 1.0 (Tue Sep 06 2016)';
 
 	static run = (config) => {

@@ -2,7 +2,7 @@
 
 import {ByteArray} from './../Bytes';
 
-export default class GameSlot {
+export class GameSlot {
 	static STATUS_OPEN = 0;
 	static STATUS_CLOSED = 1;
 	static STATUS_OCCUPIED = 2;
@@ -45,5 +45,3 @@ export default class GameSlot {
 		]);
 	}
 }
-
-Object.assign(GameSlot, {});

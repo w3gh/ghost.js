@@ -1,7 +1,7 @@
 /**
  * Represents friend from Battle.net friends list
  */
-class Friend {
+export class Friend {
 	constructor(account, status, area, client, location) {
 		this.account = account;
 		this.status = status;
@@ -47,5 +47,3 @@ class Friend {
 		return "<Unknown>";
 	}
 }
-
-export default Friend;
