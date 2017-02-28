@@ -1,18 +1,7 @@
-import BNetProtocol from '../bnet/BNetProtocol';
 import chalk from 'chalk';
+import {BNetProtocol} from '../../src/bnet/BNetProtocol';
 
-
-// black
-// red
-// green
-// yellow
-// blue
-// magenta
-// cyan
-// white
-// gray
-
-class ChatEvent {
+export class ChatEvent {
 	/**
 	 *
 	 * @param {Number} id
@@ -118,47 +107,3 @@ class ChatEvent {
 		}
 	}
 }
-
-module.exports = function (config) {
-	return {
-		/**
-		 *
-		 * @param {BNet} bnet
-		 */
-		bnet: function (bnet) {
-			bnet.on('SID_CHATEVENT', (that, data) => {
-				const event = new ChatEvent(data, that.protocol);
-
-				if (event.isWhisper()) {
-					that.emit('whisper', that, event);
-				}
-
-				if (event.isTalk()) {
-					that.emit('talk', that, event);
-				}
-
-				if (event.isEmote()) {
-					that.emit('emote', that, event);
-				}
-
-				if (event.isJoin()) {
-					that.emit('join', that, event);
-				}
-
-				if (event.isLeave()) {
-					that.emit('leave', that, event);
-				}
-
-				if(event.isEmote() && event.message[0] === that.commandTrigger) {
-					const argv = event.message.substr(1, event.message.length).split(' ');
-
-					that.emit('command', that, argv);
-				}
-
-				if (config.consolePrint) {
-					event.printConsole(bnet.alias);
-				}
-			});
-		}
-	};
-};

@@ -3,15 +3,15 @@ import net from 'net';
 import path from 'path';
 
 import {getTicks, getTime, localIP} from './util';
-import BNet from './bnet/BNet';
-import AdminGame from './game/AdminGame';
-import Map from './game/Map';
-import Bot from './Bot';
+import {BNet} from './bnet/BNet';
+import {AdminGame} from './game/AdminGame';
+import {Map} from './game/Map';
+import {Bot} from './Bot';
 import {create} from './Logger';
 
 const {debug, info, error} = create('GHost');
 
-export default class GHost extends Bot {
+export class GHost extends Bot {
 	constructor(cfg) {
 		super(cfg);
 

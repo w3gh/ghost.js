@@ -1,17 +1,14 @@
 'use strict';
 
-var util = require('util');
-var Bytes = require('../Bytes');
-var bp = require('bufferpack');
-var fs = require('fs');
-var path = require('path');
+import bp from 'bufferpack';
+import fs from 'fs';
 
 import {create} from '../Logger';
 const {debug, info, error} = create('Map');
 import {BytesExtract} from '../Bytes';
-import GameSlot from './GameSlot';
+import {GameSlot} from './GameSlot';
 
-export default class Map {
+export class Map {
 	static SPEED_SLOW = 1;
 	static SPEED_NORMAL = 2;
 	static SPEED_FAST = 3;

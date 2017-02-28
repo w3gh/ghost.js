@@ -6,7 +6,7 @@
  * @param {Buffer} buffer
  * @constructor
  */
-export default class CommandPacket {
+export class CommandPacket {
 	constructor(type, id, buffer) {
 		this.type = type;
 		this.id = id;

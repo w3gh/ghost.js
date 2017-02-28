@@ -4,40 +4,21 @@ import assert from 'assert';
 import path from 'path';
 import EventEmitter from 'events';
 import {getTicks, getTime} from './../util';
-import {ByteArray, BytesExtract, ByteInt32, GetLength, AsHex} from './../Bytes';
-import BNetProtocol from './BNetProtocol';
-import CommandPacket from '../CommandPacket';
-import BNCSUtil from './../BNCSUtil';
+import {BytesExtract, GetLength, AsHex} from './../Bytes';
+import {BNetProtocol} from './BNetProtocol';
+import {Plugin} from '../Plugin';
+import {CommandPacket} from '../CommandPacket';
+import {BNCSUtil} from './../BNCSUtil';
 import {create, hex} from '../Logger';
 
 const {debug, info, error} = create('BNet');
-
-/**
- *
- * @param {String} key
- * @param {Number} clientToken
- * @param {Number} serverToken
- * @returns {Buffer}
- */
-function createKeyInfo(key, clientToken, serverToken) {
-	var info = BNCSUtil.kd_quick(key, clientToken, serverToken);
-	var bytes = [
-		bp.pack('<I', key.length),
-		bp.pack('<I', info.product),
-		bp.pack('<I', info.publicValue),
-		'\x00\x00\x00\x00',
-		info.hash
-	];
-
-	return ByteArray(bytes);
-}
 
 /**
  * Class for connecting to battle.net
  * @param {Object} options
  * @constructor
  */
-class BNet extends EventEmitter {
+export class BNet extends EventEmitter {
 	constructor(config, TFT, hostPort, hostCounterID) {
 		super();
 
@@ -148,8 +129,8 @@ class BNet extends EventEmitter {
 
 	configureSocket() {
 		this.socket
-			.on('close', (...args) => {
-				info(`[${this.alias}] connection close`, ...args);
+			.on('close', () => {
+				info(`[${this.alias}] connection close`);
 				this.connected = false;
 				this.connecting = false;
 			})
@@ -227,18 +208,7 @@ class BNet extends EventEmitter {
 	}
 
 	configurePlugins() {
-		Object.keys(this.plugins).forEach((name) => {
-			try {
-				const plugin = require(path.resolve(name))(this.plugins[name]);
-
-				if (typeof plugin.bnet === 'function') {
-					info(`${name} bnet init`);
-					plugin.bnet(this);
-				}
-			} catch (e) {
-				error(`failed loading plugin ${name}`, e);
-			}
-		});
+		Plugin.emit('onBNetInit', this);
 	}
 
 	/**
@@ -485,8 +455,7 @@ class BNet extends EventEmitter {
 		//
 		// }
 
-		const exe = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
-		let {exeInfo, exeVersion} = exe;
+		let {exeInfo, exeVersion} = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
 
 		if (this.exeVersion.length) {
 			exeVersion = BytesExtract(this.exeVersion, 4);
@@ -519,7 +488,7 @@ class BNet extends EventEmitter {
 			info(`using exe version hash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
 		}
 
-		let keyInfoROC = createKeyInfo(
+		let keyInfoROC = BNCSUtil.createKeyInfo(
 			this.keyROC,
 			bp.unpack('<I', this.clientToken)[0],
 			bp.unpack('<I', d.serverToken)[0]
@@ -528,15 +497,15 @@ class BNet extends EventEmitter {
 		let keyInfoTFT = '';
 
 		if (this.TFT) {
-			keyInfoTFT = createKeyInfo(
+			keyInfoTFT = BNCSUtil.createKeyInfo(
 				this.keyTFT,
 				bp.unpack('<I', this.clientToken)[0],
 				bp.unpack('<I', d.serverToken)[0]
 			);
 
-			info('attempting to auth as Warcraft III: The Frozen Throne');
+			info('attempting to auth as "Warcraft III: The Frozen Throne"');
 		} else {
-			info('attempting to auth as Warcraft III: Reign of Chaos');
+			info('attempting to auth as "Warcraft III: Reign of Chaos"');
 		}
 
 		this.emit('SID_AUTH_INFO', this, d);
@@ -548,7 +517,7 @@ class BNet extends EventEmitter {
 			keyInfoROC,
 			keyInfoTFT,
 			exeInfo,
-			'GHost.js'
+			this.username
 		));
 	}
 
@@ -703,5 +672,3 @@ class BNet extends EventEmitter {
 
 	}
 }
-
-export default BNet;

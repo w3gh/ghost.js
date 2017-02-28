@@ -6,8 +6,6 @@
       "alias": "eurobattle.net",
       "username": "jilizart",
       "password": "jilizart",
-      "keyroc": "HTC4JXFHT9FNGE92EDVW9M4TGH",
-      "keytft": "HTC4JXFHT9FNGE92EDVW9M4TGH",
       "firstchannel": "w3",
       "custom": {
         "war3version": "27",
@@ -19,7 +17,7 @@
       "country": "United States",
       "language": "enUS",
       "localeid": 1033,
-      "war3path": "./war3/1.26a/",
+      "war3path": "./war3/1.27a/",
       "war3exe": "./war3/1.26a/war3.exe",
       "stormdll": "./war3/1.26a/Storm.dll",
       "gamedll": "./war3/1.26a/game.dll",
@@ -36,17 +34,17 @@
       "alias": "rubattle.net",
       "username": "JELEZORT",
       "password": "4549",
-      "keyroc": "HTC4JXFHT9FNGE92EDVW9M4TGH",
-      "keytft": "HTC4JXFHT9FNGE92EDVW9M4TGH",
       "firstchannel": "w3",
       "custom": {
-        "war3version": "26",
+        "war3version": "27",
+        "exeversion": "16 0 27 1",
+        "exeversionhash": "110 248 20 87",
         "passwordhashyype": "pvpgn"
       },
-      "countryabbrev": "USA",
-      "country": "United States",
-      "language": "enUS",
-      "localeid": 1033,
+      "countryabbrev": "RUS",
+      "country": "Russia",
+      "language": "ruRU",
+      "localeid": 1049,
       "war3exe": "./war3/1.26a/war3.exe",
       "stormdll": "./war3/1.26a/Storm.dll",
       "gamedll": "./war3/1.26a/game.dll",
@@ -83,7 +81,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "server": "server.pvpgn.pro",
       "alias": "pvpgn.pro 1",
       "username": "jilizart",
@@ -105,7 +103,7 @@
       }
     },
     {
-      "enabled": false,
+      "enabled": true,
       "server": "server.pvpgn.pro",
       "alias": "pvpgn.pro 2",
       "username": "jilizart3",
@@ -132,7 +130,12 @@
     "defaultmap": "map",
     "mapcfgpath": "./maps",
     "commandtrigger": "!",
-    "war3path": "./war3/1.26a/"
+    "war3path": "./war3/1.26a/",
+    "plugins": {
+      "chat": {
+        "consolePrint": true
+      }
+    }
   },
   "admingame": {
     "create": false,

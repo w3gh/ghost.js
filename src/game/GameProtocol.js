@@ -1,7 +1,8 @@
 'use strict';
 
 import {ByteArray, ByteString, AssignLength, ValidateLength} from './../Bytes';
-import Protocol from './../Protocol';
+import {Protocol} from './../Protocol';
+import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 import bp from 'bufferpack';
 import {getTicks, getTime} from './../util';
 import {create, hex} from '../Logger';
@@ -81,7 +82,7 @@ function encodeSlotInfo(slots, /*uint32*/ randomSeed, /*uchar*/layoutStyle, /*uc
 	return ByteArray(slotInfo);
 }
 
-class GameProtocol extends Protocol {
+export class GameProtocol extends Protocol {
 
 	W3GS_HEADER_CONSTANT = '\xf7';
 
@@ -429,22 +430,3 @@ statString
 	RECEIVE_W3GS_PONG_TO_HOST() {
 	}
 }
-
-/**
- *
- * @param {Number} hostCounter
- * @param {Number} entryKey
- * @param {String} name
- * @param {Buffer} internalIPBuffer
- * @constructor
- */
-export class IncomingJoinPlayer {
-	constructor(hostCounter, entryKey, name, internalIP) {
-		this.hostCounter = hostCounter;
-		this.entryKey = entryKey;
-		this.name = name;
-		this.internalIP = internalIP;
-	}
-}
-
-export default GameProtocol;
