@@ -2,12 +2,7 @@
  * Represents friend from Battle.net friends list
  */
 export class Friend {
-	constructor(account, status, area, client, location) {
-		this.account = account;
-		this.status = status;
-		this.area = area;
-		this.client = client;
-		this.location = location;
+	constructor(public account, public status, public area, public client, public location) {
 	}
 
 	static extractStatus(status) {

@@ -1,6 +1,6 @@
 import {GProxy} from '../GProxy';
 
 const argv = require('yargs').config().argv;
-const gproxy = GProxy.run(argv);
+const gproxy = new GProxy(argv);
 
 gproxy.start();
