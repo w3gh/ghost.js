@@ -2,7 +2,7 @@ const winston = require('winston');
 const chalk = require('chalk');
 const util = require('util');
 const debuglog = util.debuglog('ghost');
-const GHOST_DEBUG = process.env.GHOST_DEBUG;
+const {GHOST_DEBUG} = process.env;
 
 // { emerg: 0, alert: 1, crit: 2, error: 3, warning: 4, notice: 5, info: 6, debug: 7 }
 

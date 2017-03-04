@@ -2,7 +2,14 @@
   "name": "ghost.js",
   "version": "0.1.0",
   "description": "Warcraft 3 Game Host",
-  "main": "run.js",
+  "main": "lib/GHost.js",
+  "bin": {
+    "w3host": "./bin/w3host",
+    "w3proxy": "./bin/w3proxy"
+  },
+  "engines": {
+    "node": ">=4.2.0"
+  },
   "dependencies": {
     "babel-eslint": "^6.1.2",
     "binary": "^0.3.0",
@@ -19,26 +26,26 @@
     "hex": "^0.1.0",
     "ip": "^1.1.3",
     "lodash": "^4.15.0",
+    "ref": "^1.3.4",
     "ref-array": "^1.1.2",
     "ref-struct": "^1.1.0",
     "winston": "^2.2.0",
     "yargs": "^5.0.0"
   },
-  "engines": {
-    "node": ">=3.3.0"
-  },
   "devDependencies": {
+    "@types/node": "^7.0.5",
     "babel-cli": "^6.14.0",
     "babel-plugin-transform-class-properties": "^6.11.5",
     "babel-polyfill": "^6.13.0",
     "babel-preset-es2015": "^6.14.0",
     "babel-preset-es2016": "^6.11.3",
-    "babel-preset-stage-0": "^6.5.0"
+    "babel-preset-stage-0": "^6.5.0",
+    "typescript": "^2.2.1"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node ./bin/w3host --config=./config.json",
-    "build": "babel src -d lib"
+    "build": "tsc"
   },
   "repository": {
     "type": "git",

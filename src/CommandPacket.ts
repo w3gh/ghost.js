@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * @param {Number} type
  * @param {Number} id
@@ -7,9 +5,5 @@
  * @constructor
  */
 export class CommandPacket {
-	constructor(type, id, buffer) {
-		this.type = type;
-		this.id = id;
-		this.buffer = buffer;
-	}
+    constructor(public type: string, public id: number, public buffer: Buffer) {}
 }

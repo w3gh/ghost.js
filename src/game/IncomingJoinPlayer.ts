@@ -7,10 +7,6 @@
  * @constructor
  */
 export class IncomingJoinPlayer {
-	constructor(hostCounter, entryKey, name, internalIP) {
-		this.hostCounter = hostCounter;
-		this.entryKey = entryKey;
-		this.name = name;
-		this.internalIP = internalIP;
+	constructor(public hostCounter, public entryKey, public name, public internalIP) {
 	}
 }

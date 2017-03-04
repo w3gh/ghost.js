@@ -151,6 +151,8 @@ export class GameProtocol extends Protocol {
 	NULL_3 = '\x00\x00\x00';
 	NULL_4 = '\x00\x00\x00\x00';
 
+	private receivers;
+
 	constructor() {
 		super();
 
