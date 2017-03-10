@@ -11,6 +11,23 @@ import {BNetConnection} from "./BNetConnection";
 
 const {debug, info, error} = create('BNetProtocol');
 
+export interface AuthState {
+    state: Buffer;
+    description: string;
+}
+
+export interface AccountLogon {
+    status,
+    salt,
+    serverPublicKey
+}
+
+export interface AccountLogonProof {
+    status,
+    proof,
+    message
+}
+
 export class BNetProtocol extends Protocol {
 
     BNET_HEADER_CONSTANT = '\xff';
@@ -249,8 +266,6 @@ export class BNetProtocol extends Protocol {
 
     SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, accountName) {
         assert(clientPublicKey.length === 32, 'public key length error');
-
-        info('cd keys accepted');
 
         return this.asPacket(
             this.SID_AUTH_ACCOUNTLOGON,
@@ -504,10 +519,10 @@ export class BNetProtocol extends Protocol {
         // 2 bytes					-> Length
         // 4 bytes					-> KeyState
         // null terminated string	-> KeyStateDescription
-        const keyState = buff.slice(4, 8);
-        const keyStateDescription = buff.slice(8).toString().split(this.NULL, 1)[0];
+        const state = buff.slice(4, 8);
+        const description = buff.slice(8).toString().split(this.NULL, 1)[0];
 
-        return {keyState, keyStateDescription};
+        return {state, description} as AuthState;
     };
 
     RECEIVE_SID_REQUIREDWORK(buff) {
@@ -519,31 +534,55 @@ export class BNetProtocol extends Protocol {
     RECEIVE_SID_AUTH_ACCOUNTLOGON(buff) {
         assert(ValidateLength(buff) && buff.length >= 8);
 
-        const status = buff.slice(4, 8);
+        /**
+         * (DWORD)         Status
+         * (BYTE[32])     Salt (s)
+         * (BYTE[32])     Server Key (B)
+         Reports the success or failure of the logon request.
+         Possible status codes:
+         0x00: Logon accepted, requires proof.
+         0x01: Account doesn't exist.
+         0x05: Account requires upgrade.
+         Other: Unknown (failure).
+         */
 
-        if (!(status.toString() === this.NULL_4.toString() && buff.length >= 72)) {
-            error('buffer status is null');
-
-            return false;
-        }
-
+        const status = buff.readInt32LE(4); //buff.slice(4, 8);
         const salt = buff.slice(8, 40);
         const serverPublicKey = buff.slice(40, 72);
 
-        return {status, salt, serverPublicKey};
+        return {status, salt, serverPublicKey} as AccountLogon;
     }
 
-    RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF(buff) {
+    RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF(buff: Buffer) {
         debug('RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF');
 
         assert(ValidateLength(buff) && buff.length >= 8);
 
-        const statusExpected = '\x0e000000';
-        const status = buff.slice(4, 8);
+        /*
+         (DWORD)		 Status
+         (BYTE[20])	 Server Password Proof (M2)
+         (STRING) 	 Additional information
 
-        return (status.toString() === this.NULL_4.toString()
-            || status.toString() === statusExpected.toString()
-        );
+         This message confirms the validity of the client password proof and supplies the server password proof. See [NLS/SRP Protocol] for more information.
+
+         Status
+
+         0x00: Logon successful.
+         0x02: Incorrect password.
+         0x0E: An email address should be registered for this account.
+         0x0F: Custom error. A string at the end of this message contains the error.
+         */
+        // const statusExpected = '\x0e000000';
+        // const status = buff.slice(4, 8);
+        const status = buff.readInt32LE(4);
+        const proof = buff.slice(8, 20);
+        const message = buff.slice(20 + proof.length).toString().split(this.NULL, 1)[0];
+
+        return {status, proof, message} as AccountLogonProof;
+
+        // return (status.toString() === this.NULL_4.toString()
+        //     || status.toString() === statusExpected.toString()
+        // );
     }
 
     RECEIVE_SID_ENTERCHAT(buff) {
