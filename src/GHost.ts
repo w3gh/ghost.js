@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as dgram from 'dgram';
 import {getTicks, getTime, localIP} from './util';
-import {BNet} from './bnet/BNet';
+import {BNetConnection} from './bnet/BNetConnection';
 import {AdminGame} from './game/AdminGame';
 import {Map} from './game/Map';
 import {Game} from './game/Game';
@@ -11,17 +11,17 @@ import {create} from './Logger';
 const {debug, info, error} = create('GHost');
 
 export class GHost extends Bot {
-    private currentGame?: Game;
-    private adminGame?: AdminGame;
-    private exitingNice: boolean;
-    private bnetExiting: boolean;
-    private adminExiting: boolean;
-    public hostCounter: number;
-    private lastUpdateTime: number;
-    private bnets: BNet[];
-    private games: Game[];
+    private currentGame?: Game = null;
+    private adminGame?: AdminGame = null;
+    private exitingNice: boolean = false;
+    private bnetExiting: boolean = false;
+    private adminExiting: boolean = false;
+    public hostCounter: number = 1;
+    private lastUpdateTime: number = getTime();
+    private bnets: BNetConnection[] = [];
+    private games: Game[] = [];
 
-    public udpSocket: dgram.Socket;
+    public udpSocket: dgram.Socket = dgram.createSocket('udp4');
     private haveAdminGame: boolean;
     public TFT: number;
     private hostPort: number;
@@ -36,14 +36,6 @@ export class GHost extends Bot {
 
     constructor(cfg) {
         super(cfg);
-
-        this.currentGame = null;
-        this.exitingNice = false;
-
-        this.hostCounter = 1;
-        this.lastUpdateTime = Date.now();
-        this.bnets = [];
-        this.games = [];
 
         this.configure();
         this.configureBNet();
@@ -105,7 +97,6 @@ export class GHost extends Bot {
     };
 
     udpSocketSetup() {
-        this.udpSocket = dgram.createSocket('udp4');
         this.udpSocket.on('listening', this.onListening);
         this.udpSocket.on('message', this.onMessage);
         this.udpSocket.on('error', this.onError);
@@ -154,16 +145,22 @@ export class GHost extends Bot {
         const config = this.cfg;
 
         for (let i = 0; i < 32; ++i) {
-            const prefix = `bnet.${i}`;
-            const prefixConfig = config.slice(prefix);
+            const prefix = `bnet.${i}`,
+                prefixedConfig = config.slice(prefix);
 
-            if (prefixConfig) {
-                this.bnets.push(new BNet(prefixConfig, this.TFT, this.hostPort, i));
+            if (prefixedConfig) {
+                const enabled = prefixedConfig.item('enabled', true);
+
+                if (enabled) {
+                    this.bnets.push(
+                        new BNetConnection(i, this.TFT, this.hostPort, prefixedConfig)
+                    );
+                }
             }
         }
 
-        if (this.bnets.length == 0) {
-            info('warning - no battle.net connections found in config file')
+        if (this.bnets.length < 1) {
+            error('no battle.net connections found in config')
         }
     }
 

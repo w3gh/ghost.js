@@ -10,6 +10,7 @@ import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from './../BNCSUtil';
 import {create, hex} from '../Logger';
+import {Config} from "../Config";
 
 const {debug, info, error} = create('BNet');
 
@@ -18,51 +19,52 @@ const {debug, info, error} = create('BNet');
  * @param {Object} options
  * @constructor
  */
-export class BNet extends EventEmitter {
-    private id: string;
-    private hostPort: number;
-    private TFT: number;
+export class BNetConnection extends EventEmitter {
     private enabled: boolean;
-    private socket: net.Socket;
-    private protocol: BNetProtocol;
-    private bncs: BNCSUtil;
-    private data: Buffer;
-    private incomingPackets: CommandPacket[];
-    private incomingBuffer: Buffer;
-    private clientToken: Buffer;
-    private admins: string[];
-    private outPackets;
-    private connected: boolean;
-    private connecting: boolean;
-    private exiting: boolean;
-    private lastDisconnectedTime: number;
-    private lastConnectionAttemptTime: number;
-    private lastNullTime: number;
-    private lastOutPacketTicks: number;
-    private lastOutPacketSize: number;
-    private frequencyDelayTimes: number;
-    private firstConnect: boolean;
-    private waitingToConnect: boolean;
-    private loggedIn: boolean;
-    private inChat: boolean;
-    private inGame: boolean;
+    private socket: net.Socket = new net.Socket();
+    private protocol: BNetProtocol = new BNetProtocol(this);
+
+    private bncs: BNCSUtil = new BNCSUtil();
+    private data: Buffer = Buffer.from('');
+    private incomingPackets: CommandPacket[] = [];
+    private incomingBuffer: Buffer = Buffer.from('');
+    private clientToken: Buffer = Buffer.from('\xdc\x01\xcb\x07', 'binary');
+
+    private admins: string[] = [];
+    private outPackets = [];
+    private connected: boolean = false;
+    private connecting: boolean = false;
+    private exiting: boolean = false;
+    private lastDisconnectedTime: number = 0;
+    private lastConnectionAttemptTime: number = 0;
+    private lastNullTime: number = 0;
+    private lastOutPacketTicks: number = 0;
+    private lastOutPacketSize: number = 0;
+    private frequencyDelayTimes: number = 0;
+    private firstConnect: boolean = true;
+    private waitingToConnect: boolean = true;
+    private loggedIn: boolean = false;
+    private inChat: boolean = false;
+    private inGame: boolean = false;
     private commandTrigger: string;
     private server: string;
     private alias: string;
     private bnlsServer: string;
     private bnlsPort: number;
     private bnlsWardenCookie: string;
-    private war3version: number;
+    private war3version: string;
+
     private exeVersion: string;
     private exeVersionHash: string;
+
     private passwordHashType: string;
     private pvpgnRealmName: string;
     private maxMessageLength: string;
-    private localeID: string;
+    private localeID: number;
     private countryAbbrev: string;
     private country: string;
     private language: string;
-    private timezone: string;
+    private timezone: number;
     private war3Path: string;
     private war3exePath: string;
     private stormdllPath: string;
@@ -78,7 +80,7 @@ export class BNet extends EventEmitter {
     private waitTicks: number;
     private nls: Buffer;
 
-    constructor(config, TFT, hostPort, hostCounterID) {
+    constructor(private id: number, private TFT: number, private hostPort: number, config: Config) {
         super();
 
         if (!config) {
@@ -86,9 +88,6 @@ export class BNet extends EventEmitter {
             return;
         }
 
-        this.id = hostCounterID;
-        this.hostPort = hostPort;
-        this.TFT = TFT;
         this.configure(config);
 
         if (!this.enabled) {
@@ -96,39 +95,6 @@ export class BNet extends EventEmitter {
         }
 
         info(`found battle.net connection [#${this.id}] for server [${this.server}]`);
-
-        this.socket = new net.Socket();
-        this.protocol = new BNetProtocol(this);
-        this.bncs = new BNCSUtil();
-
-        this.data = Buffer.from('');
-        this.incomingPackets = [];
-        this.incomingBuffer = Buffer.from('');
-
-        this.clientToken = Buffer.from('\xdc\x01\xcb\x07', 'binary');
-        this.admins = [];
-        this.outPackets = [];
-
-        this.connected = false;
-        this.connecting = false;
-        this.exiting = false;
-
-        this.lastDisconnectedTime = 0;
-        this.lastConnectionAttemptTime = 0;
-        this.lastNullTime = 0;
-        this.lastOutPacketTicks = 0;
-        this.lastOutPacketSize = 0;
-        this.frequencyDelayTimes = 0;
-
-        this.firstConnect = true;
-        this.waitingToConnect = true;
-        this.loggedIn = false;
-        this.inChat = false;
-        this.inGame = false;
-
-        this.configureSocket();
-        this.configureHandlers();
-        this.configurePlugins();
 
         this.on('talk', (that, event) => {
             if (event.message === '?trigger') {
@@ -141,24 +107,24 @@ export class BNet extends EventEmitter {
         });
     }
 
-    configure(config) {
+    configure(config: Config) {
         this.enabled = config.item('enabled', true);
-        this.server = config.item('server');
-        this.alias = config.item('alias');
+        this.server = config.item('server', null);
+        this.alias = config.item('alias', null);
 
-        this.bnlsServer = config.item('bnls.server', false);
+        this.bnlsServer = config.item('bnls.server', '');
         this.bnlsPort = config.item('bnls.port', 9367);
-        this.bnlsWardenCookie = config.item('bnls.wardencookie', false);
+        this.bnlsWardenCookie = config.item('bnls.wardencookie', null);
 
         this.commandTrigger = config.item('commandtrigger', '!');
         assert(this.commandTrigger !== '', 'command trigger empty');
 
         this.war3version = config.item('custom.war3version', '26');
-        this.exeVersion = config.item('custom.exeversion', false);
-        this.exeVersionHash = config.item('custom.exeversionhash', false);
+        this.exeVersion = config.item('custom.exeversion', '');
+        this.exeVersionHash = config.item('custom.exeversionhash', '');
         this.passwordHashType = config.item('custom.passwordhashyype', '');
         this.pvpgnRealmName = config.item('custom.pvpgnrealmname', 'PvPGN Realm');
-        this.maxMessageLength = config.item('custom.maxmessagelength', 200);
+        this.maxMessageLength = config.item('custom.maxmessagelength', '200');
 
         this.localeID = config.item('localeid', 1049); //Russian
         this.countryAbbrev = config.item('countryabbrev', 'RUS');
@@ -182,7 +148,7 @@ export class BNet extends EventEmitter {
         assert(this.password !== '', 'password empty');
 
         this.firstChannel = config.item('firstchannel', 'The Void');
-        this.rootAdmin = config.item('rootadmin', false);
+        this.rootAdmin = config.item('rootadmin', null);
         this.plugins = config.item('plugins', {});
     }
 
@@ -284,31 +250,32 @@ export class BNet extends EventEmitter {
 
     extractPackets() {
         while (this.incomingBuffer.length >= 4) {
-            var buffer = this.incomingBuffer;
+            const buffer = this.incomingBuffer;
 
             if (!this.protocol.haveHeader(buffer)) {
                 error('received invalid packet from battle.net (bad header constant), disconnecting');
-                this.socket.end();
-            }
-
-            const len = GetLength(buffer);
-
-            if (len < 4) {
-                error('received invalid packet from battle.net (bad length), disconnecting');
+                this.disconnect();
                 return;
             }
 
-            if (buffer.length >= len) {
-                this.incomingPackets.push(
-                    new CommandPacket(
-                        this.protocol.BNET_HEADER_CONSTANT,
-                        buffer[1],
-                        buffer.slice(0, len)
-                    )
-                );
+            const bytesLength = GetLength(buffer);
 
-                this.incomingBuffer = buffer.slice(len);
-            } else { // still waiting for rest of the packet
+            if (bytesLength >= 4) {
+                if (buffer.length >= bytesLength) {
+                    this.incomingPackets.push(
+                        new CommandPacket(
+                            this.protocol.BNET_HEADER_CONSTANT,
+                            buffer[1],
+                            buffer.slice(0, bytesLength)
+                        )
+                    );
+
+                    this.incomingBuffer = buffer.slice(bytesLength);
+                } else { // still waiting for rest of the packet
+                    return;
+                }
+            } else {
+                error('received invalid packet from battle.net (bad length), disconnecting');
                 return;
             }
         }
@@ -404,18 +371,35 @@ export class BNet extends EventEmitter {
 
             this.firstConnect = false;
 
-            this.connect();
+            if (!this.connect()) {
+                info(`[${this.alias}] failed to connect to server [${this.server}] on port 6112`);
+            }
         }
 
         return this.exiting;
     }
 
     connect() {
-        this.socket.connect(6112, this.server);
+        try {
+            this.configureSocket();
+
+            this.configureHandlers();
+            this.configurePlugins();
+
+            this.socket.connect(6112, this.server);
+            return true;
+        } catch (e) {
+            console.log('socket error');
+            console.dir(e);
+            return false;
+        }
     }
 
     disconnect() {
         this.socket.end();
+        this.exiting = true;
+        this.connecting = false;
+        this.connected = false;
     }
 
     sendJoinChannel(channel) {

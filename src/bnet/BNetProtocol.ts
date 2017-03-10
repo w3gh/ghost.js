@@ -6,8 +6,8 @@ import {Protocol} from './../Protocol';
 import {Friend} from './Friend';
 import {IncomingGameHost} from './IncomingGameHost';
 
-import {create} from '../Logger';
-import {BNet} from "./BNet";
+import {create, hex} from '../Logger';
+import {BNetConnection} from "./BNetConnection";
 
 const {debug, info, error} = create('BNetProtocol');
 
@@ -111,13 +111,13 @@ export class BNetProtocol extends Protocol {
     FRIENDLOCATION_PRIVHIDE = 4;
     FRIENDLOCATION_PRIVSHOW = 5;
 
-    PRODUCT_TFT = 'XP3W';
+    PRODUCT_TFT = 'PX3W';
     PRODUCT_ROC = '3RAW';
     PLATFORM_X86 = '68XI';
 
     receivers;
 
-    constructor(public bnet: BNet) {
+    constructor(public bnet: BNetConnection) {
         super();
 
         this.configureReceivers();
@@ -171,7 +171,7 @@ export class BNetProtocol extends Protocol {
      * @param {Buffer} buffer
      * @returns {Boolean}
      */
-    haveHeader(buffer) {
+    haveHeader(buffer: Buffer) {
         return String.fromCharCode(buffer[0]) === this.BNET_HEADER_CONSTANT;
     }
 
@@ -377,7 +377,7 @@ export class BNetProtocol extends Protocol {
             let i = 8;
             let gamesFound = buff.readInt32LE(4);
 
-            //console.log('gamesFound', gamesFound, buff);
+            console.log('gamesFound', gamesFound, buff);
 
             if (gamesFound > 0 && buff.length >= 25) {
                 while (gamesFound > 0) {
@@ -462,10 +462,11 @@ export class BNetProtocol extends Protocol {
         // 2 bytes					-> Length
         // 4 bytes					-> LogonType
         // 4 bytes					-> ServerToken
-        // 4 bytes					-> ???
+        // 4 bytes					-> UDPValue
         // 8 bytes					-> MPQFileTime
         // null terminated string	-> IX86VerFileName
         // null terminated string	-> ValueStringFormula
+        // other bytes              -> ServerSignature
 
         // (DWORD)		 Logon Type
         // (DWORD)		 Server Token
@@ -666,7 +667,7 @@ export class BNetProtocol extends Protocol {
     }
 
     RECEIVE_SID_FLOODDETECTED(buff) {
-        debug('RECEIVE_SID_FLOODDETECTED')
+        debug('RECEIVE_SID_FLOODDETECTED');
     }
 
     RECEIVE_SID_CLANINFO(buff) {

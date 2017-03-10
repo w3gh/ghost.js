@@ -3,6 +3,7 @@
 import {ByteArray, ByteString, AssignLength, ValidateLength} from './../Bytes';
 import {Protocol} from './../Protocol';
 import {IncomingJoinPlayer} from './IncomingJoinPlayer';
+import {GameSlot} from './GameSlot';
 import bp from 'bufferpack';
 import {getTicks, getTime} from './../util';
 import {create, hex} from '../Logger';
@@ -180,13 +181,13 @@ export class GameProtocol extends Protocol {
 		);
 	}
 
-	SEND_W3GS_SLOTINFOJOIN(/*unsigned char*/ PID,
-	                       /*BYTEARRAY*/ port,
-	                       /*BYTEARRAY*/ externalIP,
-	                       /*vector<CGameSlot> &*/slots,
-	                       /*uint32_t*/ randomSeed,
-	                       /*unsigned char*/ layoutStyle,
-	                       /*unsigned char*/ playerSlots) {
+	SEND_W3GS_SLOTINFOJOIN(/*unsigned char*/ PID:string,
+	                       /*BYTEARRAY*/ port:Buffer,
+	                       /*BYTEARRAY*/ externalIP:Buffer,
+	                       /*vector<CGameSlot> &*/slots:GameSlot[],
+	                       /*uint32_t*/ randomSeed:number,
+	                       /*unsigned char*/ layoutStyle:string,
+	                       /*unsigned char*/ playerSlots:string) {
 
 		const zeros = this.NULL_4;
 		const slotInfo = encodeSlotInfo(slots, randomSeed, layoutStyle, playerSlots);
