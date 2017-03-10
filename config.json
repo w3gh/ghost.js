@@ -9,18 +9,18 @@
       "firstchannel": "w3",
       "custom": {
         "war3version": "27",
-        "exeversion": "16 0 27 1",
-        "exeversionhash": "110 248 20 87",
+        "exeversion": "173 1 27 1",
+        "exeversionhash": "",
         "passwordhashyype": "pvpgn"
       },
       "countryabbrev": "USA",
       "country": "United States",
       "language": "enUS",
       "localeid": 1033,
-      "war3path": "./war3/1.27a/",
-      "war3exe": "./war3/1.26a/war3.exe",
-      "stormdll": "./war3/1.26a/Storm.dll",
-      "gamedll": "./war3/1.26a/game.dll",
+      "war3path": "./war3/1.27b/",
+      "war3exe": "./war3/1.27b/war3.exe",
+      "stormdll": "./war3/1.27b/Storm.dll",
+      "gamedll": "./war3/1.27b/game.dll",
       "commandtrigger": "!",
       "plugins": {
         "./src/plugins/chat": {
@@ -29,16 +29,16 @@
       }
     },
     {
-      "enabled": false,
+      "enabled": true,
       "server": "rubattle.net",
       "alias": "rubattle.net",
       "username": "JELEZORT",
       "password": "4549",
       "firstchannel": "w3",
       "custom": {
-        "war3version": "27",
-        "exeversion": "16 0 27 1",
-        "exeversionhash": "110 248 20 87",
+        "war3version": "26",
+        "exeversion": "",
+        "exeversionhash": "",
         "passwordhashyype": "pvpgn"
       },
       "countryabbrev": "RUS",
@@ -103,7 +103,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "server": "server.pvpgn.pro",
       "alias": "pvpgn.pro 2",
       "username": "jilizart3",

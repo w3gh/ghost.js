@@ -1,9 +1,11 @@
 import fs from 'fs';
 
 export class Config {
-    data: Object;
+    data: Object = null;
 
     constructor(configPath: string|Object) {
+        if (!configPath) return null;
+
         if (typeof configPath === 'string') {
             this.data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         }
@@ -19,7 +21,7 @@ export class Config {
     slice(name: string): Config {
         const value = this.item(name, null);
 
-        return typeof value === 'object' ? new Config(value) : value;
+        return value !== null ? new Config(value) : value;
     }
 
     /**
@@ -28,9 +30,11 @@ export class Config {
      * @param {*} def
      * @returns {*}
      */
-    item<T>(name: string, def?: T): T {
-        let curr = this.data;
-        let names = name.split('.');
+    item<T>(name: string, def: T = null): T {
+        let curr = this.data,
+            names = name.split('.');
+
+        if (curr === null) return def;
 
         for (let n of names) {
             curr = curr[n];

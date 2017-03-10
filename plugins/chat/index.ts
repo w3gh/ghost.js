@@ -14,7 +14,7 @@ import {PluginInterface} from '../../src/Plugin';
 module.exports = function (Plugin: PluginInterface) {
     return class Chat extends Plugin {
         /**
-         * @param {BNet} bnet
+         * @param {BNetConnection} bnet
          */
         onBNetInit(bnet) {
             bnet.on('SID_CHATEVENT', this.SID_CHATEVENT.bind(this));

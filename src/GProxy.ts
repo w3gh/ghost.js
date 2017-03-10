@@ -3,7 +3,7 @@ import * as dgram from 'dgram';
 import {AdminGame} from './game/AdminGame';
 import {Map} from './game/Map';
 import {Bot} from './Bot';
-import {BNet} from './bnet/BNet';
+import {BNetConnection} from './bnet/BNetConnection';
 import {GameProtocol} from './game/GameProtocol';
 import {create} from './Logger';
 import {GHost} from "./GHost";
