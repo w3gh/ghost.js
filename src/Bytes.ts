@@ -113,6 +113,16 @@ export function ByteString(string: string): Buffer {
 }
 
 /**
+ * Returns null terminated string (CString)
+ * @param buffer
+ * @returns {string}
+ * @constructor
+ */
+export function ByteExtractString(buffer: Buffer) {
+    return buffer.toString().split('\x00', 1)[0];
+}
+
+/**
  * Extracts bytes seq from string
  * @param {String} text
  * @param {Number} count
