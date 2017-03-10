@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as EventEmitter from 'events';
 import {getTicks, getTime} from './../util';
 import {BytesExtract, GetLength, AsHex} from './../Bytes';
-import {BNetProtocol} from './BNetProtocol';
+import {BNetProtocol, AuthState, AccountLogonProof, AccountLogon} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from './../BNCSUtil';
@@ -165,26 +165,18 @@ export class BNetConnection extends EventEmitter {
                 this.connecting = true;
             })
 
-            .on('data', (buffer) => {
-                info(`[${this.alias}] connection receive`);
-                hex(buffer);
-
-                this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
-
-                this.extractPackets();
-                this.processPackets();
-            })
+            .on('data', this.processBuffer.bind(this))
 
             .on('drain', (...args) => {
-                info(`[${this.alias}] connection drain`, ...args);
+                debug(`[${this.alias}] connection drain`, ...args);
             })
 
             .on('end', (...args) => {
-                info(`[${this.alias}] connection end`, ...args);
+                debug(`[${this.alias}] connection end`, ...args);
             })
 
             .on('error', (err) => {
-                info(`[${this.alias}] disconnected from battle.net due to socket error ${err}`);
+                error(`[${this.alias}] disconnected from battle.net due to socket error ${err}`);
 
                 this.lastDisconnectedTime = getTime();
                 this.loggedIn = false;
@@ -195,11 +187,11 @@ export class BNetConnection extends EventEmitter {
             })
 
             .on('lookup', () => {
-                info(`[${this.alias}] connection lookup`);
+                debug(`[${this.alias}] connection lookup`);
             })
 
             .on('timeout', () => {
-                info(`[${this.alias}] connection timeout`);
+                debug(`[${this.alias}] connection timeout`);
             });
     }
 
@@ -246,6 +238,21 @@ export class BNetConnection extends EventEmitter {
 
         hex(buffer);
         return this.socket.write(buffer);
+    }
+
+    processBuffer(buffer) {
+        debug(`[${this.alias}] connection receive buffer`,);
+        hex(buffer);
+        debug(`of length ${buffer.length}`);
+
+        const bytesLength = GetLength(buffer);
+
+        debug(`expected length ${bytesLength}`);
+
+        this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
+
+        this.extractPackets();
+        this.processPackets();
     }
 
     extractPackets() {
@@ -564,16 +571,16 @@ export class BNetConnection extends EventEmitter {
         ));
     }
 
-    HANDLE_SID_AUTH_CHECK(d) {
+    HANDLE_SID_AUTH_CHECK(auth: AuthState) {
         debug('HANDLE_SID_AUTH_CHECK');
 
-        if (d.keyState.toString('hex') !== AsHex(this.protocol.KR_GOOD)) {
-            switch (d.keyState.toString('hex')) {
+        if (auth.state.toString('hex') !== AsHex(this.protocol.KR_GOOD)) {
+            switch (auth.state.toString('hex')) {
                 case AsHex(this.protocol.KR_ROC_KEY_IN_USE):
-                    error(`logon failed - ROC CD key in use by user [${d.keyStateDescription}], disconnecting`);
+                    error(`logon failed - ROC CD key in use by user [${auth.description}], disconnecting`);
                     break;
                 case AsHex(this.protocol.KR_TFT_KEY_IN_USE):
-                    error(`logon failed - TFT CD key in use by user [${d.keyStateDescription}], disconnecting`);
+                    error(`logon failed - TFT CD key in use by user [${auth.description}], disconnecting`);
                     break;
                 case AsHex(this.protocol.KR_OLD_GAME_VERSION):
                     error(`logon failed - game version is too old, disconnecting`);
@@ -600,7 +607,9 @@ export class BNetConnection extends EventEmitter {
                 assert(clientPublicKey.length === 32, 'client public key wrong length');
             }
 
-            this.emit('SID_AUTH_CHECK', this, d);
+            info('cd keys accepted');
+
+            this.emit('SID_AUTH_CHECK', this, auth);
             this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
         }
     }
@@ -610,54 +619,84 @@ export class BNetConnection extends EventEmitter {
         return null;
     }
 
-    HANDLE_SID_AUTH_ACCOUNTLOGON(d) {
+    HANDLE_SID_AUTH_ACCOUNTLOGON(logon: AccountLogon) {
         debug('HANDLE_SID_AUTH_ACCOUNTLOGON');
-        var buff;
+
+        if (logon.status > 0) {
+            switch (logon.status) {
+                case 1:
+                    error(`logon failed - account doesn't exist`);
+                    return;
+                case 5:
+                    error(`logon failed - account requires upgrade`);
+                    return;
+                default:
+                    error(`logon failed - proof rejected with status ${logon.status}`);
+                    return;
+            }
+        }
 
         info(`username ${this.username} accepted`);
+
+        let data;
 
         if (this.passwordHashType === 'pvpgn') {
             info('using pvpgn logon type (for pvpgn servers only)');
 
-            buff = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
+            data = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
                 BNCSUtil.hashPassword(this.password)
             );
 
         } else {
             info('using battle.net logon type (for official battle.net servers only)');
 
-            buff = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
-                BNCSUtil.nls_get_M1(this.nls, d.serverPublicKey, d.salt)
+            data = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
+                BNCSUtil.nls_get_M1(this.nls, logon.serverPublicKey, logon.salt)
             );
         }
 
-        this.emit('SID_AUTH_ACCOUNTLOGON', this, d);
-        this.sendPackets(buff);
+        this.emit('SID_AUTH_ACCOUNTLOGON', this, logon);
+        this.sendPackets(data);
     }
 
-    HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(d) {
+    HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(logon: AccountLogonProof) {
         debug('HANDLE_SID_AUTH_ACCOUNTLOGONPROOF');
 
-        if (!d) {
-            error('Logon proof rejected.');
-            return;
+        /*
+         0x00: Logon successful.
+         0x02: Incorrect password.
+         0x0E(14): An email address should be registered for this account.
+         0x0F(15): Custom error. A string at the end of this message contains the error.
+         */
+
+        if (logon.status > 0) {
+            switch (logon.status) {
+                case 2:
+                    error('logon proof failed - incorrect password');
+                    return;
+                case 14:
+                    error('logon proof failed - an email address should be registered for this account');
+                    return;
+                case 15:
+                    error(`logon proof failed - ${logon.message}`);
+                    return;
+                default:
+                    error(`logon proof failed - rejected with status ${logon.status}`);
+                    return;
+            }
         }
 
         this.loggedIn = true;
 
         info(`[${this.alias}] logon successful`);
 
-        this.emit('SID_AUTH_ACCOUNTLOGONPROOF', this, d);
+        this.emit('SID_AUTH_ACCOUNTLOGONPROOF', this, logon);
         this.sendPackets([
             this.protocol.SEND_SID_NETGAMEPORT(this.hostPort),
             this.protocol.SEND_SID_ENTERCHAT(),
             this.protocol.SEND_SID_FRIENDSLIST(),
             this.protocol.SEND_SID_CLANMEMBERLIST(),
         ]);
-
-        setInterval(() => {
-            this.queueGetGameList('', 20);
-        }, 15000);
     }
 
     HANDLE_SID_NULL() {
