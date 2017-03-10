@@ -1,7 +1,7 @@
 import * as bp from 'bufferpack';
 import * as assert from 'assert';
 import {localIP, getTimezone} from './../util';
-import {ValidateLength, ByteUInt32, ByteInt32, ByteString} from './../Bytes';
+import {ValidateLength, ByteUInt32, ByteString, ByteExtractString} from './../Bytes';
 import {Protocol} from './../Protocol';
 import {Friend} from './Friend';
 import {IncomingGameHost} from './IncomingGameHost';
@@ -420,13 +420,13 @@ export class BNetProtocol extends Protocol {
                     i += 4;
                     let elapsedTime = buff.readInt32LE(i);
                     i += 4;
-                    let gameName = buff.slice(i).toString().split(this.NULL, 1)[0];
+                    let gameName = ByteExtractString(buff.slice(i));
                     i += gameName.length + 1;
 
                     if (buff.length < i + 1)
                         break;
 
-                    let gamePassword = buff.slice(i).toString().split(this.NULL, 1)[0];
+                    let gamePassword = ByteExtractString(buff.slice(i));
                     i += gamePassword.length + 1;
 
                     if (buff.length < i + 10)
@@ -443,7 +443,7 @@ export class BNetProtocol extends Protocol {
                     //@TODO handle hostCounter from hostCounterString
 
                     i += 8;
-                    let statString = buff.slice(i).toString().split(this.NULL, 1)[0];
+                    let statString = ByteExtractString(buff.slice(i));
                     i += statString.length + 1;
 
                     games.push(
@@ -494,8 +494,8 @@ export class BNetProtocol extends Protocol {
         const logonType = buff.slice(4, 8); // p[4:8]
         const serverToken = buff.slice(8, 12); // p[8:12]
         const mpqFileTime = buff.slice(16, 24); // p[16:24]
-        const ix86VerFileName = buff.slice(24).toString().split(this.NULL, 1)[0]; // p[24:].split(NULL, 1)[0]
-        const valueStringFormula = buff.slice(25 + ix86VerFileName.length).toString().split(this.NULL, 1)[0]; // p[25 + len(ix86VerFileName):].split(this.NULL, 1)[0]
+        const ix86VerFileName = ByteExtractString(buff.slice(24)); // p[24:].split(NULL, 1)[0]
+        const valueStringFormula = ByteExtractString(buff.slice(25 + ix86VerFileName.length)); // p[25 + len(ix86VerFileName):].split(this.NULL, 1)[0]
 
         return {
             logonType,
@@ -520,7 +520,7 @@ export class BNetProtocol extends Protocol {
         // 4 bytes					-> KeyState
         // null terminated string	-> KeyStateDescription
         const state = buff.slice(4, 8);
-        const description = buff.slice(8).toString().split(this.NULL, 1)[0];
+        const description = ByteExtractString(buff.slice(8));
 
         return {state, description} as AuthState;
     };
@@ -572,17 +572,12 @@ export class BNetProtocol extends Protocol {
          0x0E: An email address should be registered for this account.
          0x0F: Custom error. A string at the end of this message contains the error.
          */
-        // const statusExpected = '\x0e000000';
-        // const status = buff.slice(4, 8);
+
         const status = buff.readInt32LE(4);
         const proof = buff.slice(8, 20);
-        const message = buff.slice(20 + proof.length).toString().split(this.NULL, 1)[0];
+        const message = ByteExtractString(buff.slice(20 + proof.length));
 
         return {status, proof, message} as AccountLogonProof;
-
-        // return (status.toString() === this.NULL_4.toString()
-        //     || status.toString() === statusExpected.toString()
-        // );
     }
 
     RECEIVE_SID_ENTERCHAT(buff) {
@@ -607,8 +602,8 @@ export class BNetProtocol extends Protocol {
 
         const id = buff.readInt32LE(4); //buff.slice(4, 8)
         const ping = buff.readInt32LE(12); //bp.unpack('<I', buff.slice(12, 16)).join('');
-        const user = buff.slice(28).toString().split(this.NULL, 1)[0];
-        const message = buff.slice(29 + user.length).toString().split(this.NULL, 1)[0];
+        const user = ByteExtractString(buff.slice(28));
+        const message = ByteExtractString(buff.slice(29 + user.length));
 
         return {id, ping, user, message};
     }

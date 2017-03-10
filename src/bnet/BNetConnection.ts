@@ -347,7 +347,7 @@ export class BNetConnection extends EventEmitter {
 
             if (this.outPackets.length && getTicks() - this.lastOutPacketTicks >= this.waitTicks) {
                 if (this.outPackets.length > 7) {
-                    info(`packet queue warning - there are ${this.outPackets.length} packets waiting to be sent`);
+                    info(`[${this.alias}] packet queue warning - there are ${this.outPackets.length} packets waiting to be sent`);
                 }
 
                 const packet = this.outPackets.shift();
@@ -447,7 +447,7 @@ export class BNetConnection extends EventEmitter {
             }
 
             if (this.outPackets.length > 10) {
-                info(`attempted to queue chat command [${command}] but there are too many (${this.outPackets.length}) packets queued, discarding`);
+                info(`[${this.alias}] attempted to queue chat command [${command}] but there are too many (${this.outPackets.length}) packets queued, discarding`);
             } else {
                 this.outPackets.push(this.protocol.SEND_SID_CHATCOMMAND(command));
             }
@@ -461,7 +461,7 @@ export class BNetConnection extends EventEmitter {
     queueGetGameList(gameName = '', numGames = 1) {
         if (this.loggedIn) {
             if (this.outPackets.length > 10) {
-                info(`attempted to queue games list but there are too many (${this.outPackets.length}) packets queued, discarding`);
+                info(`[${this.alias}] attempted to queue games list but there are too many (${this.outPackets.length}) packets queued, discarding`);
             } else {
                 this.outPackets.push(this.protocol.SEND_SID_GETADVLISTEX(gameName, numGames));
             }
@@ -510,12 +510,12 @@ export class BNetConnection extends EventEmitter {
         if (this.exeVersion.length) {
             exeVersion = BytesExtract(this.exeVersion, 4);
 
-            info(`using custom exe version custom.exeversion ${JSON.stringify(exeVersion.toJSON().data)}`);
+            info(`[${this.alias}] using custom exe version custom.exeversion ${JSON.stringify(exeVersion.toJSON().data)}`);
         } else {
             //exeVersion = bp.pack('<I', exeVersion);
             //exeVersion = ByteInt32()
 
-            info(`using exe version ${JSON.stringify(exeVersion.toJSON().data)}`);
+            info(`[${this.alias}] using exe version ${JSON.stringify(exeVersion.toJSON().data)}`);
         }
 
         let exeVersionHash;
@@ -523,7 +523,7 @@ export class BNetConnection extends EventEmitter {
         if (this.exeVersionHash.length) {
             exeVersionHash = BytesExtract(this.exeVersionHash, 4);
 
-            info(`using custom exe version hash custom.exeversionhash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
+            info(`[${this.alias}] using custom exe version hash custom.exeversionhash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
         } else {
             exeVersionHash = BNCSUtil.checkRevisionFlat(
                 d.valueStringFormula,
@@ -535,7 +535,7 @@ export class BNetConnection extends EventEmitter {
 
             //exeVersionHash = bp.pack('<I', exeVersionHash);
 
-            info(`using exe version hash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
+            info(`[${this.alias}] using exe version hash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
         }
 
         let keyInfoROC = BNCSUtil.createKeyInfo(
@@ -553,9 +553,9 @@ export class BNetConnection extends EventEmitter {
                 bp.unpack('<I', d.serverToken)[0]
             );
 
-            info('attempting to auth as "Warcraft III: The Frozen Throne"');
+            info(`[${this.alias}] attempting to auth as "Warcraft III: The Frozen Throne"`);
         } else {
-            info('attempting to auth as "Warcraft III: Reign of Chaos"');
+            info(`[${this.alias}] attempting to auth as "Warcraft III: Reign of Chaos"`);
         }
 
         this.emit('SID_AUTH_INFO', this, d);
@@ -607,7 +607,7 @@ export class BNetConnection extends EventEmitter {
                 assert(clientPublicKey.length === 32, 'client public key wrong length');
             }
 
-            info('cd keys accepted');
+            info(`[${this.alias}] cd keys accepted`);
 
             this.emit('SID_AUTH_CHECK', this, auth);
             this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
@@ -636,19 +636,19 @@ export class BNetConnection extends EventEmitter {
             }
         }
 
-        info(`username ${this.username} accepted`);
+        info(`[${this.alias}] username ${this.username} accepted`);
 
         let data;
 
         if (this.passwordHashType === 'pvpgn') {
-            info('using pvpgn logon type (for pvpgn servers only)');
+            info(`[${this.alias}] using pvpgn logon type (for pvpgn servers only)`);
 
             data = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
                 BNCSUtil.hashPassword(this.password)
             );
 
         } else {
-            info('using battle.net logon type (for official battle.net servers only)');
+            info(`[${this.alias}] using battle.net logon type (for official battle.net servers only)`);
 
             data = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
                 BNCSUtil.nls_get_M1(this.nls, logon.serverPublicKey, logon.salt)
@@ -714,7 +714,7 @@ export class BNetConnection extends EventEmitter {
             debug('Warning: Account already logged in.');
         }
 
-        info(`joining channel [${this.firstChannel}]`);
+        info(`[${this.alias}] joining channel [${this.firstChannel}]`);
 
         this.inChat = true;
 
