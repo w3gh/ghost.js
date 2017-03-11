@@ -1,16 +1,16 @@
 import * as net from 'net';
-import * as bp from 'bufferpack';
 import * as assert from 'assert';
 import * as path from 'path';
 import * as EventEmitter from 'events';
 import {getTicks, getTime} from './../util';
-import {BytesExtract, GetLength, AsHex} from './../Bytes';
-import {BNetProtocol, AuthState, AccountLogonProof, AccountLogon} from './BNetProtocol';
+import {BytesExtract, GetLength, ByteExtractUInt32} from './../Bytes';
+import {BNetProtocol, AuthState, AccountLogonProof, AccountLogon, AuthInfo} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from './../BNCSUtil';
 import {create, hex} from '../Logger';
 import {Config} from "../Config";
+import {Friend} from "./Friend";
 
 const {debug, info, error} = create('BNet');
 
@@ -490,7 +490,20 @@ export class BNetConnection extends EventEmitter {
         this.sendPackets(this.protocol.SEND_SID_PING(d));
     }
 
-    HANDLE_SID_AUTH_INFO(d) {
+    HANDLE_SID_REQUIREDWORK() {
+        debug('HANDLE_SID_REQUIREDWORK');
+        return null;
+    }
+
+    HANDLE_SID_NULL() {
+        debug('HANDLE_SID_NULL');
+        // warning: we do not respond to NULL packets with a NULL packet of our own
+        // this is because PVPGN servers are programmed to respond to NULL packets so it will create a vicious cycle of useless traffic
+        // official battle.net servers do not respond to NULL packets
+        return;
+    }
+
+    HANDLE_SID_AUTH_INFO(data: AuthInfo) {
         debug('HANDLE_SID_AUTH_INFO');
 
         // if (BNCSUtil.HELP_SID_AUTH_CHECK(
@@ -526,11 +539,11 @@ export class BNetConnection extends EventEmitter {
             info(`[${this.alias}] using custom exe version hash custom.exeversionhash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
         } else {
             exeVersionHash = BNCSUtil.checkRevisionFlat(
-                d.valueStringFormula,
+                data.valueString,
                 this.war3exePath,
                 this.stormdllPath,
                 this.gamedllPath,
-                BNCSUtil.extractMPQNumber(d.ix86VerFileName)
+                BNCSUtil.extractMPQNumber(data.ix86VerFileName)
             );
 
             //exeVersionHash = bp.pack('<I', exeVersionHash);
@@ -538,10 +551,13 @@ export class BNetConnection extends EventEmitter {
             info(`[${this.alias}] using exe version hash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
         }
 
+        const clientTokenValue = ByteExtractUInt32(this.clientToken);
+        const serverTokenValue = ByteExtractUInt32(data.serverToken);
+
         let keyInfoROC = BNCSUtil.createKeyInfo(
             this.keyROC,
-            bp.unpack('<I', this.clientToken)[0],
-            bp.unpack('<I', d.serverToken)[0]
+            clientTokenValue,
+            serverTokenValue
         );
 
         let keyInfoTFT: Buffer;
@@ -549,8 +565,8 @@ export class BNetConnection extends EventEmitter {
         if (this.TFT) {
             keyInfoTFT = BNCSUtil.createKeyInfo(
                 this.keyTFT,
-                bp.unpack('<I', this.clientToken)[0],
-                bp.unpack('<I', d.serverToken)[0]
+                clientTokenValue,
+                serverTokenValue
             );
 
             info(`[${this.alias}] attempting to auth as "Warcraft III: The Frozen Throne"`);
@@ -558,7 +574,7 @@ export class BNetConnection extends EventEmitter {
             info(`[${this.alias}] attempting to auth as "Warcraft III: Reign of Chaos"`);
         }
 
-        this.emit('SID_AUTH_INFO', this, d);
+        this.emit('SID_AUTH_INFO', this, data);
         this.sendPackets(this.protocol.SEND_SID_AUTH_CHECK(
             this.TFT,
             this.clientToken,
@@ -574,23 +590,58 @@ export class BNetConnection extends EventEmitter {
     HANDLE_SID_AUTH_CHECK(auth: AuthState) {
         debug('HANDLE_SID_AUTH_CHECK');
 
-        if (auth.state.toString('hex') !== AsHex(this.protocol.KR_GOOD)) {
-            switch (auth.state.toString('hex')) {
-                case AsHex(this.protocol.KR_ROC_KEY_IN_USE):
+        /*
+         0x000: Passed challenge
+         0x100: Old game version (Additional info field supplies patch MPQ filename)
+         0x101: Invalid version
+         0x102: Game version must be downgraded (Additional info field supplies patch MPQ filename)
+         0x0NN: (where NN is the version code supplied in SID_AUTH_INFO): Invalid version code (note that 0x100 is not set in this case).
+         0x200: Invalid CD key *
+         0x201: CD key in use (Additional info field supplies name of user)
+         0x202: Banned key
+         0x203: Wrong product
+
+         KR_ROC_KEY_IN_USE = 513; //0x201
+         KR_TFT_KEY_IN_USE = 529; //0x211
+
+         KR_OLD_GAME_VERSION = 256;
+         KR_INVALID_VERSION = 257;
+
+         KR_MUST_BE_DOWNGRADED = 258;
+         KR_INVALID_CD_KEY = 512; //0x200
+
+         KR_BANNED_KEY = 514; //0x202
+         KR_WRONG_PRODUCT = 515; //0x203
+         */
+
+        if (auth.state > 0) {
+            switch (auth.state) {
+                case this.protocol.KR_ROC_KEY_IN_USE:
                     error(`logon failed - ROC CD key in use by user [${auth.description}], disconnecting`);
                     break;
-                case AsHex(this.protocol.KR_TFT_KEY_IN_USE):
+                case this.protocol.KR_TFT_KEY_IN_USE:
                     error(`logon failed - TFT CD key in use by user [${auth.description}], disconnecting`);
                     break;
-                case AsHex(this.protocol.KR_OLD_GAME_VERSION):
+                case this.protocol.KR_OLD_GAME_VERSION:
                     error(`logon failed - game version is too old, disconnecting`);
                     break;
-                case AsHex(this.protocol.KR_INVALID_VERSION):
+                case this.protocol.KR_INVALID_VERSION:
                     error(`logon failed - game version is invalid, disconnecting`);
                     break;
+                case this.protocol.KR_MUST_BE_DOWNGRADED:
+                    error(`logon failed - game version must be downgraded, disconnecting`);
+                    break;
+                case this.protocol.KR_INVALID_CD_KEY:
+                    error(`logon failed - cd key is invalid, disconnecting`);
+                    break;
+                case this.protocol.KR_BANNED_KEY:
+                    error(`logon failed - cd key is banned, disconnecting`);
+                    break;
                 default:
-                    error('logon failed - cd keys not accepted, disconnecting');
+                    error(`logon failed - cd keys not accepted, disconnecting`);
             }
+
+            this.disconnect();
         } else {
             let clientPublicKey;
 
@@ -612,11 +663,6 @@ export class BNetConnection extends EventEmitter {
             this.emit('SID_AUTH_CHECK', this, auth);
             this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
         }
-    }
-
-    HANDLE_SID_REQUIREDWORK() {
-        debug('HANDLE_SID_REQUIREDWORK');
-        return null;
     }
 
     HANDLE_SID_AUTH_ACCOUNTLOGON(logon: AccountLogon) {
@@ -699,19 +745,11 @@ export class BNetConnection extends EventEmitter {
         ]);
     }
 
-    HANDLE_SID_NULL() {
-        debug('HANDLE_SID_NULL');
-        // warning: we do not respond to NULL packets with a NULL packet of our own
-        // this is because PVPGN servers are programmed to respond to NULL packets so it will create a vicious cycle of useless traffic
-        // official battle.net servers do not respond to NULL packets
-        return;
-    }
-
     HANDLE_SID_ENTERCHAT(d) {
         debug('HANDLE_SID_ENTERCHAT');
 
         if ('#' === d.toString()[0]) {
-            debug('Warning: Account already logged in.');
+            debug('warning: account already logged in.');
         }
 
         info(`[${this.alias}] joining channel [${this.firstChannel}]`);
@@ -744,7 +782,7 @@ export class BNetConnection extends EventEmitter {
         debug('HANDLE_SID_MESSAGEBOX');
     }
 
-    HANDLE_SID_FRIENDSLIST(friends) {
+    HANDLE_SID_FRIENDSLIST(friends: Friend[]) {
         debug('HANDLE_SID_FRIENDSLIST');
 
         this.emit('SID_FRIENDSLIST', this, friends);
