@@ -1,7 +1,7 @@
 import * as bp from 'bufferpack';
 import * as assert from 'assert';
 import {localIP, getTimezone} from './../util';
-import {ValidateLength, ByteUInt32, ByteString, ByteExtractString} from './../Bytes';
+import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32} from './../Bytes';
 import {Protocol} from './../Protocol';
 import {Friend} from './Friend';
 import {IncomingGameHost} from './IncomingGameHost';
@@ -11,8 +11,16 @@ import {BNetConnection} from "./BNetConnection";
 
 const {debug, info, error} = create('BNetProtocol');
 
+export interface AuthInfo {
+    logonType,
+    serverToken,
+    mpqFileTime,
+    ix86VerFileName,
+    valueString
+}
+
 export interface AuthState {
-    state: Buffer;
+    state: number;
     description: string;
 }
 
@@ -65,12 +73,31 @@ export class BNetProtocol extends Protocol {
     SID_NOTIFYJOIN = '\x22';	// 0x22
     SID_LOGONRESPONSE = '\x29';	// 0x29
 
+    /*
+     0x000: Passed challenge
+     0x100: Old game version (Additional info field supplies patch MPQ filename)
+     0x101: Invalid version
+     0x102: Game version must be downgraded (Additional info field supplies patch MPQ filename)
+     0x0NN: (where NN is the version code supplied in SID_AUTH_INFO): Invalid version code (note that 0x100 is not set in this case).
+     0x200: Invalid CD key *
+     0x201: CD key in use (Additional info field supplies name of user)
+     0x202: Banned key
+     0x203: Wrong product
+     */
+    KR_OLD_GAME_VERSION = 256;
+    KR_INVALID_VERSION = 257;
+    KR_MUST_BE_DOWNGRADED = 258;
+    KR_INVALID_CD_KEY = 512; //0x200
+    KR_ROC_KEY_IN_USE = 513; //0x201
+    KR_TFT_KEY_IN_USE = 529; //0x211
+    KR_BANNED_KEY = 514; //0x202
+    KR_WRONG_PRODUCT = 515; //0x203
 
-    KR_GOOD = '\x00\x00\x00\x00';
-    KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
-    KR_INVALID_VERSION = '\x01\x01\x00\x00';
-    KR_ROC_KEY_IN_USE = '\x01\x02\x00\x00';
-    KR_TFT_KEY_IN_USE = '\x11\x02\x00\x00';
+    // KR_GOOD = '\x00\x00\x00\x00';
+    // KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
+    // KR_INVALID_VERSION = '\x01\x01\x00\x00';
+    // KR_ROC_KEY_IN_USE = '\x01\x02\x00\x00';
+    // KR_TFT_KEY_IN_USE = '\x11\x02\x00\x00';
 
     NULL = '\x00';
     NULL_2 = '\x00\x00';
@@ -490,25 +517,25 @@ export class BNetProtocol extends Protocol {
         // (STRING) 	 IX86ver filename
         // (STRING) 	 ValueString
 
-
-        const logonType = buff.slice(4, 8); // p[4:8]
-        const serverToken = buff.slice(8, 12); // p[8:12]
-        const mpqFileTime = buff.slice(16, 24); // p[16:24]
-        const ix86VerFileName = ByteExtractString(buff.slice(24)); // p[24:].split(NULL, 1)[0]
-        const valueStringFormula = ByteExtractString(buff.slice(25 + ix86VerFileName.length)); // p[25 + len(ix86VerFileName):].split(this.NULL, 1)[0]
+        const logonType = buff.slice(4, 8), // p[4:8]
+            serverToken = buff.slice(8, 12), // p[8:12]
+            mpqFileTime = buff.slice(16, 24), // p[16:24]
+            ix86VerFileName = ByteExtractString(buff.slice(24)), // p[24:].split(NULL, 1)[0]
+            valueString = ByteExtractString(buff.slice(25 + ix86VerFileName.length)); // p[25 + len(ix86VerFileName):].split(this.NULL, 1)[0]
 
         return {
             logonType,
             serverToken,
             mpqFileTime,
             ix86VerFileName,
-            valueStringFormula
-        };
+            valueString
+        } as AuthInfo;
     };
 
     RECEIVE_SID_PING(buff) {
         debug('RECEIVE_SID_PING');
         assert(buff.length >= 8);
+
         return buff.slice(4, 8); // bytes(p[4:8])
     };
 
@@ -519,8 +546,9 @@ export class BNetProtocol extends Protocol {
         // 2 bytes					-> Length
         // 4 bytes					-> KeyState
         // null terminated string	-> KeyStateDescription
-        const state = buff.slice(4, 8);
-        const description = ByteExtractString(buff.slice(8));
+
+        const state = ByteExtractUInt32(buff.slice(4, 8)),
+            description = ByteExtractString(buff.slice(8));
 
         return {state, description} as AuthState;
     };
@@ -666,9 +694,9 @@ export class BNetProtocol extends Protocol {
         //		4 bytes				-> ???
         //		null term string	-> Location
 
-        var friends = [];
-        var total = buff[4];
-        var i = 5;
+        const friends = [];
+        let total = buff[4];
+        let i = 5;
 
         while (total > 0) {
             total--;
@@ -677,7 +705,7 @@ export class BNetProtocol extends Protocol {
                 break;
             }
 
-            const account = bp.unpack('<S', buff.slice(i))[0];
+            const account = ByteExtractString(buff.slice(i)); //bp.unpack('<S', buff.slice(i))[0];
 
             i += account.length + 1;
 
@@ -691,7 +719,7 @@ export class BNetProtocol extends Protocol {
 
             i += 6;
 
-            const location = bp.unpack('<S', buff.slice(i))[0];
+            const location = ByteExtractString(buff.slice(i)); //bp.unpack('<S', buff.slice(i))[0];
             i += location.length + 1;
 
             friends.push(new Friend(account, status, area, client, location))

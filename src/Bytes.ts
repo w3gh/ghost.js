@@ -91,6 +91,15 @@ export function ByteUInt32(num: number): Buffer {
 }
 
 /**
+ * Extracts 4bytes DWORD UInt from buffer
+ * @param buff
+ * @returns {number}
+ */
+export function ByteExtractUInt32(buff: Buffer): Number {
+    return buff.readUInt32LE(0);
+}
+
+/**
  * Creates 4bytes DWORD Int32 length Buffer from number
  * @param {Number} num
  * @returns {Buffer}
