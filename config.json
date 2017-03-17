@@ -1,7 +1,7 @@
 {
   "bnet": [
     {
-      "enabled": false,
+      "enabled": true,
       "server": "server.eurobattle.net",
       "alias": "eurobattle.net",
       "username": "jilizart",
@@ -17,7 +17,6 @@
       "country": "United States",
       "language": "enUS",
       "localeid": 1033,
-      "war3path": "./war3/1.27b/",
       "war3exe": "./war3/1.27b/war3.exe",
       "stormdll": "./war3/1.27b/Storm.dll",
       "gamedll": "./war3/1.27b/game.dll",
@@ -131,11 +130,12 @@
     "mapcfgpath": "./maps",
     "commandtrigger": "!",
     "war3path": "./war3/1.26a/",
-    "plugins": {
-      "chat": {
+    "plugins": [
+      {
+        "path": "chat",
         "consolePrint": true
       }
-    }
+    ]
   },
   "admingame": {
     "create": false,

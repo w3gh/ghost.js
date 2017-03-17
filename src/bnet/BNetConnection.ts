@@ -293,11 +293,15 @@ export class BNetConnection extends EventEmitter {
             const packet = this.incomingPackets.pop();
 
             if (packet.type === this.protocol.BNET_HEADER_CONSTANT) {
-                const receiver = this.protocol.receivers[packet.id];
-                const handler = this.handlers[packet.id];
+                const receiver = this.protocol.receivers[packet.id],
+                    handler = this.handlers[packet.id];
 
-                (!handler) && error(`handler for packet '${packet.id}' not found`);
-                (!receiver) && error(`receiver for packet '${packet.id}' not found`);
+                if (!handler || !receiver) {
+                    (!handler) && error(`handler for packet '${packet.id}' not found`);
+                    (!receiver) && error(`receiver for packet '${packet.id}' not found`);
+
+                    continue;
+                }
 
                 handler && receiver && handler.call(this, receiver.call(this.protocol, packet.buffer));
             }
@@ -328,7 +332,6 @@ export class BNetConnection extends EventEmitter {
 
         if (this.connected) {
             // the socket is connected and everything appears to be working properly
-
             this.waitTicks = 0;
 
             if (this.lastOutPacketSize < 10)
