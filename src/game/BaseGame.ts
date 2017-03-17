@@ -8,29 +8,31 @@ import {create, hex} from '../Logger';
 import {PotentialPlayer} from "./PotentialPlayer";
 import {GameSlot} from "./GameSlot";
 import {GHost} from "../GHost";
+import {getTicks} from "../util";
 
 const {debug, info, error} = create('BaseGame');
 
 const GAME_REHOST_INTERVAL = 5000;
 
 export class BaseGame extends EventEmitter {
-    private protocol: GameProtocol;
-    private server: net.Server;
+    private protocol: GameProtocol = new GameProtocol(this);
+    private server: net.Server = net.createServer();
     private map: Map;
-    private potentials: PotentialPlayer[];
-    private slots: GameSlot[];
-    private players: GamePlayer[];
+    private potentials: PotentialPlayer[] = [];
+    private slots: GameSlot[] = [];
+    private players: GamePlayer[] = [];
     private lastGameName: string;
-    protected virtualHostName: string;
-    private countDownStarted: boolean;
-    private lastPingTime: number;
-    private lastRefreshTime: number;
-    private creationTime: number;
-    private exiting: boolean;
-    private saving: boolean;
+    private countDownStarted: boolean = false;
+    private lastPingTime: number = getTicks();
+    private lastRefreshTime: number = getTicks();
+    private creationTime: number = getTicks();
+    private exiting: boolean = false;
+    private saving: boolean = false;
     private hostCounter: number;
-    private virtualHostPID: number;
-    private fakePlayerPID: number;
+    private virtualHostPID: number = 255;
+    protected virtualHostName: string = 'Map';
+
+    private fakePlayerPID: number = 255;
 
     constructor(public ghost: GHost,
                 map,
@@ -43,31 +45,14 @@ export class BaseGame extends EventEmitter {
                 public creatorServer: string = '') {
         super();
 
-        this.ghost = ghost;
-        this.server = net.createServer();//new net.Server();
-        this.protocol = new GameProtocol();
         this.map = (map instanceof Map) ? map : new Map(map);
 
         this.slots = this.map.getSlots();
 
-        this.potentials = [];
-        this.players = [];
-
-        this.exiting = false;
-        this.saving = false;
         this.hostCounter = ghost.hostCounter++;
-        this.virtualHostPID = 255;
-        this.fakePlayerPID = 255;
         this.lastGameName = gameName;
-        this.virtualHostName = 'Map';
 
         this.socketServerSetup(hostPort);
-
-        this.countDownStarted = false;
-
-        this.lastPingTime = Date.now();
-        this.lastRefreshTime = Date.now();
-        this.creationTime = Date.now();
 
         this.on('player.joined', this.onPlayerJoined.bind(this));
     }
@@ -238,7 +223,7 @@ export class BaseGame extends EventEmitter {
     }
 
     update() {
-        const interval = Date.now() - this.lastPingTime;
+        const interval = getTicks() - this.lastPingTime;
         const socket = this.ghost.udpSocket;
         const fixedHostCounter = this.hostCounter & 0x0FFFFFFF;
 
@@ -254,11 +239,11 @@ export class BaseGame extends EventEmitter {
                     this.map.getHeight(),
                     this.gameName,
                     this.creatorName,
-                    Date.now() - this.creationTime,
+                    getTicks() - this.creationTime,
                     this.map.getPath(),
                     this.map.getCRC(),
-                    [12],
-                    [12],
+                    12,
+                    12,
                     this.hostPort,
                     fixedHostCounter
                 );
@@ -274,10 +259,10 @@ export class BaseGame extends EventEmitter {
                 // 	socket.send(buffer, 0, buffer.length, 6112, iface.address, errCallback);
                 // });
 
-                socket.send(buffer, 0, buffer.length, 6112, 'localhost', errCallback);
+                socket.send(buffer, 6112, 'localhost', errCallback);
             }
 
-            this.lastPingTime = Date.now();
+            this.lastPingTime = getTicks();
         }
     }
 

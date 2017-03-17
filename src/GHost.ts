@@ -105,7 +105,41 @@ export class GHost extends Bot {
     }
 
     extractScripts() {
+        const mpq = require('mech-mpq');
+        const fs = require('fs');
+        const patchPath = `${this.war3Path}/War3Patch.mpq`;
 
+        const archive = mpq.openArchive(patchPath);
+
+        if (archive) {
+            info(`loading MPQ file [${patchPath}]`);
+
+            // common.j
+            const commonJ = archive.openFile("Scripts\\common.j");
+            if (commonJ) {
+                const commonJContent = commonJ.read();
+
+                commonJ.close();
+
+                fs.writeFile(`${this.mapConfigsPath}/common.j`, commonJContent, (err) => {
+                    if (err) throw err;
+                    info(`extracting Scripts\\common.j from MPQ file to [${this.mapConfigsPath}/common.j]`);
+                });
+            }
+
+            // blizzard.j
+            const blizzardJ = archive.openFile("Scripts\\blizzard.j");
+            if (blizzardJ) {
+                const blizzardJContent = commonJ.read();
+
+                blizzardJ.close();
+
+                fs.writeFile(`${this.mapConfigsPath}/blizzard.j`, blizzardJContent, (err) => {
+                    if (err) throw err;
+                    info(`extracting Scripts\\blizzard.j from MPQ file to [${this.mapConfigsPath}/blizzard.j]`);
+                });
+            }
+        }
     }
 
     onMessage = (...args) => {
@@ -138,7 +172,7 @@ export class GHost extends Bot {
         this.adminGamePassword = this.cfg.item('admingame.password', '');
         this.adminGameMapName = this.cfg.item('admingame.map', 'map');
 
-        this.lanWar3Version = this.cfg.item('lan.war3version', "26");
+        this.lanWar3Version = this.cfg.item('bot.war3version', "26");
     }
 
     configureBNet() {

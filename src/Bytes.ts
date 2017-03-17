@@ -78,6 +78,19 @@ export function AsHex(hexString: string): string {
 }
 
 /**
+ * Creates 2bytes  UInt16 length Buffer from number
+ * @param {Number} num
+ * @returns {Buffer}
+ */
+export function ByteUInt16(num: number): Buffer {
+    const buff = Buffer.alloc(2);
+
+    buff.writeUInt16LE(Number(num), 0);
+
+    return buff;
+}
+
+/**
  * Creates 4bytes DWORD UInt32 length Buffer from number
  * @param {Number} num
  * @returns {Buffer}

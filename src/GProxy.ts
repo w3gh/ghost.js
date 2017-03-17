@@ -50,7 +50,6 @@ export class GProxy extends GHost {
         // 	this.udpSocket.addMembership(iface.address);
         // });
 
-        this.gameProtocol = new GameProtocol();
         this.GPSProtocol = null;
 
         this.totalPacketsReceivedFromLocal = 0;
