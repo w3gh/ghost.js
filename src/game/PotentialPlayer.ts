@@ -20,18 +20,12 @@ const {debug, info, error} = create('GamePlayer');
  * @constructor
  */
 export class PotentialPlayer extends Protocol {
-    private deleteMe: boolean;
-    private packets: CommandPacket[];
+    private deleteMe: boolean = false;
+    private packets: CommandPacket[] = [];
     private incomingJoinPlayer;
 
     constructor(public protocol: GameProtocol, public game: BaseGame, public socket: net.Socket) {
         super();
-
-        this.deleteMe = false;
-        // this.game = game;
-        // this.socket = socket;
-        // this.protocol = protocol;
-        this.packets = [];
 
         this.socketSetup();
     }
