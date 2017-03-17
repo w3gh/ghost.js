@@ -14,6 +14,10 @@ export interface PluginInterface {
     new(config: any): PluginInterface
 }
 
+export interface PluginDefinition {
+
+}
+
 export class Plugin {
     static loaded: LoadedPlugins = {};
 
