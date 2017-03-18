@@ -1,9 +1,13 @@
 import * as bp from 'bufferpack';
 import * as fs from 'fs';
+import * as path from 'path';
 
-import {BytesExtract, BYTEARRAY, ByteArray} from '../Bytes';
+import {BytesExtract, BYTEARRAY, ByteArray, ByteUInt32, ByteDecodeToString} from '../Bytes';
 import {GameSlot} from './GameSlot';
 import {create} from '../Logger';
+import {Config} from "../Config";
+import {GHost} from "../GHost";
+import {arch} from "os";
 
 const {debug, info, error} = create('Map');
 
@@ -83,14 +87,14 @@ export class Map {
     static TYPE_OBSONDEATH = 1 << 21;
     static TYPE_OBSNONE = 1 << 22;
 
-    private gameFlags: number;
-    private slots: GameSlot[];
+    private gameFlags: number = 0;
+    public slots: GameSlot[] = [];
     private valid: boolean;
-    private mapPath: string;
-    private mapSize: Buffer;
-    private mapInfo: Buffer;
-    private mapCRC: Buffer;
-    private mapSHA1: Buffer;
+    public mapPath: string;
+    public mapSize: Buffer;
+    public mapInfo: Buffer;
+    public mapCRC: Buffer;
+    public mapSHA1: Buffer;
     private speed: number;
     private visibility: number;
     private observers: number;
@@ -100,15 +104,12 @@ export class Map {
     private filterSize: number;
     private filterObserver: number;
     private options: number;
-    private mapWidth: Buffer;
-    private mapHeight: Buffer;
+    public mapWidth: Buffer;
+    public mapHeight: Buffer;
     private mapNumPlayer: number;
     private mapNumTeams: number;
 
-    constructor(path) {
-        this.gameFlags = 0;
-        this.slots = [];
-
+    constructor(private ghost: GHost, path) {
         if (!this.load(path)) {
             this.loadDefaultMap();
         }
@@ -154,42 +155,45 @@ export class Map {
             new GameSlot(0, 255, GameSlot.STATUS_OPEN, 0, 10, 10, GameSlot.RACE_RANDOM | GameSlot.RACE_SELECTABLE),
             new GameSlot(0, 255, GameSlot.STATUS_OPEN, 0, 11, 11, GameSlot.RACE_RANDOM | GameSlot.RACE_SELECTABLE)
         ];
+
+        this.calculateHashes();
     }
 
     load(filepath) {
         if (!fs.existsSync(filepath)) {
-            throw new Error(`Failed to load map from ${filepath}`);
+            error(`Failed to load map from ${filepath}`);
+            return false;
         }
 
-        const file: MapJSON = JSON.parse(fs.readFileSync(filepath, 'utf8'));
+        const file = new Config(filepath);
 
         this.valid = true;
-        this.mapPath = file.path;
-        this.mapSize = ByteArray(file.size);
-        this.mapInfo = ByteArray(file.info);
-        this.mapCRC = ByteArray(file.crc);
-        this.mapSHA1 = ByteArray(file.sha1);
+        this.mapPath = file.item('path', '');
+        this.mapSize = ByteArray(file.item('size', []));
+        this.mapInfo = ByteArray(file.item('info', []));
+        this.mapCRC = ByteArray(file.item('crc', []));
+        this.mapSHA1 = ByteArray(file.item('sha1', []));
 
         debug('using loaded', this.mapPath);
 
-        this.speed = file.speed;
-        this.flags = file.flags;
-        this.observers = file.observers;
-        this.visibility = file.visibility;
+        this.speed = file.item('speed', Map.SPEED_NORMAL);
+        this.flags = file.item('flags', 0);
+        this.observers = file.item('observers', 0);
+        this.visibility = file.item('visibility', 0);
         this.filterType = Map.FILTER_TYPE_MELEE;
         this.filterSize = Map.FILTER_SIZE_LARGE;
         this.filterMarker = Map.FILTER_MAKER_BLIZZARD;
         this.filterObserver = Map.FILTER_OBS_NONE;
         this.options = Map.OPT_MELEE;
 
-        this.mapWidth = ByteArray(file.width);
-        this.mapHeight = ByteArray(file.height);
+        this.mapWidth = ByteArray(file.item('width', []));
+        this.mapHeight = ByteArray(file.item('height', []));
 
-        this.mapNumPlayer = file.players;
-        this.mapNumTeams = file.teams;
+        this.mapNumPlayer = file.item('players', 0);
+        this.mapNumTeams = file.item('teams', 0);
 
-        if (Array.isArray(file.slots)) {
-            for (let slot of file.slots) {
+        if (Array.isArray(file.item('slots'))) {
+            for (let slot of file.item('slots', [])) {
                 this.slots.push(new GameSlot(
                     slot[0],
                     slot[1],
@@ -207,8 +211,163 @@ export class Map {
         }
     }
 
-    getSlots() {
-        return this.slots;
+    calculateHashes() {
+        const mapPath = path.join(this.ghost.war3Path, path.join.apply(path, this.mapPath.split('\\')));
+        let mapSize, mapInfo, mapCRC, mapSHA1;
+
+        if (fs.existsSync(mapPath)) {
+            const mapMPQ = this.readMPQ(mapPath);
+            const file = fs.readFileSync(mapPath);
+
+            if (mapMPQ) {
+                info(`loading MPQ file [${mapPath}]`);
+
+                mapSize = ByteUInt32(file.length);
+                info(`calculated map_size = ${ByteDecodeToString(mapSize)}`);
+
+                const crc = this.ghost.CRC.fullCRC(file.toString(), file.length);
+
+                mapInfo = ByteUInt32(Math.abs(crc));
+                info(`calculated map_info = ${ByteDecodeToString(mapInfo)}`);
+
+                const crypto = require('crypto'),
+                    SHA1 = crypto.createHash('sha1');
+
+                const commonJPath = path.join(this.ghost.mapConfigsPath, 'common.j');
+                const commonJ = fs.readFileSync(commonJPath);
+
+                if (!commonJ.length) {
+                    info(`unable to calculate map_crc/sha1 - unable to read file '${commonJPath}'`)
+                } else {
+                    const blizzardJPath = path.join(this.ghost.mapConfigsPath, 'blizzard.j');
+                    const blizzardJ = fs.readFileSync(blizzardJPath);
+
+                    if (!blizzardJ.length) {
+                        info(`unable to calculate map_crc/sha1 - unable to read file '${blizzardJPath}'`);
+                    } else {
+                        let val = 0; //uint32
+
+                        let overrodeCommonJ = false;
+                        let overrodeBlizzardJ = false;
+
+                        // override common.j
+                        const mapCommonJ = this.readMPQFile(mapMPQ, 'Scripts\\common.j');
+
+                        if (mapCommonJ) {
+                            info(`overriding default common.j with map copy while calculating map_crc/sha1`);
+                            overrodeCommonJ = true;
+
+                            val = val ^ this.XORRotateLeft(mapCommonJ, mapCommonJ.length);
+                            SHA1.update(mapCommonJ);
+                        }
+
+                        if (!overrodeCommonJ) {
+                            val = val ^ this.XORRotateLeft(commonJ, commonJ.length);
+                            SHA1.update(commonJ);
+                        }
+
+                        // override blizzard.j
+                        const mapBlizzardJ = this.readMPQFile(mapMPQ, 'Scripts\\blizzard.j');
+
+                        if (mapBlizzardJ) {
+                            info(`overriding default blizzard.j with map copy while calculating map_crc/sha1`);
+                            overrodeBlizzardJ = true;
+
+                            val = val ^ this.XORRotateLeft(mapBlizzardJ, mapBlizzardJ.length);
+                            SHA1.update(mapBlizzardJ);
+                        }
+
+                        if (!overrodeBlizzardJ) {
+                            val = val ^ this.XORRotateLeft(blizzardJ, blizzardJ.length);
+                            SHA1.update(blizzardJ);
+                        }
+
+                        val = this.ROTL(val, 3);
+                        val = this.ROTL(val ^ 0x03F1379E, 3);
+                        SHA1.update("\x9E\x37\xF1\x03");
+
+                        const mapFilesList = [
+                            "war3map.j",
+                            "scripts\\war3map.j",
+                            "war3map.w3e",
+                            "war3map.wpm",
+                            "war3map.doo",
+                            "war3map.w3u",
+                            "war3map.w3b",
+                            "war3map.w3d",
+                            "war3map.w3a",
+                            "war3map.w3q"
+                        ];
+
+                        let foundMapScript = false;
+
+                        for (let mapFile of mapFilesList) {
+
+                            // don't use scripts\war3map.j if we've already used war3map.j (yes, some maps have both but only war3map.j is used)
+                            if (foundMapScript && mapFile === "scripts\\war3map.j") {
+                                continue;
+                            }
+
+                            let mapFileData = this.readMPQFile(mapMPQ, mapFile);
+
+                            if (mapFileData) {
+                                if (mapFile === "war3map.j" || mapFile === "scripts\\war3map.j")
+                                    foundMapScript = true;
+
+                                val = this.ROTL(val ^ this.XORRotateLeft(mapFileData, mapFileData.length), 3);
+                                SHA1.update(mapFileData);
+                            }
+                        }
+
+                        !foundMapScript && info(`couldn't find war3map.j or scripts\\war3map.j in MPQ file, calculated map_crc/sha1 is probably wrong`);
+
+                        mapCRC = ByteUInt32(val);
+                        info(`calculated map_crc = ${ByteDecodeToString(mapCRC)}`);
+
+                        mapSHA1 = SHA1.digest();
+                        info(`calculated map_sha1 = ${ByteDecodeToString(mapSHA1)}`);
+                    }
+                }
+            } else {
+                info(`unable to calculate map_crc/sha1 - map MPQ file ${mapPath} not loaded`)
+            }
+        } else {
+            error(`unable to calculate map_crc/sha1 - map MPQ file ${mapPath} not found`);
+        }
+
+        if (mapSize) {
+            this.mapSize = mapSize;
+        }
+
+        if (mapInfo) {
+            this.mapInfo = mapInfo;
+        }
+
+        if (mapCRC) {
+            this.mapCRC = mapCRC;
+        }
+
+        if (mapSHA1) {
+            this.mapSHA1 = mapSHA1;
+        }
+    }
+
+    readMPQ(mpqPath) {
+        const mpq = require('mech-mpq');
+
+        return mpq.openArchive(mpqPath);
+    }
+
+    readMPQFile(archive, filename) {
+        const file = archive.openFile(filename);
+
+        if (file) {
+            var fileContents = file.read();
+            file.close();
+            return fileContents;
+        }
+
+        return null;
     }
 
     getGameFlags() {
@@ -297,19 +456,32 @@ export class Map {
         return bp.pack('<I', this.gameFlags);
     }
 
-    getWidth() {
-        return this.mapWidth;
+    ROTL(x, n) {
+        return ((x) << (n)) | ((x) >> (32 - (n)));
     }
 
-    getHeight() {
-        return this.mapHeight;
+    ROTR(x, n) {
+        return ((x) >> (n)) | ((x) << (32 - (n)));
     }
 
-    getPath() {
-        return this.mapPath;
-    }
+    XORRotateLeft(data, length) {
+        // a big thank you to Strilanc for figuring this out
 
-    getCRC() {
-        return this.mapCRC;
+        let i = 0;
+        let Val = 0;
+
+        if (length > 3) {
+            while (i < length - 3) {
+                Val = this.ROTL(Val ^ ( data[i] + ( data[i + 1] << 8 ) + ( data[i + 2] << 16 ) + ( data[i + 3] << 24 ) ), 3);
+                i += 4;
+            }
+        }
+
+        while (i < length) {
+            Val = this.ROTL(Val ^ data[i], 3);
+            ++i;
+        }
+
+        return Val;
     }
 }

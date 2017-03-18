@@ -1,5 +1,5 @@
 require('babel-register');
-const BNet = require('./src/bnet/BNet').default;
+const BNet = require('./src/bnet/BNetConnection').default;
 const Config = require('./src/Config').default;
 const argv = require('yargs').config().argv;
 

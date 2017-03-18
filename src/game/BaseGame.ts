@@ -17,7 +17,6 @@ const GAME_REHOST_INTERVAL = 5000;
 export class BaseGame extends EventEmitter {
     private protocol: GameProtocol = new GameProtocol(this);
     private server: net.Server = net.createServer();
-    private map: Map;
     private potentials: PotentialPlayer[] = [];
     private slots: GameSlot[] = [];
     private players: GamePlayer[] = [];
@@ -35,7 +34,7 @@ export class BaseGame extends EventEmitter {
     private fakePlayerPID: number = 255;
 
     constructor(public ghost: GHost,
-                map,
+                public map: Map,
                 public saveGame = null,
                 public hostPort: number,
                 public gameState: number,
@@ -45,9 +44,7 @@ export class BaseGame extends EventEmitter {
                 public creatorServer: string = '') {
         super();
 
-        this.map = (map instanceof Map) ? map : new Map(map);
-
-        this.slots = this.map.getSlots();
+        this.slots = this.map.slots;
 
         this.hostCounter = ghost.hostCounter++;
         this.lastGameName = gameName;
@@ -235,13 +232,13 @@ export class BaseGame extends EventEmitter {
                     this.ghost.lanWar3Version,
                     ByteUInt32(Map.TYPE_UNKNOWN0),
                     this.map.getGameFlags(),
-                    this.map.getWidth(),
-                    this.map.getHeight(),
+                    this.map.mapWidth,
+                    this.map.mapHeight,
                     this.gameName,
                     this.creatorName,
                     getTicks() - this.creationTime,
-                    this.map.getPath(),
-                    this.map.getCRC(),
+                    this.map.mapPath,
+                    this.map.mapCRC,
                     12,
                     12,
                     this.hostPort,
