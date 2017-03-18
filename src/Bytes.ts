@@ -170,3 +170,11 @@ export function BytesExtract(text: string, count: number): Buffer {
 export function ByteHeader(buffer: Buffer): Number {
     return buffer.readInt8(0);
 }
+
+/**
+ * @param buffer
+ * @returns {string}
+ */
+export function ByteDecodeToString(buffer: any): string {
+    return Buffer.isBuffer(buffer) ? JSON.stringify(buffer.toJSON().data) : buffer.toString();
+}

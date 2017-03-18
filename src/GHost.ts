@@ -7,6 +7,7 @@ import {Map} from './game/Map';
 import {Game} from './game/Game';
 import {Bot} from './Bot';
 import {create} from './Logger';
+import {CRC32} from './CRC32';
 
 const {debug, info, error} = create('GHost');
 
@@ -26,13 +27,15 @@ export class GHost extends Bot {
     public TFT: number;
     private hostPort: number;
     private defaultMapName: string;
-    private mapConfigsPath: string;
-    private war3Path: string;
+    public mapConfigsPath: string;
+    public war3Path: string;
     private adminGamePort: number;
     private adminGamePassword: string;
     private adminGameMapName: string;
     public lanWar3Version: string;
     private adminMap: Map;
+
+    public CRC = new CRC32();
 
     constructor(cfg) {
         super(cfg);
@@ -42,7 +45,10 @@ export class GHost extends Bot {
 
         this.extractScripts();
         this.udpSocketSetup();
-        this.adminGameSetup();
+
+        setTimeout(() => {
+            this.adminGameSetup();
+        }, 5000); //host admin game after 5 seconds, so all mpq scripts are extracted
 
         this.on('update', this.onUpdate)
     }
@@ -107,12 +113,11 @@ export class GHost extends Bot {
     extractScripts() {
         const mpq = require('mech-mpq');
         const fs = require('fs');
-        const patchPath = `${this.war3Path}/War3Patch.mpq`;
-
+        const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
         const archive = mpq.openArchive(patchPath);
 
         if (archive) {
-            info(`loading MPQ file [${patchPath}]`);
+            info(`loading MPQ file '${patchPath}'`);
 
             // common.j
             const commonJ = archive.openFile("Scripts\\common.j");
@@ -123,7 +128,7 @@ export class GHost extends Bot {
 
                 fs.writeFile(`${this.mapConfigsPath}/common.j`, commonJContent, (err) => {
                     if (err) throw err;
-                    info(`extracting Scripts\\common.j from MPQ file to [${this.mapConfigsPath}/common.j]`);
+                    info(`extracting Scripts\\common.j from MPQ file to '${this.mapConfigsPath}/common.j'`);
                 });
             }
 
@@ -136,7 +141,7 @@ export class GHost extends Bot {
 
                 fs.writeFile(`${this.mapConfigsPath}/blizzard.j`, blizzardJContent, (err) => {
                     if (err) throw err;
-                    info(`extracting Scripts\\blizzard.j from MPQ file to [${this.mapConfigsPath}/blizzard.j]`);
+                    info(`extracting Scripts\\blizzard.j from MPQ file to '${this.mapConfigsPath}/blizzard.j'`);
                 });
             }
         }
@@ -199,9 +204,11 @@ export class GHost extends Bot {
     }
 
     adminGameSetup() {
-        this.adminMap = new Map(this.getMapPath(this.adminGameMapName));
-
         if (this.haveAdminGame) {
+            info('configure admin game');
+
+            this.adminMap = new Map(this, this.getMapPath(this.adminGameMapName));
+
             this.adminGame = new AdminGame(
                 this,
                 this.adminMap, null,

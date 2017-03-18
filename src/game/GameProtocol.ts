@@ -157,8 +157,6 @@ export class GameProtocol extends Protocol {
     encodeStatString(data: Buffer) {
         var mask = 1, result = [];
 
-        console.log('encode stat string');
-
         for (var i = 0; i < data.length; ++i) {
             if (data[i] % 2 == 0) {
                 result.push(data[i] + 1);
@@ -340,8 +338,6 @@ export class GameProtocol extends Protocol {
             if (buffer.length > 166) {
                 debug('erro bytes to big', buffer.length);
             }
-
-            hex(buffer);
 
             return buffer;
         } else {
