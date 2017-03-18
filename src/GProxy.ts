@@ -13,18 +13,6 @@ const {debug, info, error} = create('GProxy');
 export class GProxy extends GHost {
     static version = 'Public Alpha 1.0 (Tue Sep 06 2016)';
 
-    static run = (config) => {
-        const gproxy = new GProxy(config);
-
-        while (true) {
-            if (gproxy.update()) {
-                break;
-            }
-        }
-
-        info('shutting down');
-    };
-
     private remoteSocket;
     private localServer;
     private localSocket;
@@ -32,8 +20,8 @@ export class GProxy extends GHost {
     private GPSProtocol;
     private totalPacketsReceivedFromLocal;
     private totalPacketsReceivedFromRemote;
-    private port;
-    private BNet;
+    private port:number;
+    private BNet:BNetConnection;
     private version;
 
     constructor(cfg) {

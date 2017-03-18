@@ -10,7 +10,8 @@ import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from './../BNCSUtil';
 import {create, hex} from '../Logger';
 import {Config} from "../Config";
-import {Friend} from "./Friend";
+import {IncomingFriend} from "./IncomingFriend";
+import {IncomingChatEvent} from "./IncomingChatEvent";
 
 const {debug, info, error} = create('BNet');
 
@@ -763,10 +764,10 @@ export class BNetConnection extends EventEmitter {
         this.sendPackets(this.protocol.SEND_SID_JOINCHANNEL(this.firstChannel));
     }
 
-    HANDLE_SID_CHATEVENT(d) {
-        debug('HANDLE_SID_CHATEVENT');
+    HANDLE_SID_CHATEVENT(e: IncomingChatEvent) {
+        debug('HANDLE_SID_CHATEVENT', e.idType(), e.user, e.message);
 
-        this.emit('SID_CHATEVENT', this, d);
+        this.emit('SID_CHATEVENT', this, e);
     }
 
     HANDLE_SID_CLANINFO() {
@@ -785,7 +786,7 @@ export class BNetConnection extends EventEmitter {
         debug('HANDLE_SID_MESSAGEBOX');
     }
 
-    HANDLE_SID_FRIENDSLIST(friends: Friend[]) {
+    HANDLE_SID_FRIENDSLIST(friends: IncomingFriend[]) {
         debug('HANDLE_SID_FRIENDSLIST');
 
         this.emit('SID_FRIENDSLIST', this, friends);

@@ -1,13 +1,14 @@
 import * as bp from 'bufferpack';
 import * as assert from 'assert';
 import {localIP, getTimezone} from './../util';
-import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32} from './../Bytes';
+import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32, ByteArray} from './../Bytes';
 import {Protocol} from './../Protocol';
-import {Friend} from './Friend';
+import {IncomingFriend} from './IncomingFriend';
 import {IncomingGameHost} from './IncomingGameHost';
 
 import {create, hex} from '../Logger';
 import {BNetConnection} from "./BNetConnection";
+import {IncomingChatEvent} from "./IncomingChatEvent";
 
 const {debug, info, error} = create('BNetProtocol');
 
@@ -219,188 +220,13 @@ export class BNetProtocol extends Protocol {
         return String.fromCharCode(buffer[0]) === this.BNET_HEADER_CONSTANT;
     }
 
-    SEND_SID_NULL() {
-        return this.asPacket(this.SID_NULL);
-    }
-
-    SEND_SID_PING(payload) {
-        debug('SEND_SID_PING');
-        assert(payload.length === 4, 'invalid parameters passed to SEND_SID_PING');
-
-        return this.asPacket(
-            this.SID_PING,
-            payload
-        );
-    }
-
-    SEND_PROTOCOL_INITIALIZE_SELECTOR() {
-        debug('SEND_PROTOCOL_INITIALIZE_SELECTOR');
-
-        return Buffer.from(this.INITIALIZE_SELECTOR, 'binary');
-    }
-
-    SEND_SID_AUTH_INFO(version, TFT, localeID, countryAbbrev, country, lang) {
-        debug('SEND_SID_AUTH_INFO');
-
-        // (DWORD)		 Protocol ID (0)
-        // (DWORD)		 Platform ID
-        // (DWORD)		 Product ID
-        // (DWORD)		 Version Byte
-        // (DWORD)		 Product language
-        // (DWORD)		 Local IP for NAT compatibility*
-        // (DWORD)		 Time zone bias*
-        // (DWORD)		 Locale ID*
-        // (DWORD)		 Language ID*
-        // (STRING) 	 Country abreviation
-        // (STRING) 	 Country
-
-        const protocolID = this.NULL_4;
-        const language = lang.split('').reverse().join(''); //[83, 85, 110, 101]; // "enUS"
-        const IP = localIP().split('.').map(Number); //[127, 0, 0, 1];
-
-        return this.asPacket(
-            this.SID_AUTH_INFO,
-            protocolID,
-            this.PLATFORM_X86,
-            TFT ? this.PRODUCT_TFT : this.PRODUCT_ROC,
-            ByteUInt32(version),
-            language,
-            IP,
-            ByteUInt32(getTimezone()), //time zone bias
-            ByteUInt32(localeID),
-            ByteUInt32(localeID),
-            ByteString(countryAbbrev),
-            ByteString(country)
-        );
-    }
-
-    SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName) {
-        const numKeys = (tft) ? 2 : 1;
-
-        return this.asPacket(
-            this.SID_AUTH_CHECK,
-            clientToken,
-            exeVersion,
-            exeVersionHash,
-            [numKeys, 0, 0, 0],
-            this.NULL_4,
-            keyInfoRoc,
-            tft ? keyInfoTft : false, //if it false, its excluded
-            ByteString(exeInfo),
-            ByteString(keyOwnerName)
-        );
-    }
-
-    SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, accountName) {
-        assert(clientPublicKey.length === 32, 'public key length error');
-
-        return this.asPacket(
-            this.SID_AUTH_ACCOUNTLOGON,
-            clientPublicKey,
-            ByteString(accountName)
-        );
-    }
-
-    SEND_SID_AUTH_ACCOUNTLOGONPROOF(M1) {
-        assert(M1.length === 20, 'password length error');
-
-        return this.asPacket(
-            this.SID_AUTH_ACCOUNTLOGONPROOF,
-            M1
-        );
-    }
-
-    SEND_SID_NETGAMEPORT(serverPort) {
-        return this.asPacket(
-            this.SID_NETGAMEPORT,
-            ByteUInt32(serverPort)
-        );
-    }
-
-    SEND_SID_ENTERCHAT() {
-        return this.asPacket(
-            this.SID_ENTERCHAT,
-            this.NULL, //account name
-            this.NULL //stat string
-        );
-    }
-
-    SEND_SID_JOINCHANNEL(channel) {
-        const noCreateJoin = '\x02\x00\x00\x00';
-        const firstJoin = '\x01\x00\x00\x00';
-
-        return this.asPacket(
-            this.SID_JOINCHANNEL,
-            channel.length > 0 ? noCreateJoin : firstJoin,
-            ByteString(channel)
-        );
-    }
-
-    SEND_SID_CHATCOMMAND(command) {
-        return this.asPacket(
-            this.SID_CHATCOMMAND,
-            ByteString(command)
-        );
-    }
-
-    SEND_SID_FRIENDSLIST() {
-        return this.asPacket(
-            this.SID_FRIENDSLIST
-        );
-    }
-
-    SEND_SID_CLANMEMBERLIST() {
-        const cookie = this.NULL_4;
-
-        return this.asPacket(
-            this.SID_CLANMEMBERLIST,
-            cookie
-        );
-    }
-
-    SEND_SID_GETADVLISTEX(gameName = '', numGames = 1) {
-        let cond1 = [0, 0];
-        let cond2 = [0, 0];
-        let cond3 = [0, 0, 0, 0];
-        let cond4 = [0, 0, 0, 0];
-
-        if (!gameName.length) {
-            cond1[0] = 0;
-            cond1[1] = 224;
-
-            cond2[0] = 127;
-            cond2[1] = 0;
-        } else {
-            cond1 = [255, 3];
-            cond2 = [0, 0];
-            cond3 = [255, 3, 0, 0];
-            numGames = 1;
-        }
-
-        return this.asPacket(
-            this.SID_GETADVLISTEX,
-            cond1,
-            cond2,
-            cond3,
-            cond4,
-            ByteUInt32(numGames),
-            ByteString(gameName),
-            this.NULL, // Game Password is NULL
-            this.NULL // Game Stats is NULL
-        );
-    }
-
-    SEND_SID_NOTIFYJOIN(gameName) {
-
-    }
-
-    RECEIVE_SID_NULL(buff) {
+    RECEIVE_SID_NULL(buff: Buffer) {
         debug('RECEIVE_SID_NULL');
 
         return ValidateLength(buff);
     }
 
-    RECEIVE_SID_GETADVLISTEX(buff) {
+    RECEIVE_SID_GETADVLISTEX(buff: Buffer) {
         debug('RECEIVE_SID_GETADVLISTEX');
         // 2 bytes					-> Header
         // 2 bytes					-> Length
@@ -497,7 +323,96 @@ export class BNetProtocol extends Protocol {
 
     }
 
-    RECEIVE_SID_AUTH_INFO(buff) {
+    RECEIVE_SID_ENTERCHAT(buff: Buffer) {
+        debug('RECEIVE_SID_ENTERCHAT');
+        assert(ValidateLength(buff) && buff.length >= 5);
+
+        return buff.slice(4);
+    }
+
+    RECEIVE_SID_CHATEVENT(buff: Buffer): IncomingChatEvent {
+        debug('RECEIVE_SID_CHATEVENT');
+        assert(ValidateLength(buff) && buff.length >= 29, 'RECEIVE_SID_CHATEVENT');
+
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+        // 4 bytes					-> EventID
+        // 4 bytes					-> ???
+        // 4 bytes					-> Ping
+        // 12 bytes					-> ???
+        // null terminated string	-> User
+        // null terminated string	-> Message
+
+        const id = buff.readInt32LE(4), //buff.slice(4, 8)
+            ping = buff.readInt32LE(12), //bp.unpack('<I', buff.slice(12, 16)).join('');
+            user = ByteExtractString(buff.slice(28)),
+            message = ByteExtractString(buff.slice(29 + user.length));
+
+        return new IncomingChatEvent(id, ping, user, message, this);
+    }
+
+    RECEIVE_SID_CHECKAD(buff: Buffer): boolean {
+        debug('RECEIVE_SID_CHECKAD');
+
+        // DEBUG_Print( "RECEIVED SID_CHECKAD" );
+        // DEBUG_Print( data );
+
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_STARTADVEX3(buff: Buffer): boolean {
+        debug('RECEIVE_SID_STARTADVEX3');
+
+        // DEBUG_Print( "RECEIVED SID_STARTADVEX3" );
+        // DEBUG_Print( data );
+
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+        // 4 bytes					-> Status
+
+        // if( ValidateLength( data ) && data.size( ) >= 8 )
+        // {
+        //     BYTEARRAY Status = BYTEARRAY( data.begin( ) + 4, data.begin( ) + 8 );
+        //
+        //     if( UTIL_ByteArrayToUInt32( Status, false ) == 0 )
+        //         return true;
+        // }
+
+        return false;
+    }
+
+    RECEIVE_SID_PING(buff: Buffer): Buffer {
+        debug('RECEIVE_SID_PING');
+        assert(buff.length >= 8);
+
+        return buff.slice(4, 8); // bytes(p[4:8])
+    }
+
+    RECEIVE_SID_LOGONRESPONSE(buff: Buffer) {
+        debug('RECEIVE_SID_LOGONRESPONSE');
+
+        // DEBUG_Print( "RECEIVED SID_LOGONRESPONSE" );
+        // DEBUG_Print( data );
+
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+        // 4 bytes					-> Status
+
+        // if( ValidateLength( data ) && data.size( ) >= 8 )
+        // {
+        //     BYTEARRAY Status = BYTEARRAY( data.begin( ) + 4, data.begin( ) + 8 );
+        //
+        //     if( UTIL_ByteArrayToUInt32( Status, false ) == 1 )
+        //         return true;
+        // }
+
+        return false;
+    }
+
+    RECEIVE_SID_AUTH_INFO(buff: Buffer) {
         debug('RECEIVE_SID_AUTH_INFO');
         assert(ValidateLength(buff) && buff.length >= 25, 'RECEIVE_SID_AUTH_INFO');
         // 2 bytes					-> Header
@@ -532,14 +447,7 @@ export class BNetProtocol extends Protocol {
         } as AuthInfo;
     };
 
-    RECEIVE_SID_PING(buff) {
-        debug('RECEIVE_SID_PING');
-        assert(buff.length >= 8);
-
-        return buff.slice(4, 8); // bytes(p[4:8])
-    };
-
-    RECEIVE_SID_AUTH_CHECK(buff) {
+    RECEIVE_SID_AUTH_CHECK(buff: Buffer) {
         debug('RECEIVE_SID_AUTH_CHECK');
         assert(ValidateLength(buff) && buff.length >= 9);
         // 2 bytes					-> Header
@@ -553,13 +461,7 @@ export class BNetProtocol extends Protocol {
         return {state, description} as AuthState;
     };
 
-    RECEIVE_SID_REQUIREDWORK(buff) {
-        debug('RECEIVE_SID_REQUIREDWORK');
-
-        return ValidateLength(buff);
-    }
-
-    RECEIVE_SID_AUTH_ACCOUNTLOGON(buff) {
+    RECEIVE_SID_AUTH_ACCOUNTLOGON(buff: Buffer) {
         assert(ValidateLength(buff) && buff.length >= 8);
 
         /**
@@ -608,79 +510,23 @@ export class BNetProtocol extends Protocol {
         return {status, proof, message} as AccountLogonProof;
     }
 
-    RECEIVE_SID_ENTERCHAT(buff) {
-        debug('RECEIVE_SID_ENTERCHAT');
-        assert(ValidateLength(buff) && buff.length >= 5);
+    RECEIVE_SID_WARDEN(buff: Buffer): Buffer {
+        debug('RECEIVE_SID_WARDEN');
 
-        return buff.slice(4);
-    }
-
-    RECEIVE_SID_CHATEVENT(buff) {
-        debug('RECEIVE_SID_CHATEVENT');
-        assert(ValidateLength(buff) && buff.length >= 29, 'RECEIVE_SID_CHATEVENT');
+        // DEBUG_Print( "RECEIVED SID_WARDEN" );
+        // DEBUG_PRINT( data );
 
         // 2 bytes					-> Header
         // 2 bytes					-> Length
-        // 4 bytes					-> EventID
-        // 4 bytes					-> ???
-        // 4 bytes					-> Ping
-        // 12 bytes					-> ???
-        // null terminated string	-> User
-        // null terminated string	-> Message
+        // n bytes					-> Data
 
-        const id = buff.readInt32LE(4); //buff.slice(4, 8)
-        const ping = buff.readInt32LE(12); //bp.unpack('<I', buff.slice(12, 16)).join('');
-        const user = ByteExtractString(buff.slice(28));
-        const message = ByteExtractString(buff.slice(29 + user.length));
+        if (ValidateLength(buff) && buff.length >= 4)
+            return buff.slice(4);
 
-        return {id, ping, user, message};
+        return ByteArray([]);
     }
 
-    RECEIVE_SID_CHECKAD(buff) {
-        debug('RECEIVE_SID_CHECKAD');
-    }
-
-    RECEIVE_SID_NETGAMEPORT(buff) {
-        debug('RECEIVE_SID_NETGAMEPORT');
-    }
-
-    RECEIVE_SID_JOINCHANNEL(buff) {
-        debug('RECEIVE_SID_JOINCHANNEL');
-    }
-
-    RECEIVE_SID_CHATCOMMAND(buff) {
-        debug('RECEIVE_SID_CHATCOMMAND');
-    }
-
-    RECEIVE_SID_CLANMEMBERLIST(buff) {
-        debug('RECEIVE_SID_CLANMEMBERLIST');
-    }
-
-    RECEIVE_SID_CLANMEMBERSTATUSCHANGE(buff) {
-        debug('RECEIVE_SID_CLANMEMBERSTATUSCHANGE');
-    }
-
-    RECEIVE_SID_CLANINVITATION(buff) {
-        debug('RECEIVE_SID_CLANINVITATION');
-    }
-
-    RECEIVE_SID_CLANMEMBERREMOVED(buff) {
-        debug('RECEIVE_SID_CLANMEMBERREMOVED');
-    }
-
-    RECEIVE_SID_STARTADVEX3(buff) {
-        debug('RECEIVE_SID_STARTADVEX3');
-    }
-
-    RECEIVE_SID_WARDEN(buff) {
-        debug('RECEIVE_SID_WARDEN');
-    }
-
-    RECEIVE_SID_FRIENDSUPDATE(buff) {
-        debug('RECEIVE_SID_FRIENDSUPDATE')
-    }
-
-    RECEIVE_SID_FRIENDSLIST(buff) {
+    RECEIVE_SID_FRIENDSLIST(buff: Buffer): IncomingFriend[] {
         debug('RECEIVE_SID_FRIENDSLIST');
         assert(ValidateLength(buff) && buff.length >= 5, 'RECEIVE_SID_FRIENDSLIST');
 
@@ -694,7 +540,13 @@ export class BNetProtocol extends Protocol {
         //		4 bytes				-> ???
         //		null term string	-> Location
 
-        const friends = [];
+        // (STRING) Account
+        // (BYTE) Location
+        // (BYTE) Status
+        // (DWORD) ProductID
+        // (STRING) Location name
+
+        const friends: IncomingFriend[] = [];
         let total = buff[4];
         let i = 5;
 
@@ -705,7 +557,7 @@ export class BNetProtocol extends Protocol {
                 break;
             }
 
-            const account = ByteExtractString(buff.slice(i)); //bp.unpack('<S', buff.slice(i))[0];
+            const account = ByteExtractString(buff.slice(i));
 
             i += account.length + 1;
 
@@ -713,19 +565,45 @@ export class BNetProtocol extends Protocol {
                 break;
             }
 
-            const status = buff[i]; //uchar
-            const area = buff[i + 1]; //uchar
-            const client = buff.slice(i + 2, i + 6).toString().split('').reverse().join(''); //4 chars client
+            const location = buff[i], //uchar
+                status = buff[i + 1], //uchar
+                productID = buff.slice(i + 2, i + 6).toString().split('').reverse().join(''); //4 chars client
 
             i += 6;
 
-            const location = ByteExtractString(buff.slice(i)); //bp.unpack('<S', buff.slice(i))[0];
-            i += location.length + 1;
+            const locationName = ByteExtractString(buff.slice(i)); //bp.unpack('<S', buff.slice(i))[0];
+            i += locationName.length + 1;
 
-            friends.push(new Friend(account, status, area, client, location))
+            friends.push(new IncomingFriend(account, location, status, productID, locationName))
         }
 
         return friends;
+    }
+
+    RECEIVE_SID_CLANMEMBERLIST(buff: Buffer) {
+        debug('RECEIVE_SID_CLANMEMBERLIST');
+    }
+
+    RECEIVE_SID_REQUIREDWORK(buff: Buffer) {
+        debug('RECEIVE_SID_REQUIREDWORK');
+
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_CLANMEMBERSTATUSCHANGE(buff) {
+        debug('RECEIVE_SID_CLANMEMBERSTATUSCHANGE');
+    }
+
+    RECEIVE_SID_CLANINVITATION(buff: Buffer) {
+        debug('RECEIVE_SID_CLANINVITATION');
+    }
+
+    RECEIVE_SID_CLANMEMBERREMOVED(buff: Buffer) {
+        debug('RECEIVE_SID_CLANMEMBERREMOVED');
+    }
+
+    RECEIVE_SID_FRIENDSUPDATE(buff) {
+        debug('RECEIVE_SID_FRIENDSUPDATE')
     }
 
     RECEIVE_SID_FLOODDETECTED(buff) {
@@ -743,4 +621,180 @@ export class BNetProtocol extends Protocol {
     RECEIVE_SID_FRIENDSADD(buff) {
         debug('RECEIVE_SID_FRIENDSADD');
     }
+
+    SEND_PROTOCOL_INITIALIZE_SELECTOR() {
+        debug('SEND_PROTOCOL_INITIALIZE_SELECTOR');
+
+        return Buffer.from(this.INITIALIZE_SELECTOR, 'binary');
+    }
+
+    SEND_SID_NULL() {
+        return this.asPacket(this.SID_NULL);
+    }
+
+    SEND_SID_PING(payload) {
+        debug('SEND_SID_PING');
+        assert(payload.length === 4, 'invalid parameters passed to SEND_SID_PING');
+
+        return this.asPacket(
+            this.SID_PING,
+            payload
+        );
+    }
+
+    SEND_SID_AUTH_INFO(version, TFT, localeID, countryAbbrev, country, lang) {
+        debug('SEND_SID_AUTH_INFO');
+
+        // (DWORD)		 Protocol ID (0)
+        // (DWORD)		 Platform ID
+        // (DWORD)		 Product ID
+        // (DWORD)		 Version Byte
+        // (DWORD)		 Product language
+        // (DWORD)		 Local IP for NAT compatibility*
+        // (DWORD)		 Time zone bias*
+        // (DWORD)		 Locale ID*
+        // (DWORD)		 Language ID*
+        // (STRING) 	 Country abreviation
+        // (STRING) 	 Country
+
+        const protocolID = this.NULL_4;
+        const language = lang.split('').reverse().join(''); //[83, 85, 110, 101]; // "enUS"
+        const IP = localIP().split('.').map(Number); //[127, 0, 0, 1];
+
+        return this.asPacket(
+            this.SID_AUTH_INFO,
+            protocolID,
+            this.PLATFORM_X86,
+            TFT ? this.PRODUCT_TFT : this.PRODUCT_ROC,
+            ByteUInt32(version),
+            language,
+            IP,
+            ByteUInt32(getTimezone()), //time zone bias
+            ByteUInt32(localeID),
+            ByteUInt32(localeID),
+            ByteString(countryAbbrev),
+            ByteString(country)
+        );
+    }
+
+    SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName) {
+        const numKeys = (tft) ? 2 : 1;
+
+        return this.asPacket(
+            this.SID_AUTH_CHECK,
+            clientToken,
+            exeVersion,
+            exeVersionHash,
+            [numKeys, 0, 0, 0],
+            this.NULL_4,
+            keyInfoRoc,
+            tft ? keyInfoTft : false, //if it false, its excluded
+            ByteString(exeInfo),
+            ByteString(keyOwnerName)
+        );
+    }
+
+    SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, accountName) {
+        assert(clientPublicKey.length === 32, 'public key length error');
+
+        return this.asPacket(
+            this.SID_AUTH_ACCOUNTLOGON,
+            clientPublicKey,
+            ByteString(accountName)
+        );
+    }
+
+    SEND_SID_AUTH_ACCOUNTLOGONPROOF(M1) {
+        assert(M1.length === 20, 'password length error');
+
+        return this.asPacket(
+            this.SID_AUTH_ACCOUNTLOGONPROOF,
+            M1
+        );
+    }
+
+    SEND_SID_NETGAMEPORT(serverPort) {
+        return this.asPacket(
+            this.SID_NETGAMEPORT,
+            ByteUInt32(serverPort)
+        );
+    }
+
+    SEND_SID_ENTERCHAT() {
+        return this.asPacket(
+            this.SID_ENTERCHAT,
+            this.NULL, //Account Name is NULL on Warcraft III/The Frozen Throne
+            this.NULL //Stat String is NULL on CDKEY'd products
+        );
+    }
+
+    SEND_SID_JOINCHANNEL(channel) {
+        const noCreateJoin = '\x02\x00\x00\x00';
+        const firstJoin = '\x01\x00\x00\x00';
+
+        return this.asPacket(
+            this.SID_JOINCHANNEL,
+            channel.length > 0 ? noCreateJoin : firstJoin,
+            ByteString(channel)
+        );
+    }
+
+    SEND_SID_CHATCOMMAND(command) {
+        return this.asPacket(
+            this.SID_CHATCOMMAND,
+            ByteString(command)
+        );
+    }
+
+    SEND_SID_FRIENDSLIST() {
+        return this.asPacket(
+            this.SID_FRIENDSLIST
+        );
+    }
+
+    SEND_SID_CLANMEMBERLIST() {
+        const cookie = this.NULL_4;
+
+        return this.asPacket(
+            this.SID_CLANMEMBERLIST,
+            cookie
+        );
+    }
+
+    SEND_SID_GETADVLISTEX(gameName = '', numGames = 1) {
+        let cond1 = [0, 0];
+        let cond2 = [0, 0];
+        let cond3 = [0, 0, 0, 0];
+        let cond4 = [0, 0, 0, 0];
+
+        if (!gameName.length) {
+            cond1[0] = 0;
+            cond1[1] = 224;
+
+            cond2[0] = 127;
+            cond2[1] = 0;
+        } else {
+            cond1 = [255, 3];
+            cond2 = [0, 0];
+            cond3 = [255, 3, 0, 0];
+            numGames = 1;
+        }
+
+        return this.asPacket(
+            this.SID_GETADVLISTEX,
+            cond1,
+            cond2,
+            cond3,
+            cond4,
+            ByteUInt32(numGames),
+            ByteString(gameName),
+            this.NULL, // Game Password is NULL
+            this.NULL // Game Stats is NULL
+        );
+    }
+
+    SEND_SID_NOTIFYJOIN(gameName) {
+
+    }
+
 }

@@ -1,7 +1,7 @@
 {
   "bnet": [
     {
-      "enabled": false,
+      "enabled": true,
       "server": "server.eurobattle.net",
       "alias": "eurobattle.net",
       "username": "jilizart",
@@ -133,12 +133,12 @@
     "war3version": "27",
     "plugins": {
       "chat": {
-        "consolePrint": false
+        "consolePrint": true
       }
     }
   },
   "admingame": {
-    "create": true,
+    "create": false,
     "port": 6114
   }
 }
