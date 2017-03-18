@@ -1,5 +1,6 @@
-import {ChatEvent} from './ChatEvent';
 import {PluginInterface} from '../../src/Plugin';
+import * as chalk from 'chalk';
+import {IncomingChatEvent} from "../../src/bnet/IncomingChatEvent";
 
 // black
 // red
@@ -20,38 +21,29 @@ module.exports = function (Plugin: PluginInterface) {
             bnet.on('SID_CHATEVENT', this.SID_CHATEVENT.bind(this));
         }
 
-        SID_CHATEVENT(bnet, data) {
-            const event = new ChatEvent(data, bnet.protocol);
-
-            if (event.isWhisper()) {
-                bnet.emit('whisper', bnet, event);
-            }
-
-            if (event.isTalk()) {
-                bnet.emit('talk', bnet, event);
-            }
-
-            if (event.isEmote()) {
-                bnet.emit('emote', bnet, event);
-            }
-
-            if (event.isJoin()) {
-                bnet.emit('join', bnet, event);
-            }
-
-            if (event.isLeave()) {
-                bnet.emit('leave', bnet, event);
-            }
-
-            if (event.isEmote() && event.message[0] === bnet.commandTrigger) {
-                const argv = event.message.substr(1, event.message.length).split(' ');
-
-                bnet.emit('command', bnet, argv);
-            }
-
+        SID_CHATEVENT(bnet, event: IncomingChatEvent) {
             if (this.config.consolePrint) {
-                event.printConsole(bnet.alias);
+                this.print(bnet.alias, event);
             }
+        }
+
+        print(alias, event: IncomingChatEvent) {
+            const bnet = chalk.blue(`BNET[${alias}] `);
+
+            if (event.isError())
+                console.log(bnet + chalk.red(event.message));
+            if (event.isInfo())
+                console.log(bnet + chalk.blue(event.message));
+            if (event.isWhisper())
+                console.log(bnet + chalk.magenta(`[${event.user}] ${event.message}`));
+            if (event.isEmote())
+                console.log(bnet + chalk.yellow(event.user) + ' ' + chalk.gray(event.message));
+            if (event.isTalk())
+                console.log(bnet + chalk.yellow(event.user) + ' ' + event.message);
+            if (event.isShowUser())
+                console.log(bnet + chalk.yellow(event.user) + ' ' + event.message);
+            if (event.isUserFlags())
+                console.log(bnet + chalk.yellow(event.user) + ' ' + event.message);
         }
     };
 };

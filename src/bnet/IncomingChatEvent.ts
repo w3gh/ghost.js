@@ -1,27 +1,18 @@
-import * as chalk from 'chalk';
-import {BNetProtocol} from '../../src/bnet/BNetProtocol';
+import {BNetProtocol} from './BNetProtocol';
 
-export class ChatEvent {
-    public id: number;
-    public ping: number;
-    public user: string;
-    public message: string;
-    private protocol: BNetProtocol;
-
+export class IncomingChatEvent {
     /**
-     *
      * @param {Number} id
      * @param {Number} ping
-     * @param user
-     * @param message
+     * @param {String} user
+     * @param {String} message
      * @param {BNetProtocol} protocol
      */
-    constructor({id, ping, user, message}, protocol) {
-        this.id = id;
-        this.ping = ping;
-        this.user = user;
-        this.message = message;
-        this.protocol = protocol;
+    constructor(public id: number,
+                public ping: number,
+                public user: string,
+                public message: string,
+                private protocol: BNetProtocol) {
     }
 
     /**
@@ -63,53 +54,39 @@ export class ChatEvent {
         }
     }
 
-    isJoin() {
+    isUserFlags(): boolean {
+        return this.idType() === 'USERFLAGS';
+    }
+
+    isShowUser(): boolean {
+        return this.idType() === 'SHOWUSER';
+    }
+
+    isJoin(): boolean {
         return this.idType() === 'JOIN';
     }
 
-    isLeave() {
+    isLeave(): boolean {
         return this.idType() === 'LEAVE';
     }
 
-    isWhisper() {
+    isWhisper(): boolean {
         return this.idType() === 'WHISPER';
     }
 
-    isTalk() {
+    isTalk(): boolean {
         return this.idType() === 'TALK';
     }
 
-    isError() {
+    isError(): boolean {
         return this.idType() === 'ERROR';
     }
 
-    isInfo() {
+    isInfo(): boolean {
         return this.idType() === 'INFO';
     }
 
-    isEmote() {
+    isEmote(): boolean {
         return this.idType() === 'EMOTE';
-    }
-
-    printConsole(alias) {
-        const bnet = chalk.blue(`BNET[${alias}] `);
-
-        switch (this.idType()) {
-            case 'ERROR':
-                console.log(bnet + chalk.red(this.message));
-                break;
-            case 'INFO':
-                console.log(bnet + chalk.blue(this.message));
-                break;
-            case 'WHISPER':
-                console.log(bnet + chalk.magenta(`[${this.user}] ${this.message}`));
-                break;
-            case 'EMOTE':
-                console.log(bnet + chalk.yellow(this.user) + ' ' + chalk.gray(this.message));
-                break;
-            case 'TALK':
-                console.log(bnet + chalk.yellow(this.user) + ' ' + this.message);
-                break;
-        }
     }
 }
