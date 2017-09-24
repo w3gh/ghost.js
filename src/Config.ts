@@ -27,21 +27,21 @@ export class Config {
     /**
      * returns item from config
      * @param {String} name
-     * @param {*} def
+     * @param {*} fallback
      * @returns {*}
      */
-    item<T>(name: string, def: T = null): T {
+    item<T>(name: string, fallback: T = null): T {
         let curr = this.data,
             names = name.split('.');
 
-        if (curr === null) return def;
+        if (curr === null) return fallback;
 
         for (let n of names) {
             curr = curr[n];
 
-            if (typeof curr === 'undefined') return def;
+            if (typeof curr === 'undefined') return fallback;
         }
 
-        return typeof curr !== 'undefined' ? curr as T : def;
+        return typeof curr !== 'undefined' ? curr as T : fallback;
     }
 }
