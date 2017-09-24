@@ -31,3 +31,5 @@ node_modules
 
 # war3 patch files
 war3
+
+test_*.js
