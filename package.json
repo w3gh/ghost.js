@@ -8,7 +8,7 @@
     "w3proxy": "./bin/w3proxy"
   },
   "engines": {
-    "node": ">=4.2.0"
+    "node": ">=6.x"
   },
   "dependencies": {
     "babel-eslint": "^6.1.2",
@@ -17,15 +17,9 @@
     "bunyan": "^1.8.1",
     "chalk": "^1.1.3",
     "debug": "^2.2.0",
-    "eslint": "^3.4.0",
-    "eslint-config-airbnb": "10.0.1",
-    "eslint-config-es": "^0.8.0",
-    "eslint-plugin-extended": "^0.2.0",
-    "eslint-plugin-mocha": "^4.5.1",
-    "ffi": "^2.1.0",
+    "ffi": "^2.2.0",
     "hex": "^0.1.0",
     "ip": "^1.1.3",
-    "lodash": "^4.15.0",
     "mech-mpq": "^1.1.0",
     "ref": "^1.3.4",
     "ref-array": "^1.1.2",
@@ -35,12 +29,11 @@
   },
   "devDependencies": {
     "@types/node": "^7.0.5",
-    "babel-cli": "^6.14.0",
-    "babel-plugin-transform-class-properties": "^6.11.5",
-    "babel-polyfill": "^6.13.0",
-    "babel-preset-es2015": "^6.14.0",
-    "babel-preset-es2016": "^6.11.3",
-    "babel-preset-stage-0": "^6.5.0",
+    "eslint": "^3.4.0",
+    "eslint-config-airbnb": "10.0.1",
+    "eslint-config-es": "^0.8.0",
+    "eslint-plugin-extended": "^0.2.0",
+    "eslint-plugin-mocha": "^4.5.1",
     "typescript": "^2.2.1"
   },
   "scripts": {
