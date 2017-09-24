@@ -3,7 +3,7 @@ import * as ref from 'ref';
 import * as bp from 'bufferpack';
 import * as os from 'os';
 
-import * as lib from '../libbncsutil/libbncsutil';
+import * as lib from './libbncsutil/libbncsutil';
 import {ByteArray} from './Bytes';
 
 export interface BNCSExeInfo {

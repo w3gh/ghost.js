@@ -1,7 +1,7 @@
-import {PluginInterface} from '../../src/Plugin';
+import {PluginInterface} from '../../Plugin';
 import * as chalk from 'chalk';
-import {IncomingChatEvent} from "../../src/bnet/IncomingChatEvent";
-import {BNetConnection} from "../../src/bnet/BNetConnection";
+import {IncomingChatEvent} from "../../bnet/IncomingChatEvent";
+import {BNetConnection} from "../../bnet/BNetConnection";
 
 // black
 // red
