@@ -16,9 +16,9 @@ export class Protocol {
         return AssignLength(
             ByteArray(
                 [
-                    header,
-                    id,
-                    '\x00\x00', //null bytes for length
+                    [header],
+                    [id],
+                    [0, 0], //null bytes for length
                     ...args
                 ]
             )
