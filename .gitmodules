@@ -1,6 +1,6 @@
-[submodule "libbncsutil/bncsutil"]
-	path = libbncsutil/bncsutil
-	url = git@github.com:w3gh/bncsutil.git
-[submodule "libStorm/StormLib"]
-	path = libStorm/StormLib
-	url = git@github.com:w3gh/StormLib.git
+[submodule "src/libbncsutil/bncsutil"]
+	path = src/libbncsutil/bncsutil
+	url = https://github.com/w3gh/bncsutil.git
+[submodule "src/libStorm/StormLib"]
+	path = src/libStorm/StormLib
+	url = https://github.com/w3gh/StormLib.git
