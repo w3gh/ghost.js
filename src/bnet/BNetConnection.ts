@@ -2,12 +2,12 @@ import * as net from 'net';
 import * as assert from 'assert';
 import * as path from 'path';
 import * as EventEmitter from 'events';
-import {getTicks, getTime} from './../util';
-import {BytesExtract, GetLength, ByteExtractUInt32} from './../Bytes';
+import {getTicks, getTime} from '../util';
+import {BytesExtract, GetLength, ByteExtractUInt32} from '../Bytes';
 import {BNetProtocol, AuthState, AccountLogonProof, AccountLogon, AuthInfo} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
-import {BNCSUtil} from './../BNCSUtil';
+import {BNCSUtil} from '../BNCSUtil';
 import {create, hex} from '../Logger';
 import {Config} from "../Config";
 import {IncomingFriend} from "./IncomingFriend";
@@ -49,7 +49,7 @@ export class BNetConnection extends EventEmitter {
     private inGame: boolean = false;
     private commandTrigger: string;
     private server: string;
-    private alias: string;
+    public alias: string;
     private bnlsServer: string;
     private bnlsPort: number;
     private bnlsWardenCookie: string;
@@ -60,7 +60,7 @@ export class BNetConnection extends EventEmitter {
 
     private passwordHashType: string;
     private pvpgnRealmName: string;
-    private maxMessageLength: string;
+    private maxMessageLength: number;
     private localeID: number;
     private countryAbbrev: string;
     private country: string;
@@ -97,14 +97,14 @@ export class BNetConnection extends EventEmitter {
 
         info(`found battle.net connection [#${this.id}] for server [${this.server}]`);
 
-        this.on('talk', (that, event) => {
+        this.on('SID_CHATEVENT', (that, event: IncomingChatEvent) => {
             if (event.message === '?trigger') {
                 this.queueChatCommand(`Command trigger is ${this.commandTrigger}`);
             }
         });
 
         this.on('command', (that, argv) => {
-            console.log('got command', argv);
+            debug('got command', argv);
         });
     }
 
@@ -125,7 +125,7 @@ export class BNetConnection extends EventEmitter {
         this.exeVersionHash = config.item('custom.exeversionhash', '');
         this.passwordHashType = config.item('custom.passwordhashyype', '');
         this.pvpgnRealmName = config.item('custom.pvpgnrealmname', 'PvPGN Realm');
-        this.maxMessageLength = config.item('custom.maxmessagelength', '200');
+        this.maxMessageLength = Number(config.item('custom.maxmessagelength', '200'));
 
         this.localeID = config.item('localeid', 1049); //Russian
         this.countryAbbrev = config.item('countryabbrev', 'RUS');
@@ -221,7 +221,7 @@ export class BNetConnection extends EventEmitter {
             'SID_FRIENDSADD',
             'SID_GETADVLISTEX'
         ]) {
-            this.handlers[this.protocol[type].charCodeAt(0)] = this[`HANDLE_${type}`];
+            this.handlers[this.protocol[type]] = this[`HANDLE_${type}`];
         }
     }
 
@@ -246,9 +246,11 @@ export class BNetConnection extends EventEmitter {
         hex(buffer);
         debug(`of length ${buffer.length}`);
 
-        const bytesLength = GetLength(buffer);
+        if (this.protocol.haveHeader(buffer)) {
+            const bytesLength = GetLength(buffer);
 
-        debug(`expected length ${bytesLength}`);
+            debug(`expected length ${bytesLength}`);
+        }
 
         this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
 
@@ -436,7 +438,7 @@ export class BNetConnection extends EventEmitter {
         // m_OutPackets.push( m_Protocol->SEND_SID_ENTERCHAT( ) );
     }
 
-    queueChatCommand(command) {
+    queueChatCommand(command: string, silent = false) {
         if (!command.length) {
             return;
         }
@@ -455,11 +457,15 @@ export class BNetConnection extends EventEmitter {
             } else {
                 this.outPackets.push(this.protocol.SEND_SID_CHATCOMMAND(command));
             }
+
+            if (!silent) {
+                this.emit('chatCommand', this, command);
+            }
         }
     }
 
-    queueWhisperCommand(user, command) {
-        return this.queueChatCommand(`/w ${user} ${command}`);
+    queueWhisperCommand(username: string, command: string) {
+        return this.queueChatCommand(`/w ${username} ${command}`);
     }
 
     queueGetGameList(gameName = '', numGames = 1) {
@@ -472,7 +478,7 @@ export class BNetConnection extends EventEmitter {
         }
     }
 
-    queueJoinGame(gameName) {
+    queueJoinGame(gameName: string) {
         if (this.loggedIn) {
             this.outPackets.push(this.protocol.SEND_SID_NOTIFYJOIN(gameName));
             this.inChat = false;
@@ -480,23 +486,18 @@ export class BNetConnection extends EventEmitter {
         }
     }
 
-    isAdmin(user) {
-        return Boolean(this.admins.find((name) => name === user));
+    isAdmin(username: string): boolean {
+        return Boolean(this.admins.find((name) => name === username));
     }
 
-    isRootAdmin(user) {
-        return this.rootAdmin === user;
+    isRootAdmin(username: string): boolean {
+        return this.rootAdmin === username;
     }
 
     HANDLE_SID_PING(d) {
         debug('HANDLE_SID_PING', d);
         this.emit('SID_PING', this, d);
         this.sendPackets(this.protocol.SEND_SID_PING(d));
-    }
-
-    HANDLE_SID_REQUIREDWORK() {
-        debug('HANDLE_SID_REQUIREDWORK');
-        return null;
     }
 
     HANDLE_SID_NULL() {
@@ -509,18 +510,6 @@ export class BNetConnection extends EventEmitter {
 
     HANDLE_SID_AUTH_INFO(data: AuthInfo) {
         debug('HANDLE_SID_AUTH_INFO');
-
-        // if (BNCSUtil.HELP_SID_AUTH_CHECK(
-        // 		this.TFT,
-        // 		this.war3Path,
-        // 		this.keyROC,
-        // 		this.keyTFT,
-        // 		d.valueStringFormula,
-        // 		d.ix86VerFileName,
-        // 		this.clientToken,
-        // 		d.serverToken)) {
-        //
-        // }
 
         let {exeInfo, exeVersion} = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
 
@@ -780,10 +769,6 @@ export class BNetConnection extends EventEmitter {
 
     HANDLE_SID_CLANMEMBERSTATUSCHANGE() {
         debug('HANDLE_SID_CLANMEMBERSTATUSCHANGE');
-    }
-
-    HANDLE_SID_MESSAGEBOX(d) {
-        debug('HANDLE_SID_MESSAGEBOX');
     }
 
     HANDLE_SID_FRIENDSLIST(friends: IncomingFriend[]) {

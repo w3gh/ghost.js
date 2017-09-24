@@ -1,6 +1,7 @@
 import {PluginInterface} from '../../src/Plugin';
 import * as chalk from 'chalk';
 import {IncomingChatEvent} from "../../src/bnet/IncomingChatEvent";
+import {BNetConnection} from "../../src/bnet/BNetConnection";
 
 // black
 // red
@@ -17,18 +18,42 @@ module.exports = function (Plugin: PluginInterface) {
         /**
          * @param {BNetConnection} bnet
          */
-        onBNetInit(bnet) {
-            bnet.on('SID_CHATEVENT', this.SID_CHATEVENT.bind(this));
+        onBNetInit(bnet: BNetConnection) {
+            bnet
+                .on('SID_CHATEVENT', this.SID_CHATEVENT.bind(this))
+                .on('chatCommand', this.chatCommand.bind(this));
         }
 
-        SID_CHATEVENT(bnet, event: IncomingChatEvent) {
+        /**
+         *
+         * @param {BNetConnection} bnet
+         * @param {IncomingChatEvent} event
+         * @constructor
+         */
+        SID_CHATEVENT(bnet: BNetConnection, event: IncomingChatEvent) {
             if (this.config.consolePrint) {
                 this.print(bnet.alias, event);
             }
         }
 
-        print(alias, event: IncomingChatEvent) {
-            const bnet = chalk.blue(`BNET[${alias}] `);
+        /**
+         *
+         * @param {BNetConnection} bnet
+         * @param {string} command
+         */
+        chatCommand(bnet: BNetConnection, command: string) {
+            if (this.config.consolePrint) {
+                console.log(chalk.blue(`BNET[${bnet.alias}] `) + command)
+            }
+        }
+
+        /**
+         *
+         * @param {string} BNetAlias
+         * @param {IncomingChatEvent} event
+         */
+        print(BNetAlias: string, event: IncomingChatEvent) {
+            const bnet = chalk.blue(`BNET[${BNetAlias}] `);
             let message = '';
 
             if (event.isError())

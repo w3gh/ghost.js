@@ -5,5 +5,5 @@
  * @constructor
  */
 export class CommandPacket {
-    constructor(public type: string, public id: number, public buffer: Buffer) {}
+    constructor(public type: Number, public id: number, public buffer: Buffer) {}
 }

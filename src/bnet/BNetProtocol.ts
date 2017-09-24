@@ -1,8 +1,7 @@
-import * as bp from 'bufferpack';
 import * as assert from 'assert';
-import {localIP, getTimezone} from './../util';
-import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32, ByteArray} from './../Bytes';
-import {Protocol} from './../Protocol';
+import {localIP, getTimezone} from '../util';
+import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32, ByteArray} from '../Bytes';
+import {Protocol} from '../Protocol';
 import {IncomingFriend} from './IncomingFriend';
 import {IncomingGameHost} from './IncomingGameHost';
 
@@ -39,40 +38,40 @@ export interface AccountLogonProof {
 
 export class BNetProtocol extends Protocol {
 
-    BNET_HEADER_CONSTANT = '\xff';
+    BNET_HEADER_CONSTANT = 0xff;
 
-    INITIALIZE_SELECTOR = '\x01';
+    INITIALIZE_SELECTOR = 0x01;
 
-    SID_AUTH_INFO = '\x50';
-    SID_PING = '\x25';
-    SID_AUTH_CHECK = '\x51';
-    SID_REQUIREDWORK = '\x4c';
-    SID_AUTH_ACCOUNTLOGON = '\x53';
-    SID_AUTH_ACCOUNTLOGONPROOF = '\x54';
-    SID_NULL = '\x00';
-    SID_NETGAMEPORT = '\x45';
-    SID_ENTERCHAT = '\x0a';
-    SID_JOINCHANNEL = '\x0c';
-    SID_CHATEVENT = '\x0f';
-    SID_CHATCOMMAND = '\x0e';
-    SID_CLANINFO = '\x75';
-    SID_CLANMEMBERLIST = '\x7d';
-    SID_CLANMEMBERSTATUSCHANGE = '\x7f';
-    SID_MESSAGEBOX = '\x19';
-    SID_CLANINVITATION = '\x77';
-    SID_CLANMEMBERREMOVED = '\x7e';
-    SID_FRIENDSUPDATE = '\x66';
-    SID_FRIENDSLIST = '\x65';
-    SID_FLOODDETECTED = '\x13';
-    SID_FRIENDSADD = '\x67';
+    SID_AUTH_INFO = 0x50;
+    SID_PING = 0x25;
+    SID_AUTH_CHECK = 0x51;
+    SID_REQUIREDWORK = 0x4c;
+    SID_AUTH_ACCOUNTLOGON = 0x53;
+    SID_AUTH_ACCOUNTLOGONPROOF = 0x54;
+    SID_NULL = 0x00;
+    SID_NETGAMEPORT = 0x45;
+    SID_ENTERCHAT = 0x0a;
+    SID_JOINCHANNEL = 0x0c;
+    SID_CHATEVENT = 0x0f;
+    SID_CHATCOMMAND = 0x0e;
+    SID_CLANINFO = 0x75;
+    SID_CLANMEMBERLIST = 0x7d;
+    SID_CLANMEMBERSTATUSCHANGE = 0x7f;
+    SID_MESSAGEBOX = 0x19;
+    SID_CLANINVITATION = 0x77;
+    SID_CLANMEMBERREMOVED = 0x7e;
+    SID_FRIENDSUPDATE = 0x66;
+    SID_FRIENDSLIST = 0x65;
+    SID_FLOODDETECTED = 0x13;
+    SID_FRIENDSADD = 0x67;
 
-    SID_GETADVLISTEX = '\x09';
-    SID_STOPADV = '\x02';	// 0x2
-    SID_CHECKAD = '\x15';	// 0x15
-    SID_STARTADVEX3 = '\x1c';	// 0x1C
-    SID_DISPLAYAD = '\x21';	// 0x21
-    SID_NOTIFYJOIN = '\x22';	// 0x22
-    SID_LOGONRESPONSE = '\x29';	// 0x29
+    SID_GETADVLISTEX = 0x09;
+    SID_STOPADV = 0x2;	// 0x2
+    SID_CHECKAD = 0x15;	// 0x15
+    SID_STARTADVEX3 = 0x1c;	// 0x1C
+    SID_DISPLAYAD = 0x21;	// 0x21
+    SID_NOTIFYJOIN = 0x22;	// 0x22
+    SID_LOGONRESPONSE = 0x29;	// 0x29
 
     /*
      0x000: Passed challenge
@@ -85,14 +84,14 @@ export class BNetProtocol extends Protocol {
      0x202: Banned key
      0x203: Wrong product
      */
-    KR_OLD_GAME_VERSION = 256;
-    KR_INVALID_VERSION = 257;
-    KR_MUST_BE_DOWNGRADED = 258;
-    KR_INVALID_CD_KEY = 512; //0x200
-    KR_ROC_KEY_IN_USE = 513; //0x201
-    KR_TFT_KEY_IN_USE = 529; //0x211
-    KR_BANNED_KEY = 514; //0x202
-    KR_WRONG_PRODUCT = 515; //0x203
+    KR_OLD_GAME_VERSION = 0x100; //0x100
+    KR_INVALID_VERSION = 0x101; //0x101
+    KR_MUST_BE_DOWNGRADED = 0x102; //0x102
+    KR_INVALID_CD_KEY = 0x200; //0x200
+    KR_ROC_KEY_IN_USE = 0x201; //0x201
+    KR_TFT_KEY_IN_USE = 0x211; //0x211
+    KR_BANNED_KEY = 0x202; //0x202
+    KR_WRONG_PRODUCT = 0x203; //0x203
 
     // KR_GOOD = '\x00\x00\x00\x00';
     // KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
@@ -100,10 +99,10 @@ export class BNetProtocol extends Protocol {
     // KR_ROC_KEY_IN_USE = '\x01\x02\x00\x00';
     // KR_TFT_KEY_IN_USE = '\x11\x02\x00\x00';
 
-    NULL = '\x00';
-    NULL_2 = '\x00\x00';
-    NULL_3 = '\x00\x00\x00';
-    NULL_4 = '\x00\x00\x00\x00';
+    NULL = [0]; // '\x00';
+    NULL_2 = [0, 0]; // '\x00\x00';
+    NULL_3 = [0, 0, 0]; // '\x00\x00\x00';
+    NULL_4 = [0, 0, 0, 0]; // '\x00\x00\x00\x00';
 
     // EID_SHOWUSER = '\x01\x00\x00\x00';
     // EID_JOIN = '\x02\x00\x00\x00';
@@ -160,7 +159,7 @@ export class BNetProtocol extends Protocol {
     PRODUCT_ROC = '3RAW';
     PLATFORM_X86 = '68XI';
 
-    receivers;
+    receivers = {};
 
     constructor(public bnet: BNetConnection) {
         super();
@@ -169,8 +168,6 @@ export class BNetProtocol extends Protocol {
     }
 
     configureReceivers() {
-        this.receivers = {};
-
         for (let type of [
             'SID_PING',
             'SID_AUTH_INFO',
@@ -193,7 +190,7 @@ export class BNetProtocol extends Protocol {
             'SID_FRIENDSADD',
             'SID_GETADVLISTEX'
         ]) {
-            this.receivers[this[type].charCodeAt(0)] = this[`RECEIVE_${type}`];
+            this.receivers[this[type]] = this[`RECEIVE_${type}`];
         }
     }
 
@@ -217,7 +214,7 @@ export class BNetProtocol extends Protocol {
      * @returns {Boolean}
      */
     haveHeader(buffer: Buffer) {
-        return String.fromCharCode(buffer[0]) === this.BNET_HEADER_CONSTANT;
+        return buffer[0] === this.BNET_HEADER_CONSTANT; //String.fromCharCode(buffer[0])
     }
 
     RECEIVE_SID_NULL(buff: Buffer) {
@@ -320,7 +317,6 @@ export class BNetProtocol extends Protocol {
         }
 
         return games;
-
     }
 
     RECEIVE_SID_ENTERCHAT(buff: Buffer) {
@@ -582,54 +578,189 @@ export class BNetProtocol extends Protocol {
 
     RECEIVE_SID_CLANMEMBERLIST(buff: Buffer) {
         debug('RECEIVE_SID_CLANMEMBERLIST');
+
+        // DEBUG_Print( "RECEIVED SID_CLANMEMBERLIST" );
+        // DEBUG_Print( data );
+
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+        // 4 bytes					-> ???
+        // 1 byte					-> Total
+        // for( 1 .. Total )
+        //		null term string	-> Name
+        //		1 byte				-> Rank
+        //		1 byte				-> Status
+        //		null term string	-> Location
+
+        //vector<CIncomingClanList *> ClanList;
+
+        // if( ValidateLength( data ) && data.size( ) >= 9 )
+        // {
+        //     unsigned int i = 9;
+        //     unsigned char Total = data[8];
+        //
+        //     while( Total > 0 )
+        //     {
+        //         Total--;
+        //
+        //         if( data.size( ) < i + 1 )
+        //             break;
+        //
+        //         BYTEARRAY Name = UTIL_ExtractCString( data, i );
+        //         i += Name.size( ) + 1;
+        //
+        //         if( data.size( ) < i + 3 )
+        //             break;
+        //
+        //         unsigned char Rank = data[i];
+        //         unsigned char Status = data[i + 1];
+        //         i += 2;
+        //
+        //         // in the original VB source the location string is read but discarded, so that's what I do here
+        //
+        //         BYTEARRAY Location = UTIL_ExtractCString( data, i );
+        //         i += Location.size( ) + 1;
+        //         ClanList.push_back( new CIncomingClanList(	string( Name.begin( ), Name.end( ) ),
+        //                                                     Rank,
+        //                                                     Status ) );
+        //     }
+        // }
+        //
+        // return ClanList;
+
+        const clanMembers = [];
+
+        return clanMembers;
     }
 
-    RECEIVE_SID_REQUIREDWORK(buff: Buffer) {
-        debug('RECEIVE_SID_REQUIREDWORK');
-
-        return ValidateLength(buff);
-    }
-
-    RECEIVE_SID_CLANMEMBERSTATUSCHANGE(buff) {
+    RECEIVE_SID_CLANMEMBERSTATUSCHANGE(buff: Buffer) {
         debug('RECEIVE_SID_CLANMEMBERSTATUSCHANGE');
-    }
 
-    RECEIVE_SID_CLANINVITATION(buff: Buffer) {
-        debug('RECEIVE_SID_CLANINVITATION');
-    }
+        // DEBUG_Print( "RECEIVED SID_CLANMEMBERSTATUSCHANGE" );
+        // DEBUG_Print( data );
 
-    RECEIVE_SID_CLANMEMBERREMOVED(buff: Buffer) {
-        debug('RECEIVE_SID_CLANMEMBERREMOVED');
-    }
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+        // null terminated string	-> Name
+        // 1 byte					-> Rank
+        // 1 byte					-> Status
+        // null terminated string	-> Location
 
-    RECEIVE_SID_FRIENDSUPDATE(buff) {
-        debug('RECEIVE_SID_FRIENDSUPDATE')
-    }
+        // if( ValidateLength( data ) && data.size( ) >= 5 )
+        // {
+        //     BYTEARRAY Name = UTIL_ExtractCString( data, 4 );
+        //
+        //     if( data.size( ) >= Name.size( ) + 7 )
+        //     {
+        //         unsigned char Rank = data[Name.size( ) + 5];
+        //         unsigned char Status = data[Name.size( ) + 6];
+        //
+        //         // in the original VB source the location string is read but discarded, so that's what I do here
+        //
+        //         BYTEARRAY Location = UTIL_ExtractCString( data, Name.size( ) + 7 );
+        //         return new CIncomingClanList(	string( Name.begin( ), Name.end( ) ),
+        //                                         Rank,
+        //                                         Status );
+        //     }
+        // }
 
-    RECEIVE_SID_FLOODDETECTED(buff) {
-        debug('RECEIVE_SID_FLOODDETECTED');
-    }
-
-    RECEIVE_SID_CLANINFO(buff) {
-        debug('RECEIVE_SID_CLANINFO');
-    }
-
-    RECEIVE_SID_MESSAGEBOX(buff) {
-        debug('RECEIVE_SID_MESSAGEBOX');
-    }
-
-    RECEIVE_SID_FRIENDSADD(buff) {
-        debug('RECEIVE_SID_FRIENDSADD');
+        return null;
     }
 
     SEND_PROTOCOL_INITIALIZE_SELECTOR() {
         debug('SEND_PROTOCOL_INITIALIZE_SELECTOR');
 
-        return Buffer.from(this.INITIALIZE_SELECTOR, 'binary');
+        return Buffer.from([this.INITIALIZE_SELECTOR]);
     }
 
     SEND_SID_NULL() {
-        return this.asPacket(this.SID_NULL);
+        return this.asPacket([this.SID_NULL]);
+    }
+
+    SEND_SID_STOPADV() {
+    }
+
+    SEND_SID_GETADVLISTEX(gameName: string, numGames: number = 0) {
+        // unsigned char MapFilter1[]	= { 255, 3, 0, 0 };
+        // unsigned char MapFilter2[]	= { 255, 3, 0, 0 };
+        // unsigned char MapFilter3[]	= {   0, 0, 0, 0 };
+        // unsigned char NumGames[]	= {   1, 0, 0, 0 };
+        //
+        // BYTEARRAY packet;
+        // packet.push_back( BNET_HEADER_CONSTANT );			// BNET header constant
+        // packet.push_back( SID_GETADVLISTEX );				// SID_GETADVLISTEX
+        // packet.push_back( 0 );								// packet length will be assigned later
+        // packet.push_back( 0 );								// packet length will be assigned later
+        // UTIL_AppendByteArray( packet, MapFilter1, 4 );		// Map Filter
+        // UTIL_AppendByteArray( packet, MapFilter2, 4 );		// Map Filter
+        // UTIL_AppendByteArray( packet, MapFilter3, 4 );		// Map Filter
+        // UTIL_AppendByteArray( packet, NumGames, 4 );		// maximum number of games to list
+        // UTIL_AppendByteArrayFast( packet, gameName );		// Game Name
+        // packet.push_back( 0 );								// Game Password is NULL
+        // packet.push_back( 0 );								// Game Stats is NULL
+        // AssignLength( packet );
+        // // DEBUG_Print( "SENT SID_GETADVLISTEX" );
+        // // DEBUG_Print( packet );
+        // return packet;
+
+        let cond1 = [0, 0];
+        let cond2 = [0, 0];
+        let cond3 = [0, 0, 0, 0];
+        let cond4 = [0, 0, 0, 0];
+
+        if (!gameName.length) {
+            cond1[0] = 0;
+            cond1[1] = 224;
+
+            cond2[0] = 127;
+            cond2[1] = 0;
+        } else {
+            cond1 = [255, 3];
+            cond2 = [0, 0];
+            cond3 = [255, 3, 0, 0];
+            numGames = 1;
+        }
+
+        return this.asPacket(
+            this.SID_GETADVLISTEX,
+            cond1,
+            cond2,
+            cond3,
+            cond4,
+            ByteUInt32(1),
+            ByteString(gameName),
+            this.NULL, // Game Password is NULL
+            this.NULL // Game Stats is NULL
+        );
+    }
+
+    SEND_SID_ENTERCHAT() {
+        return this.asPacket(
+            this.SID_ENTERCHAT,
+            this.NULL, //Account Name is NULL on Warcraft III/The Frozen Throne
+            this.NULL //Stat String is NULL on CDKEY'd products
+        );
+    }
+
+    SEND_SID_JOINCHANNEL(channel: string) {
+        const noCreateJoin = '\x02\x00\x00\x00';
+        const firstJoin = '\x01\x00\x00\x00';
+
+        return this.asPacket(
+            this.SID_JOINCHANNEL,
+            channel.length > 0 ? noCreateJoin : firstJoin,
+            ByteString(channel)
+        );
+    }
+
+    SEND_SID_CHATCOMMAND(command: string) {
+        return this.asPacket(
+            this.SID_CHATCOMMAND,
+            ByteString(command)
+        );
+    }
+
+    SEND_SID_CHECKAD() {
     }
 
     SEND_SID_PING(payload) {
@@ -720,32 +851,6 @@ export class BNetProtocol extends Protocol {
         );
     }
 
-    SEND_SID_ENTERCHAT() {
-        return this.asPacket(
-            this.SID_ENTERCHAT,
-            this.NULL, //Account Name is NULL on Warcraft III/The Frozen Throne
-            this.NULL //Stat String is NULL on CDKEY'd products
-        );
-    }
-
-    SEND_SID_JOINCHANNEL(channel) {
-        const noCreateJoin = '\x02\x00\x00\x00';
-        const firstJoin = '\x01\x00\x00\x00';
-
-        return this.asPacket(
-            this.SID_JOINCHANNEL,
-            channel.length > 0 ? noCreateJoin : firstJoin,
-            ByteString(channel)
-        );
-    }
-
-    SEND_SID_CHATCOMMAND(command) {
-        return this.asPacket(
-            this.SID_CHATCOMMAND,
-            ByteString(command)
-        );
-    }
-
     SEND_SID_FRIENDSLIST() {
         return this.asPacket(
             this.SID_FRIENDSLIST
@@ -761,40 +866,7 @@ export class BNetProtocol extends Protocol {
         );
     }
 
-    SEND_SID_GETADVLISTEX(gameName = '', numGames = 1) {
-        let cond1 = [0, 0];
-        let cond2 = [0, 0];
-        let cond3 = [0, 0, 0, 0];
-        let cond4 = [0, 0, 0, 0];
-
-        if (!gameName.length) {
-            cond1[0] = 0;
-            cond1[1] = 224;
-
-            cond2[0] = 127;
-            cond2[1] = 0;
-        } else {
-            cond1 = [255, 3];
-            cond2 = [0, 0];
-            cond3 = [255, 3, 0, 0];
-            numGames = 1;
-        }
-
-        return this.asPacket(
-            this.SID_GETADVLISTEX,
-            cond1,
-            cond2,
-            cond3,
-            cond4,
-            ByteUInt32(numGames),
-            ByteString(gameName),
-            this.NULL, // Game Password is NULL
-            this.NULL // Game Stats is NULL
-        );
-    }
-
-    SEND_SID_NOTIFYJOIN(gameName) {
+    SEND_SID_NOTIFYJOIN(gameName: string) {
 
     }
-
 }

@@ -102,7 +102,7 @@ export class GHost extends Bot {
         return path.resolve(path.join(this.mapConfigsPath, `${filename}.json`))
     };
 
-    udpSocketSetup() {
+    protected udpSocketSetup() {
         this.udpSocket.on('listening', this.onListening);
         this.udpSocket.on('message', this.onMessage);
         this.udpSocket.on('error', this.onError);
@@ -110,7 +110,7 @@ export class GHost extends Bot {
         //this.udpSocket.setBroadcast(true);
     }
 
-    extractScripts() {
+    protected extractScripts() {
         const mpq = require('mech-mpq');
         const fs = require('fs');
         const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
@@ -163,7 +163,7 @@ export class GHost extends Bot {
         debug('Bot', 'listening', ...args);
     };
 
-    configure() {
+    protected configure() {
         const config = this.cfg;
 
         this.TFT = config.item('tft', 1);
@@ -180,7 +180,7 @@ export class GHost extends Bot {
         this.lanWar3Version = this.cfg.item('bot.war3version', "26");
     }
 
-    configureBNet() {
+    protected configureBNet() {
         const config = this.cfg;
 
         for (let i = 0; i < 32; ++i) {
@@ -203,7 +203,7 @@ export class GHost extends Bot {
         }
     }
 
-    adminGameSetup() {
+    protected adminGameSetup() {
         if (this.haveAdminGame) {
             info('configure admin game');
 
@@ -218,5 +218,11 @@ export class GHost extends Bot {
                 'JiLiZART'
             );
         }
+    }
+
+    queueBNetsChatCommand(command: string) {
+        this.bnets.forEach((bnet) => {
+            bnet.queueChatCommand(command)
+        })
     }
 }
