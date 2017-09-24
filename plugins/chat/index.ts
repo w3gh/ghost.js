@@ -29,21 +29,24 @@ module.exports = function (Plugin: PluginInterface) {
 
         print(alias, event: IncomingChatEvent) {
             const bnet = chalk.blue(`BNET[${alias}] `);
+            let message = '';
 
             if (event.isError())
-                console.log(bnet + chalk.red(event.message));
+                message = bnet + chalk.red(event.message);
             if (event.isInfo())
-                console.log(bnet + chalk.blue(event.message));
+                message = bnet + chalk.blue(event.message);
             if (event.isWhisper())
-                console.log(bnet + chalk.magenta(`[${event.user}] ${event.message}`));
+                message = bnet + chalk.magenta(`[${event.user}] ${event.message}`);
             if (event.isEmote())
-                console.log(bnet + chalk.yellow(event.user) + ' ' + chalk.gray(event.message));
+                message = bnet + chalk.yellow(event.user) + ' ' + chalk.gray(event.message);
             if (event.isTalk())
-                console.log(bnet + chalk.yellow(event.user) + ' ' + event.message);
+                message = bnet + chalk.yellow(event.user) + ' ' + event.message;
             if (event.isShowUser())
-                console.log(bnet + chalk.yellow(event.user) + ' ' + event.message);
+                message = bnet + chalk.yellow(event.user) + ' ' + event.message;
             if (event.isUserFlags())
-                console.log(bnet + chalk.yellow(event.user) + ' ' + event.message);
+                message = bnet + chalk.yellow(event.user) + ' ' + event.message;
+
+            message && console.log(message);
         }
     };
 };
