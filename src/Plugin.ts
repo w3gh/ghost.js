@@ -27,7 +27,7 @@ export class Plugin {
     static load(name, config: Config) {
         if (!name) return;
 
-        const requirePath = resolve(`${__dirname}/../plugins/${name}`);
+        const requirePath = resolve(`${__dirname}/plugins/${name}`);
         let ExportedClass;
 
         try {
