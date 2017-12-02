@@ -47,7 +47,7 @@ export class BNCSUtil {
     }
 
     static getVersion(): string {
-        var verChar = ref.alloc('string');
+        let verChar = ref.alloc('string');
 
         lib.libbncsutil.bncsutil_getVersionString(verChar);
 
@@ -99,7 +99,7 @@ export class BNCSUtil {
      )
      */
     static checkRevisionFlat(valueString, file1, file2, file3, mpqNumber): Buffer {
-        var checksum = ref.alloc('uint32');
+        let checksum = ref.alloc('uint32');
 
         //console.log('checkRevisionFlat', arguments);
 
@@ -129,12 +129,12 @@ export class BNCSUtil {
      ref.types.CString,
      ref.types.ulong,
      ]],
-     * @returns {publicValue, product, hashBuffer}
+     * @returns BNCSCdKey
      */
     static kd_quick(CDKey: string, clientToken: string, serverToken: string): BNCSCdKey {
-        var publicValue = ref.alloc('uint32');
-        var product = ref.alloc('uint32');
-        var hashBuffer = ref.alloc('string');
+        let publicValue = ref.alloc('uint32');
+        let product = ref.alloc('uint32');
+        let hashBuffer = ref.alloc('string');
 
         lib.libbncsutil.kd_quick(
             CDKey,
@@ -175,7 +175,7 @@ export class BNCSUtil {
      * Gets the public key (A). (32 bytes)
      */
     static nls_get_A(nls_t): Buffer {
-        var buffer = Buffer.alloc(32);
+        let buffer = Buffer.alloc(32);
 
         lib.libbncsutil.nls_get_A(nls_t, buffer);
 
@@ -188,7 +188,7 @@ export class BNCSUtil {
      */
     static nls_get_M1(nls_t, B, salt): Buffer {
         //MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt);
-        var buffer = Buffer.alloc(20);
+        let buffer = Buffer.alloc(20);
 
         lib.libbncsutil.nls_get_M1(nls_t, buffer, B, salt);
 
@@ -199,7 +199,7 @@ export class BNCSUtil {
      * Single-hashes the password for account creation and password changes.
      */
     static hashPassword(password): Buffer {
-        var buffer = Buffer.alloc(20);
+        let buffer = Buffer.alloc(20);
 
         lib.libbncsutil.hashPassword(password, buffer);
 
@@ -207,8 +207,8 @@ export class BNCSUtil {
     }
 
     static createKeyInfo(key, clientToken, serverToken): Buffer {
-        var info = BNCSUtil.kd_quick(key, clientToken, serverToken);
-        var bytes = [
+        let info = BNCSUtil.kd_quick(key, clientToken, serverToken);
+        let bytes = [
             bp.pack('<I', key.length),
             bp.pack('<I', info.product),
             bp.pack('<I', info.publicValue),
@@ -217,5 +217,11 @@ export class BNCSUtil {
         ];
 
         return ByteArray(bytes);
+    }
+
+    static createClientPublicKey(username, password) {
+        let nls = BNCSUtil.nls_init(username, password);
+
+        return BNCSUtil.nls_get_A(nls);
     }
 }

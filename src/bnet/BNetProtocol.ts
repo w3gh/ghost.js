@@ -2,38 +2,85 @@ import * as assert from 'assert';
 import {localIP, getTimezone} from '../util';
 import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32, ByteArray} from '../Bytes';
 import {Protocol} from '../Protocol';
-import {IncomingFriend} from './IncomingFriend';
-import {IncomingGameHost} from './IncomingGameHost';
 
 import {create, hex} from '../Logger';
 import {BNetConnection} from "./BNetConnection";
 import {IncomingChatEvent} from "./IncomingChatEvent";
+import {AccountLogonProof} from "./AccountLogonProof";
+import {SIDGetAdvListEx} from "./SIDGetAdvListEx";
+import {AuthInfo} from "./AuthInfo";
+import {AuthState} from "./AuthState";
+import {AccountLogon} from "./AccountLogon";
+import {FriendList} from "./FriendList";
+import {ClanMemberList} from "./ClanMemberList";
+import {IncomingClanList} from "./IncomingClanList";
 
 const {debug, info, error} = create('BNetProtocol');
 
-export interface AuthInfo {
-    logonType,
-    serverToken,
-    mpqFileTime,
-    ix86VerFileName,
-    valueString
+
+/*
+  0x000: Passed challenge
+  0x100: Old game version (Additional info field supplies patch MPQ filename)
+  0x101: Invalid version
+  0x102: Game version must be downgraded (Additional info field supplies patch MPQ filename)
+  0x0NN: (where NN is the version code supplied in SID_AUTH_INFO): Invalid version code (note that 0x100 is not set in this case).
+  0x200: Invalid CD key *
+  0x201: CD key in use (Additional info field supplies name of user)
+  0x202: Banned key
+  0x203: Wrong product
+  */
+export enum BNetKR {
+    OLD_GAME_VERSION = 0x100, //0x100
+    INVALID_VERSION = 0x101, //0x101
+    MUST_BE_DOWNGRADED = 0x102, //0x102
+    INVALID_CD_KEY = 0x200, //0x200
+    ROC_KEY_IN_USE = 0x201, //0x201
+    TFT_KEY_IN_USE = 0x211, //0x211
+    BANNED_KEY = 0x202, //0x202
+    WRONG_PRODUCT = 0x203, //0x203
 }
 
-export interface AuthState {
-    state: number;
-    description: string;
+export enum BNetFriendStatus {
+    // Bitfield
+    FRIENDSTATUS_MUTUAL = 1,
+    FRIENDSTATUS_DND = 2,
+    FRIENDSTATUS_AWAY = 4,
 }
 
-export interface AccountLogon {
-    status,
-    salt,
-    serverPublicKey
+export enum BNetFriendLocation {
+    // Value
+    FRIENDLOCATION_OFFLINE = 0,
+    FRIENDLOCATION_NOTCHAT = 1,
+    FRIENDLOCATION_CHAT = 2,
+    FRIENDLOCATION_PUB = 3,
+    FRIENDLOCATION_PRIVHIDE = 4,
+    FRIENDLOCATION_PRIVSHOW = 5
 }
 
-export interface AccountLogonProof {
-    status,
-    proof,
-    message
+export enum BNetClanRank {
+    CLANRANK_INITIATE = 0,
+    CLANRANK_PEON = 1,
+    CLANRANK_GRUNT = 2,
+    CLANRANK_SHAMAN = 3,
+    CLANRANK_CHIEFTAN = 4
+}
+
+export enum BNetChatEventID {
+    EID_SHOWUSER = 1,	// received when you join a channel (includes users in the channel and their information)
+    EID_JOIN = 2,	// received when someone joins the channel you're currently in
+    EID_LEAVE = 3,	// received when someone leaves the channel you're currently in
+    EID_WHISPER = 4,	// received a whisper message
+    EID_TALK = 5,	// received when someone talks in the channel you're currently in
+    EID_BROADCAST = 6,	// server broadcast
+    EID_CHANNEL = 7,	// received when you join a channel (includes the channel's name, flags)
+    EID_USERFLAGS = 9,	// user flags updates
+    EID_WHISPERSENT = 10,	// sent a whisper message
+    EID_CHANNELFULL = 13,	// channel is full
+    EID_CHANNELDOESNOTEXIST = 14,	// channel does not exist
+    EID_CHANNELRESTRICTED = 15,	// channel is restricted
+    EID_INFO = 18,	// broadcast/information message
+    EID_ERROR = 19,	// error message
+    EID_EMOTE = 23,	// emote
 }
 
 export class BNetProtocol extends Protocol {
@@ -72,26 +119,6 @@ export class BNetProtocol extends Protocol {
     SID_DISPLAYAD = 0x21;	// 0x21
     SID_NOTIFYJOIN = 0x22;	// 0x22
     SID_LOGONRESPONSE = 0x29;	// 0x29
-
-    /*
-     0x000: Passed challenge
-     0x100: Old game version (Additional info field supplies patch MPQ filename)
-     0x101: Invalid version
-     0x102: Game version must be downgraded (Additional info field supplies patch MPQ filename)
-     0x0NN: (where NN is the version code supplied in SID_AUTH_INFO): Invalid version code (note that 0x100 is not set in this case).
-     0x200: Invalid CD key *
-     0x201: CD key in use (Additional info field supplies name of user)
-     0x202: Banned key
-     0x203: Wrong product
-     */
-    KR_OLD_GAME_VERSION = 0x100; //0x100
-    KR_INVALID_VERSION = 0x101; //0x101
-    KR_MUST_BE_DOWNGRADED = 0x102; //0x102
-    KR_INVALID_CD_KEY = 0x200; //0x200
-    KR_ROC_KEY_IN_USE = 0x201; //0x201
-    KR_TFT_KEY_IN_USE = 0x211; //0x211
-    KR_BANNED_KEY = 0x202; //0x202
-    KR_WRONG_PRODUCT = 0x203; //0x203
 
     // KR_GOOD = '\x00\x00\x00\x00';
     // KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
@@ -136,24 +163,24 @@ export class BNetProtocol extends Protocol {
     EID_ERROR = 19;	// error message
     EID_EMOTE = 23;	// emote
 
-    CLANRANK_INITIATE = 0;
-    CLANRANK_PEON = 1;
-    CLANRANK_GRUNT = 2;
-    CLANRANK_SHAMAN = 3;
-    CLANRANK_CHIEFTAN = 4;
+    // CLANRANK_INITIATE = 0;
+    // CLANRANK_PEON = 1;
+    // CLANRANK_GRUNT = 2;
+    // CLANRANK_SHAMAN = 3;
+    // CLANRANK_CHIEFTAN = 4;
 
     // Bitfield
-    FRIENDSTATUS_MUTUAL = 1;
-    FRIENDSTATUS_DND = 2;
-    FRIENDSTATUS_AWAY = 4;
+    // FRIENDSTATUS_MUTUAL = 1;
+    // FRIENDSTATUS_DND = 2;
+    // FRIENDSTATUS_AWAY = 4;
 
-    // Value
-    FRIENDLOCATION_OFFLINE = 0;
-    FRIENDLOCATION_NOTCHAT = 1;
-    FRIENDLOCATION_CHAT = 2;
-    FRIENDLOCATION_PUB = 3;
-    FRIENDLOCATION_PRIVHIDE = 4;
-    FRIENDLOCATION_PRIVSHOW = 5;
+    // // Value
+    // FRIENDLOCATION_OFFLINE = 0;
+    // FRIENDLOCATION_NOTCHAT = 1;
+    // FRIENDLOCATION_CHAT = 2;
+    // FRIENDLOCATION_PUB = 3;
+    // FRIENDLOCATION_PRIVHIDE = 4;
+    // FRIENDLOCATION_PRIVSHOW = 5;
 
     PRODUCT_TFT = 'PX3W';
     PRODUCT_ROC = '3RAW';
@@ -219,149 +246,37 @@ export class BNetProtocol extends Protocol {
 
     RECEIVE_SID_NULL(buff: Buffer) {
         debug('RECEIVE_SID_NULL');
-
         return ValidateLength(buff);
     }
 
     RECEIVE_SID_GETADVLISTEX(buff: Buffer) {
         debug('RECEIVE_SID_GETADVLISTEX');
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 4 bytes					-> GamesFound
-        // if( GamesFound > 0 )
-        //		10 bytes			-> ???
-        //		2 bytes				-> Port
-        //		4 bytes				-> IP
-        //		null term string	-> GameName
-        //		2 bytes				-> ???
-        //		8 bytes				-> HostCounter
-
-        let games = [];
-
-        if (ValidateLength(buff) && buff.length >= 8) {
-            let i = 8;
-            let gamesFound = buff.readInt32LE(4);
-
-            console.log('gamesFound', gamesFound, buff);
-
-            if (gamesFound > 0 && buff.length >= 25) {
-                while (gamesFound > 0) {
-                    gamesFound--;
-
-                    if (buff.length < i + 33)
-                        break;
-
-                    let gameType = buff.readInt16LE(i);
-                    i += 2;
-                    let parameter = buff.readInt16LE(i);
-                    i += 2;
-                    let languageID = buff.readInt32LE(i);
-                    i += 4;
-                    // AF_INET
-                    i += 2;
-                    let port = buff.readInt32LE(i);
-                    let ip = buff.slice(i, i + 4);
-                    i += 4;
-                    // zeros
-                    i += 4;
-                    // zeros
-                    i += 4;
-                    let status = buff.readInt32LE(i);
-                    i += 4;
-                    let elapsedTime = buff.readInt32LE(i);
-                    i += 4;
-                    let gameName = ByteExtractString(buff.slice(i));
-                    i += gameName.length + 1;
-
-                    if (buff.length < i + 1)
-                        break;
-
-                    let gamePassword = ByteExtractString(buff.slice(i));
-                    i += gamePassword.length + 1;
-
-                    if (buff.length < i + 10)
-                        break;
-
-                    // SlotsTotal is in ascii hex format
-                    let slotsTotal = buff[i];
-                    i++;
-
-                    let hostCounterRaw = buff.slice(i, i + 8);
-                    let hostCounterString = hostCounterRaw.toString();
-                    let hostCounter = 0;
-
-                    //@TODO handle hostCounter from hostCounterString
-
-                    i += 8;
-                    let statString = ByteExtractString(buff.slice(i));
-                    i += statString.length + 1;
-
-                    games.push(
-                        new IncomingGameHost(
-                            gameType,
-                            parameter,
-                            languageID,
-                            port,
-                            ip,
-                            status,
-                            elapsedTime,
-                            gameName,
-                            slotsTotal,
-                            hostCounter,
-                            statString
-                        )
-                    );
-                }
-
-            }
-        }
-
-        return games;
+        return new SIDGetAdvListEx(buff);
     }
 
-    RECEIVE_SID_ENTERCHAT(buff: Buffer) {
+    RECEIVE_SID_ENTERCHAT(buff: Buffer): Buffer {
         debug('RECEIVE_SID_ENTERCHAT');
         assert(ValidateLength(buff) && buff.length >= 5);
-
         return buff.slice(4);
     }
 
     RECEIVE_SID_CHATEVENT(buff: Buffer): IncomingChatEvent {
         debug('RECEIVE_SID_CHATEVENT');
-        assert(ValidateLength(buff) && buff.length >= 29, 'RECEIVE_SID_CHATEVENT');
-
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 4 bytes					-> EventID
-        // 4 bytes					-> ???
-        // 4 bytes					-> Ping
-        // 12 bytes					-> ???
-        // null terminated string	-> User
-        // null terminated string	-> Message
-
-        const id = buff.readInt32LE(4), //buff.slice(4, 8)
-            ping = buff.readInt32LE(12), //bp.unpack('<I', buff.slice(12, 16)).join('');
-            user = ByteExtractString(buff.slice(28)),
-            message = ByteExtractString(buff.slice(29 + user.length));
-
-        return new IncomingChatEvent(id, ping, user, message, this);
+        return new IncomingChatEvent(buff);
     }
 
     RECEIVE_SID_CHECKAD(buff: Buffer): boolean {
         debug('RECEIVE_SID_CHECKAD');
-
         // DEBUG_Print( "RECEIVED SID_CHECKAD" );
         // DEBUG_Print( data );
 
         // 2 bytes					-> Header
         // 2 bytes					-> Length
-
         return ValidateLength(buff);
     }
 
     RECEIVE_SID_STARTADVEX3(buff: Buffer): boolean {
         debug('RECEIVE_SID_STARTADVEX3');
-
         // DEBUG_Print( "RECEIVED SID_STARTADVEX3" );
         // DEBUG_Print( data );
 
@@ -376,7 +291,6 @@ export class BNetProtocol extends Protocol {
         //     if( UTIL_ByteArrayToUInt32( Status, false ) == 0 )
         //         return true;
         // }
-
         return false;
     }
 
@@ -408,102 +322,24 @@ export class BNetProtocol extends Protocol {
         return false;
     }
 
-    RECEIVE_SID_AUTH_INFO(buff: Buffer) {
+    RECEIVE_SID_AUTH_INFO(buff: Buffer): AuthInfo {
         debug('RECEIVE_SID_AUTH_INFO');
-        assert(ValidateLength(buff) && buff.length >= 25, 'RECEIVE_SID_AUTH_INFO');
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 4 bytes					-> LogonType
-        // 4 bytes					-> ServerToken
-        // 4 bytes					-> UDPValue
-        // 8 bytes					-> MPQFileTime
-        // null terminated string	-> IX86VerFileName
-        // null terminated string	-> ValueStringFormula
-        // other bytes              -> ServerSignature
-
-        // (DWORD)		 Logon Type
-        // (DWORD)		 Server Token
-        // (DWORD)		 UDPValue**
-        // (FILETIME)	 MPQ filetime
-        // (STRING) 	 IX86ver filename
-        // (STRING) 	 ValueString
-
-        const logonType = buff.slice(4, 8), // p[4:8]
-            serverToken = buff.slice(8, 12), // p[8:12]
-            mpqFileTime = buff.slice(16, 24), // p[16:24]
-            ix86VerFileName = ByteExtractString(buff.slice(24)), // p[24:].split(NULL, 1)[0]
-            valueString = ByteExtractString(buff.slice(25 + ix86VerFileName.length)); // p[25 + len(ix86VerFileName):].split(this.NULL, 1)[0]
-
-        return {
-            logonType,
-            serverToken,
-            mpqFileTime,
-            ix86VerFileName,
-            valueString
-        } as AuthInfo;
+        return new AuthInfo(buff);
     };
 
-    RECEIVE_SID_AUTH_CHECK(buff: Buffer) {
+    RECEIVE_SID_AUTH_CHECK(buff: Buffer): AuthState {
         debug('RECEIVE_SID_AUTH_CHECK');
-        assert(ValidateLength(buff) && buff.length >= 9);
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 4 bytes					-> KeyState
-        // null terminated string	-> KeyStateDescription
-
-        const state = ByteExtractUInt32(buff.slice(4, 8)),
-            description = ByteExtractString(buff.slice(8));
-
-        return {state, description} as AuthState;
+        return new AuthState(buff);
     };
 
-    RECEIVE_SID_AUTH_ACCOUNTLOGON(buff: Buffer) {
-        assert(ValidateLength(buff) && buff.length >= 8);
-
-        /**
-         * (DWORD)         Status
-         * (BYTE[32])     Salt (s)
-         * (BYTE[32])     Server Key (B)
-         Reports the success or failure of the logon request.
-         Possible status codes:
-         0x00: Logon accepted, requires proof.
-         0x01: Account doesn't exist.
-         0x05: Account requires upgrade.
-         Other: Unknown (failure).
-         */
-
-        const status = buff.readInt32LE(4); //buff.slice(4, 8);
-        const salt = buff.slice(8, 40);
-        const serverPublicKey = buff.slice(40, 72);
-
-        return {status, salt, serverPublicKey} as AccountLogon;
+    RECEIVE_SID_AUTH_ACCOUNTLOGON(buff: Buffer): AccountLogon {
+        debug('RECEIVE_SID_AUTH_ACCOUNTLOGON');
+        return new AccountLogon(buff);
     }
 
-    RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF(buff: Buffer) {
+    RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF(buff: Buffer): AccountLogonProof {
         debug('RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF');
-
-        assert(ValidateLength(buff) && buff.length >= 8);
-
-        /*
-         (DWORD)		 Status
-         (BYTE[20])	 Server Password Proof (M2)
-         (STRING) 	 Additional information
-
-         This message confirms the validity of the client password proof and supplies the server password proof. See [NLS/SRP Protocol] for more information.
-
-         Status
-
-         0x00: Logon successful.
-         0x02: Incorrect password.
-         0x0E: An email address should be registered for this account.
-         0x0F: Custom error. A string at the end of this message contains the error.
-         */
-
-        const status = buff.readInt32LE(4);
-        const proof = buff.slice(8, 20);
-        const message = ByteExtractString(buff.slice(20 + proof.length));
-
-        return {status, proof, message} as AccountLogonProof;
+        return new AccountLogonProof(buff);
     }
 
     RECEIVE_SID_WARDEN(buff: Buffer): Buffer {
@@ -522,149 +358,20 @@ export class BNetProtocol extends Protocol {
         return ByteArray([]);
     }
 
-    RECEIVE_SID_FRIENDSLIST(buff: Buffer): IncomingFriend[] {
+    RECEIVE_SID_FRIENDSLIST(buff: Buffer): FriendList {
         debug('RECEIVE_SID_FRIENDSLIST');
-        assert(ValidateLength(buff) && buff.length >= 5, 'RECEIVE_SID_FRIENDSLIST');
-
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 1 byte					-> Total
-        // for( 1 .. Total )
-        //		null term string	-> Account
-        //		1 byte				-> Status
-        //		1 byte				-> Area
-        //		4 bytes				-> ???
-        //		null term string	-> Location
-
-        // (STRING) Account
-        // (BYTE) Location
-        // (BYTE) Status
-        // (DWORD) ProductID
-        // (STRING) Location name
-
-        const friends: IncomingFriend[] = [];
-        let total = buff[4];
-        let i = 5;
-
-        while (total > 0) {
-            total--;
-
-            if (buff.length < i + 1) {
-                break;
-            }
-
-            const account = ByteExtractString(buff.slice(i));
-
-            i += account.length + 1;
-
-            if (buff.length < i + 7) {
-                break;
-            }
-
-            const location = buff[i], //uchar
-                status = buff[i + 1], //uchar
-                productID = buff.slice(i + 2, i + 6).toString().split('').reverse().join(''); //4 chars client
-
-            i += 6;
-
-            const locationName = ByteExtractString(buff.slice(i)); //bp.unpack('<S', buff.slice(i))[0];
-            i += locationName.length + 1;
-
-            friends.push(new IncomingFriend(account, location, status, productID, locationName))
-        }
-
-        return friends;
+        return new FriendList(buff);
     }
 
     RECEIVE_SID_CLANMEMBERLIST(buff: Buffer) {
         debug('RECEIVE_SID_CLANMEMBERLIST');
-
-        // DEBUG_Print( "RECEIVED SID_CLANMEMBERLIST" );
-        // DEBUG_Print( data );
-
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 4 bytes					-> ???
-        // 1 byte					-> Total
-        // for( 1 .. Total )
-        //		null term string	-> Name
-        //		1 byte				-> Rank
-        //		1 byte				-> Status
-        //		null term string	-> Location
-
-        //vector<CIncomingClanList *> ClanList;
-
-        // if( ValidateLength( data ) && data.size( ) >= 9 )
-        // {
-        //     unsigned int i = 9;
-        //     unsigned char Total = data[8];
-        //
-        //     while( Total > 0 )
-        //     {
-        //         Total--;
-        //
-        //         if( data.size( ) < i + 1 )
-        //             break;
-        //
-        //         BYTEARRAY Name = UTIL_ExtractCString( data, i );
-        //         i += Name.size( ) + 1;
-        //
-        //         if( data.size( ) < i + 3 )
-        //             break;
-        //
-        //         unsigned char Rank = data[i];
-        //         unsigned char Status = data[i + 1];
-        //         i += 2;
-        //
-        //         // in the original VB source the location string is read but discarded, so that's what I do here
-        //
-        //         BYTEARRAY Location = UTIL_ExtractCString( data, i );
-        //         i += Location.size( ) + 1;
-        //         ClanList.push_back( new CIncomingClanList(	string( Name.begin( ), Name.end( ) ),
-        //                                                     Rank,
-        //                                                     Status ) );
-        //     }
-        // }
-        //
-        // return ClanList;
-
-        const clanMembers = [];
-
-        return clanMembers;
+        return new ClanMemberList(buff);
     }
 
     RECEIVE_SID_CLANMEMBERSTATUSCHANGE(buff: Buffer) {
         debug('RECEIVE_SID_CLANMEMBERSTATUSCHANGE');
 
-        // DEBUG_Print( "RECEIVED SID_CLANMEMBERSTATUSCHANGE" );
-        // DEBUG_Print( data );
-
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // null terminated string	-> Name
-        // 1 byte					-> Rank
-        // 1 byte					-> Status
-        // null terminated string	-> Location
-
-        // if( ValidateLength( data ) && data.size( ) >= 5 )
-        // {
-        //     BYTEARRAY Name = UTIL_ExtractCString( data, 4 );
-        //
-        //     if( data.size( ) >= Name.size( ) + 7 )
-        //     {
-        //         unsigned char Rank = data[Name.size( ) + 5];
-        //         unsigned char Status = data[Name.size( ) + 6];
-        //
-        //         // in the original VB source the location string is read but discarded, so that's what I do here
-        //
-        //         BYTEARRAY Location = UTIL_ExtractCString( data, Name.size( ) + 7 );
-        //         return new CIncomingClanList(	string( Name.begin( ), Name.end( ) ),
-        //                                         Rank,
-        //                                         Status );
-        //     }
-        // }
-
-        return null;
+        return new IncomingClanList(buff);
     }
 
     SEND_PROTOCOL_INITIALIZE_SELECTOR() {
