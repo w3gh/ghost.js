@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as EventEmitter from 'events';
 import {getTicks, getTime} from '../util';
 import {BytesExtract, GetLength, ByteExtractUInt32} from '../Bytes';
-import {BNetProtocol, AuthState, AccountLogonProof, AccountLogon, AuthInfo} from './BNetProtocol';
+import {BNetProtocol} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from '../BNCSUtil';
@@ -12,6 +12,10 @@ import {create, hex} from '../Logger';
 import {Config} from "../Config";
 import {IncomingFriend} from "./IncomingFriend";
 import {IncomingChatEvent} from "./IncomingChatEvent";
+import {AuthInfo} from "./AuthInfo";
+import {AuthState} from "./AuthState";
+import {AccountLogon} from "./AccountLogon";
+import {AccountLogonProof} from "./AccountLogonProof";
 
 const {debug, info, error} = create('BNet');
 
@@ -29,7 +33,7 @@ export class BNetConnection extends EventEmitter {
     private data: Buffer = Buffer.from('');
     private incomingPackets: CommandPacket[] = [];
     private incomingBuffer: Buffer = Buffer.from('');
-    private clientToken: Buffer = Buffer.from('\xdc\x01\xcb\x07', 'binary');
+    public readonly clientToken: Buffer = Buffer.from('\xdc\x01\xcb\x07', 'binary');
 
     private admins: string[] = [];
     private outPackets = [];
@@ -55,8 +59,8 @@ export class BNetConnection extends EventEmitter {
     private bnlsWardenCookie: string;
     private war3version: string;
 
-    private exeVersion: string;
-    private exeVersionHash: string;
+    public readonly exeVersion: string;
+    public readonly exeVersionHash: string;
 
     private passwordHashType: string;
     private pvpgnRealmName: string;
@@ -66,22 +70,22 @@ export class BNetConnection extends EventEmitter {
     private country: string;
     private language: string;
     private timezone: number;
-    private war3Path: string;
-    private war3exePath: string;
-    private stormdllPath: string;
-    private gamedllPath: string;
-    private keyROC: string;
-    private keyTFT: string;
-    private username: string;
-    private password: string;
+    public readonly war3Path: string;
+    public readonly war3exePath: string;
+    public readonly stormdllPath: string;
+    public readonly gamedllPath: string;
+    public readonly keyROC: string;
+    public readonly keyTFT: string;
+    public readonly username: string;
+    public readonly password: string;
     private firstChannel: string;
     private rootAdmin: string;
     private plugins;
     private handlers;
     private waitTicks: number;
-    private nls: Buffer;
+    nls: Buffer;
 
-    constructor(private id: number, private TFT: number, private hostPort: number, config: Config) {
+    constructor(private id: number, public readonly TFT: number, private hostPort: number, config: Config) {
         super();
 
         if (!config) {
@@ -90,6 +94,24 @@ export class BNetConnection extends EventEmitter {
         }
 
         this.configure(config);
+
+        this.exeVersion = config.item('custom.exeversion', '');
+        this.exeVersionHash = config.item('custom.exeversionhash', '');
+
+        this.war3Path = path.resolve(config.item('war3path', './war3'));
+        this.war3exePath = path.resolve(config.item('war3exe', 'war3.exe'));
+        this.stormdllPath = path.resolve(config.item('stormdll', 'Storm.dll'));
+        this.gamedllPath = path.resolve(config.item('gamedll', 'game.dll'));
+
+        this.keyROC = config.item('keyroc', 'FFFFFFFFFFFFFFFFFFFFFFFFFF');
+        assert(this.keyROC !== '', 'ROC CD-Key empty');
+        this.keyTFT = config.item('keytft', 'FFFFFFFFFFFFFFFFFFFFFFFFFF');
+        assert(this.keyTFT !== '', 'TFT CD-Key empty');
+
+        this.username = config.item('username', '');
+        assert(this.username !== '', 'username empty');
+        this.password = config.item('password', '');
+        assert(this.password !== '', 'password empty');
 
         if (!this.enabled) {
             return;
@@ -121,8 +143,7 @@ export class BNetConnection extends EventEmitter {
         assert(this.commandTrigger !== '', 'command trigger empty');
 
         this.war3version = config.item('custom.war3version', '26');
-        this.exeVersion = config.item('custom.exeversion', '');
-        this.exeVersionHash = config.item('custom.exeversionhash', '');
+
         this.passwordHashType = config.item('custom.passwordhashyype', '');
         this.pvpgnRealmName = config.item('custom.pvpgnrealmname', 'PvPGN Realm');
         this.maxMessageLength = Number(config.item('custom.maxmessagelength', '200'));
@@ -132,21 +153,6 @@ export class BNetConnection extends EventEmitter {
         this.country = config.item('country', 'Russia');
         this.language = config.item('language', 'ruRU');
         this.timezone = config.item('timezone', 300);
-
-        this.war3Path = path.resolve(config.item('war3path', './war3'));
-        this.war3exePath = path.resolve(config.item('war3exe', 'war3.exe'));
-        this.stormdllPath = path.resolve(config.item('stormdll', 'Storm.dll'));
-        this.gamedllPath = path.resolve(config.item('gamedll', 'game.dll'));
-
-        this.keyROC = config.item('keyroc', 'FFFFFFFFFFFFFFFFFFFFFFFFFF');
-        assert(this.keyROC !== '', 'ROC CD-Key empty');
-        this.keyTFT = config.item('keytft', 'FFFFFFFFFFFFFFFFFFFFFFFFFF');
-        assert(this.keyTFT !== '', 'TFT CD-Key empty');
-
-        this.username = config.item('username', '');
-        assert(this.username !== '', 'username empty');
-        this.password = config.item('password', '');
-        assert(this.password !== '', 'password empty');
 
         this.firstChannel = config.item('firstchannel', 'The Void');
         this.rootAdmin = config.item('rootadmin', null);
@@ -508,66 +514,18 @@ export class BNetConnection extends EventEmitter {
         return;
     }
 
-    HANDLE_SID_AUTH_INFO(data: AuthInfo) {
+    HANDLE_SID_AUTH_INFO(authInfo: AuthInfo) {
         debug('HANDLE_SID_AUTH_INFO');
 
-        let {exeInfo, exeVersion} = BNCSUtil.getExeInfo(this.war3exePath, BNCSUtil.getPlatform());
+        const {
+            exeVersion,
+            exeVersionHash,
+            keyInfoROC,
+            keyInfoTFT,
+            exeInfo
+        } = authInfo.handle(this);
 
-        if (this.exeVersion.length) {
-            exeVersion = BytesExtract(this.exeVersion, 4);
-
-            info(`[${this.alias}] using custom exe version custom.exeversion ${JSON.stringify(exeVersion.toJSON().data)}`);
-        } else {
-            //exeVersion = bp.pack('<I', exeVersion);
-            //exeVersion = ByteInt32()
-
-            info(`[${this.alias}] using exe version ${JSON.stringify(exeVersion.toJSON().data)}`);
-        }
-
-        let exeVersionHash;
-
-        if (this.exeVersionHash.length) {
-            exeVersionHash = BytesExtract(this.exeVersionHash, 4);
-
-            info(`[${this.alias}] using custom exe version hash custom.exeversionhash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
-        } else {
-            exeVersionHash = BNCSUtil.checkRevisionFlat(
-                data.valueString,
-                this.war3exePath,
-                this.stormdllPath,
-                this.gamedllPath,
-                BNCSUtil.extractMPQNumber(data.ix86VerFileName)
-            );
-
-            //exeVersionHash = bp.pack('<I', exeVersionHash);
-
-            info(`[${this.alias}] using exe version hash ${JSON.stringify(exeVersionHash.toJSON().data)}`);
-        }
-
-        const clientTokenValue = ByteExtractUInt32(this.clientToken);
-        const serverTokenValue = ByteExtractUInt32(data.serverToken);
-
-        let keyInfoROC = BNCSUtil.createKeyInfo(
-            this.keyROC,
-            clientTokenValue,
-            serverTokenValue
-        );
-
-        let keyInfoTFT: Buffer;
-
-        if (this.TFT) {
-            keyInfoTFT = BNCSUtil.createKeyInfo(
-                this.keyTFT,
-                clientTokenValue,
-                serverTokenValue
-            );
-
-            info(`[${this.alias}] attempting to auth as "Warcraft III: The Frozen Throne"`);
-        } else {
-            info(`[${this.alias}] attempting to auth as "Warcraft III: Reign of Chaos"`);
-        }
-
-        this.emit('SID_AUTH_INFO', this, data);
+        this.emit('SID_AUTH_INFO', this, authInfo);
         this.sendPackets(this.protocol.SEND_SID_AUTH_CHECK(
             this.TFT,
             this.clientToken,
@@ -583,78 +541,15 @@ export class BNetConnection extends EventEmitter {
     HANDLE_SID_AUTH_CHECK(auth: AuthState) {
         debug('HANDLE_SID_AUTH_CHECK');
 
-        /*
-         0x000: Passed challenge
-         0x100: Old game version (Additional info field supplies patch MPQ filename)
-         0x101: Invalid version
-         0x102: Game version must be downgraded (Additional info field supplies patch MPQ filename)
-         0x0NN: (where NN is the version code supplied in SID_AUTH_INFO): Invalid version code (note that 0x100 is not set in this case).
-         0x200: Invalid CD key *
-         0x201: CD key in use (Additional info field supplies name of user)
-         0x202: Banned key
-         0x203: Wrong product
-
-         KR_ROC_KEY_IN_USE = 513; //0x201
-         KR_TFT_KEY_IN_USE = 529; //0x211
-
-         KR_OLD_GAME_VERSION = 256;
-         KR_INVALID_VERSION = 257;
-
-         KR_MUST_BE_DOWNGRADED = 258;
-         KR_INVALID_CD_KEY = 512; //0x200
-
-         KR_BANNED_KEY = 514; //0x202
-         KR_WRONG_PRODUCT = 515; //0x203
-         */
-
-        if (auth.state > 0) {
-            switch (auth.state) {
-                case this.protocol.KR_ROC_KEY_IN_USE:
-                    error(`logon failed - ROC CD key in use by user [${auth.description}], disconnecting`);
-                    break;
-                case this.protocol.KR_TFT_KEY_IN_USE:
-                    error(`logon failed - TFT CD key in use by user [${auth.description}], disconnecting`);
-                    break;
-                case this.protocol.KR_OLD_GAME_VERSION:
-                    error(`logon failed - game version is too old, disconnecting`);
-                    break;
-                case this.protocol.KR_INVALID_VERSION:
-                    error(`logon failed - game version is invalid, disconnecting`);
-                    break;
-                case this.protocol.KR_MUST_BE_DOWNGRADED:
-                    error(`logon failed - game version must be downgraded, disconnecting`);
-                    break;
-                case this.protocol.KR_INVALID_CD_KEY:
-                    error(`logon failed - cd key is invalid, disconnecting`);
-                    break;
-                case this.protocol.KR_BANNED_KEY:
-                    error(`logon failed - cd key is banned, disconnecting`);
-                    break;
-                default:
-                    error(`logon failed - cd keys not accepted, disconnecting`);
-            }
-
-            this.disconnect();
-        } else {
-            let clientPublicKey;
-
-            if (!this.nls) {
-                this.nls = BNCSUtil.nls_init(this.username, this.password);
-            }
-
-            clientPublicKey = BNCSUtil.nls_get_A(this.nls);
-
-            if (clientPublicKey.length !== 32) { // retry since bncsutil randomly fails
-                this.nls = BNCSUtil.nls_init(this.username, this.password);
-                clientPublicKey = BNCSUtil.nls_get_A(this.nls);
-
-                assert(clientPublicKey.length === 32, 'client public key wrong length');
-            }
+        if (auth.isValid()) {
+            let clientPublicKey = auth.createClientPublicKey(this);
 
             info(`[${this.alias}] cd keys accepted`);
 
             this.emit('SID_AUTH_CHECK', this, auth);
             this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
+        } else {
+            this.disconnect();
         }
     }
 
@@ -701,31 +596,7 @@ export class BNetConnection extends EventEmitter {
     HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(logon: AccountLogonProof) {
         debug('HANDLE_SID_AUTH_ACCOUNTLOGONPROOF');
 
-        /*
-         0x00: Logon successful.
-         0x02: Incorrect password.
-         0x0E(14): An email address should be registered for this account.
-         0x0F(15): Custom error. A string at the end of this message contains the error.
-         */
-
-        if (logon.status > 0) {
-            switch (logon.status) {
-                case 2:
-                    error('logon proof failed - incorrect password');
-                    return;
-                case 14:
-                    error('logon proof failed - an email address should be registered for this account');
-                    return;
-                case 15:
-                    error(`logon proof failed - ${logon.message}`);
-                    return;
-                default:
-                    error(`logon proof failed - rejected with status ${logon.status}`);
-                    return;
-            }
-        }
-
-        this.loggedIn = true;
+        this.loggedIn = logon.isValid();
 
         info(`[${this.alias}] logon successful`);
 

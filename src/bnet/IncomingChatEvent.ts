@@ -1,18 +1,29 @@
-import {BNetProtocol} from './BNetProtocol';
+import {BNetChatEventID, BNetProtocol} from './BNetProtocol';
+import * as assert from "assert";
+import {ByteExtractString, ValidateLength} from "../Bytes";
 
 export class IncomingChatEvent {
-    /**
-     * @param {Number} id
-     * @param {Number} ping
-     * @param {String} user
-     * @param {String} message
-     * @param {BNetProtocol} protocol
-     */
-    constructor(public id: number,
-                public ping: number,
-                public user: string,
-                public message: string,
-                private protocol: BNetProtocol) {
+    public readonly ping: number;
+    public readonly id: number;
+    public readonly user: string;
+    public readonly message: string;
+
+    constructor(buff: Buffer) {
+        assert(ValidateLength(buff) && buff.length >= 29, 'RECEIVE_SID_CHATEVENT');
+
+        // 2 bytes					-> Header
+        // 2 bytes					-> Length
+        // 4 bytes					-> EventID
+        // 4 bytes					-> ???
+        // 4 bytes					-> Ping
+        // 12 bytes					-> ???
+        // null terminated string	-> User
+        // null terminated string	-> Message
+
+        this.id = buff.readInt32LE(4);
+        this.ping = buff.readInt32LE(12);
+        this.user = ByteExtractString(buff.slice(28));
+        this.message = ByteExtractString(buff.slice(29 + this.user.length));
     }
 
     /**
@@ -21,35 +32,35 @@ export class IncomingChatEvent {
      */
     idType() {
         switch (this.id) {
-            case this.protocol.EID_SHOWUSER:
+            case BNetChatEventID.EID_SHOWUSER:
                 return 'SHOWUSER';
-            case this.protocol.EID_JOIN:
+            case BNetChatEventID.EID_JOIN:
                 return 'JOIN';
-            case this.protocol.EID_LEAVE:
+            case BNetChatEventID.EID_LEAVE:
                 return 'LEAVE';
-            case this.protocol.EID_WHISPER:
+            case BNetChatEventID.EID_WHISPER:
                 return 'WHISPER';
-            case this.protocol.EID_TALK:
+            case BNetChatEventID.EID_TALK:
                 return 'TALK';
-            case this.protocol.EID_BROADCAST:
+            case BNetChatEventID.EID_BROADCAST:
                 return 'BROADCAST';
-            case this.protocol.EID_CHANNEL:
+            case BNetChatEventID.EID_CHANNEL:
                 return 'CHANNEL';
-            case this.protocol.EID_USERFLAGS:
+            case BNetChatEventID.EID_USERFLAGS:
                 return 'USERFLAGS';
-            case this.protocol.EID_WHISPERSENT:
+            case BNetChatEventID.EID_WHISPERSENT:
                 return 'WHISPERSENT';
-            case this.protocol.EID_CHANNELFULL:
+            case BNetChatEventID.EID_CHANNELFULL:
                 return 'CHANNELFULL';
-            case this.protocol.EID_CHANNELDOESNOTEXIST:
+            case BNetChatEventID.EID_CHANNELDOESNOTEXIST:
                 return 'CHANNELDOESNOTEXIST';
-            case this.protocol.EID_CHANNELRESTRICTED:
+            case BNetChatEventID.EID_CHANNELRESTRICTED:
                 return 'CHANNELRESTRICTED';
-            case this.protocol.EID_INFO:
+            case BNetChatEventID.EID_INFO:
                 return 'INFO';
-            case this.protocol.EID_ERROR:
+            case BNetChatEventID.EID_ERROR:
                 return 'ERROR';
-            case this.protocol.EID_EMOTE:
+            case BNetChatEventID.EID_EMOTE:
                 return 'EMOTE';
         }
     }
