@@ -9,7 +9,7 @@ const UPDATE_INTERVAL = 50; //50ms
 
 export class Bot extends EventEmitter {
     cfg: Config;
-    plugins: any;
+    plugins: any = {};
     exiting: boolean = false;
     intervalID: Timer;
 
@@ -21,7 +21,7 @@ export class Bot extends EventEmitter {
         }
 
         this.cfg = new Config(cfg);
-        this.plugins = this.cfg.item('bot.plugins');
+        this.plugins = this.cfg.item('bot.plugins', {});
 
         this.loadPlugins();
     }

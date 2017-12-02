@@ -35,6 +35,12 @@ export class Plugin {
         } catch (e) {
             error(`failed to load plugin '${name}' by path '${requirePath}'`);
             error(e);
+            return;
+        }
+
+        if (typeof ExportedClass !== 'function') {
+            error(`plugin '${name}' must export class or function`);
+            return;
         }
 
         try {
@@ -50,6 +56,7 @@ export class Plugin {
             }
         } catch (e) {
             error(`${name}: `, e);
+            return;
         }
     }
 
