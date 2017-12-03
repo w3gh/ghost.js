@@ -8,6 +8,7 @@ import {Game} from './game/Game';
 import {Bot} from './Bot';
 import {create} from './Logger';
 import {CRC32} from './CRC32';
+import {BNetCollection} from "./bnet/BNetCollection";
 
 const {debug, info, error} = create('GHost');
 
@@ -19,7 +20,6 @@ export class GHost extends Bot {
     private adminExiting: boolean = false;
     public hostCounter: number = 1;
     private lastUpdateTime: number = getTime();
-    private bnets: BNetConnection[] = [];
     private games: Game[] = [];
 
     public udpSocket: dgram.Socket = dgram.createSocket('udp4');
@@ -36,6 +36,7 @@ export class GHost extends Bot {
     private adminMap: Map;
 
     public CRC = new CRC32();
+    private bnet: BNetCollection;
 
     constructor(cfg) {
         super(cfg);
@@ -57,11 +58,10 @@ export class GHost extends Bot {
         this.lastUpdateTime = getTime();
 
         if (this.exitingNice) {
-            if (this.bnets.length) {
+            if (this.bnet.empty()) {
                 info('deleting all battle.net connections in preparation for exiting nicely');
 
-                this.bnets.forEach((bn) => bn.disconnect());
-                this.bnets = [];
+                this.bnet.destroy();
             }
 
             if (this.currentGame) {
@@ -81,12 +81,8 @@ export class GHost extends Bot {
             }
         }
 
-        if (this.bnets.length) {
-            for (let bnet of this.bnets) {
-                if (bnet.update()) {
-                    this.bnetExiting = true;
-                }
-            }
+        if (this.bnet.update()) {
+            this.bnetExiting = true;
         }
 
         if (this.adminGame) {
@@ -181,26 +177,7 @@ export class GHost extends Bot {
     }
 
     protected configureBNet() {
-        const config = this.cfg;
-
-        for (let i = 0; i < 32; ++i) {
-            const prefix = `bnet.${i}`,
-                prefixedConfig = config.slice(prefix);
-
-            if (prefixedConfig) {
-                const enabled = prefixedConfig.item('enabled', true);
-
-                if (enabled) {
-                    this.bnets.push(
-                        new BNetConnection(i, this.TFT, this.hostPort, prefixedConfig)
-                    );
-                }
-            }
-        }
-
-        if (this.bnets.length < 1) {
-            error('no battle.net connections found in config')
-        }
+        this.bnet = new BNetCollection(this.cfg, this.TFT, this.hostPort);
     }
 
     protected adminGameSetup() {
@@ -221,8 +198,6 @@ export class GHost extends Bot {
     }
 
     queueBNetsChatCommand(command: string) {
-        this.bnets.forEach((bnet) => {
-            bnet.queueChatCommand(command)
-        })
+        this.bnet.queueChatCommand(command);
     }
 }
