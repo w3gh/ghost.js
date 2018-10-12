@@ -1,6 +1,7 @@
-var FFI = require('ffi'),
+var FFI = require('ffi-napi'),
     Struct = require('ref-struct'),
-    ref = require('ref');
+    ref = require('ref'),
+    path = require('path');
 
 var voidPtr = ref.refType(ref.types.void);
 
@@ -41,7 +42,21 @@ var uint32_tPtr = exports.uint32_tPtr = ref.refType(uint32_t);
 var nls_t = exports.nls_t = voidPtr;
 var nls_tPtr = exports.nls_tPtr = ref.refType(nls_t);
 
-exports.libbncsutil = new FFI.Library('libbncsutil', {
+var platform = process.platform;
+var libPath = null;
+var cwd = process.cwd();
+
+if (platform === 'win32'){
+    libPath = '/libbncsutil.dll';
+}else if(platform === 'linux'){
+    libPath = '/libbncsutil.so';
+}else if(platform === 'darwin'){
+    libPath = '/libbncsutil.dylib';
+}else{
+    throw new Error('unsupported plateform for mathlibLoc');
+}
+
+exports.libbncsutil = new FFI.Library(path.resolve(cwd + libPath), {
   signal: [voidPtr, [
     ref.types.int32,
     voidPtr,

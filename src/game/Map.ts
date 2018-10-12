@@ -156,7 +156,7 @@ export class Map {
             new GameSlot(0, 255, GameSlot.STATUS_OPEN, 0, 11, 11, GameSlot.RACE_RANDOM | GameSlot.RACE_SELECTABLE)
         ];
 
-        this.calculateHashes();
+        // this.calculateHashes();
     }
 
     load(filepath) {

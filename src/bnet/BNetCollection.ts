@@ -29,7 +29,7 @@ export class BNetCollection {
         }
     }
 
-    empty() {
+    isEmpty() {
         return this.bnets.length === 0;
     }
 

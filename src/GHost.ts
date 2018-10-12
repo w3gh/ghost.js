@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as dgram from 'dgram';
-import {getTicks, getTime, localIP} from './util';
-import {BNetConnection} from './bnet/BNetConnection';
+import {getTime} from './util';
 import {AdminGame} from './game/AdminGame';
 import {Map} from './game/Map';
 import {Game} from './game/Game';
@@ -42,9 +41,9 @@ export class GHost extends Bot {
         super(cfg);
 
         this.configure();
-        this.configureBNet();
+        this.bnet = new BNetCollection(this.cfg, this.TFT, this.hostPort);
 
-        this.extractScripts();
+        // this.extractScripts();
         this.udpSocketSetup();
 
         setTimeout(() => {
@@ -58,7 +57,7 @@ export class GHost extends Bot {
         this.lastUpdateTime = getTime();
 
         if (this.exitingNice) {
-            if (this.bnet.empty()) {
+            if (this.bnet.isEmpty()) {
                 info('deleting all battle.net connections in preparation for exiting nicely');
 
                 this.bnet.destroy();
@@ -174,10 +173,6 @@ export class GHost extends Bot {
         this.adminGameMapName = this.cfg.item('admingame.map', 'map');
 
         this.lanWar3Version = this.cfg.item('bot.war3version', "26");
-    }
-
-    protected configureBNet() {
-        this.bnet = new BNetCollection(this.cfg, this.TFT, this.hostPort);
     }
 
     protected adminGameSetup() {
