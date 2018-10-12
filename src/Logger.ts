@@ -1,4 +1,3 @@
-const winston = require('winston');
 const chalk = require('chalk');
 const util = require('util');
 const debuglog = util.debuglog('ghost');

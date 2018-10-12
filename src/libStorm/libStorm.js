@@ -1,4 +1,4 @@
-var FFI = require('ffi'),
+var FFI = require('ffi-napi'),
     ArrayType = require('ref-array'),
     Struct = require('ref-struct'),
     ref = require('ref');
