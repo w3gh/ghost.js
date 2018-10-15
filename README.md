@@ -17,4 +17,4 @@ npm start
 ## Preview
 it will display colored chat info like on screenshot below
 
-[![asciicast](https://asciinema.org/a/7t05sycwpg22gdla5vsyslh5h.png)](https://asciinema.org/a/7t05sycwpg22gdla5vsyslh5h)
+[![asciicast](https://asciinema.org/a/2D9utB46mDac73pWELrZEPJpH.png)](https://asciinema.org/a/2D9utB46mDac73pWELrZEPJpH)
