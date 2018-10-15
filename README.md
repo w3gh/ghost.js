@@ -1,13 +1,20 @@
 # GHost.js
-Warcraft 3 Game Host ported to javascript
+Ghost++ ported to js
 
-## Install
-`npm install`
-also you need compiled `bncsutil` library from `libbncsutil/bncsutil`
+## Usage
 
-## Run
-for test run you can edit `config.json` and execute `./bin/w3host --config=./config.json` or `npm start`
+You need compiled `libbncsutil.dylib` or `libbncsutil.so` or `bncsutil.dll` in directory root.
 
+And setup server credentials in `config.json`
+
+```bash
+git clone https://github.com/w3gh/ghost.js.git ghost
+cd ghost
+npm i
+npm start
+```
+
+## Preview
 it will display colored chat info like on screenshot below
 
 [![asciicast](https://asciinema.org/a/7t05sycwpg22gdla5vsyslh5h.png)](https://asciinema.org/a/7t05sycwpg22gdla5vsyslh5h)
