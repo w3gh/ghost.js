@@ -4,3 +4,6 @@
 [submodule "src/libStorm/StormLib"]
 	path = src/libStorm/StormLib
 	url = https://github.com/w3gh/StormLib.git
+[submodule "vendors/bncsutil"]
+	path = vendors/bncsutil
+	url = https://github.com/BNETDocs/bncsutil.git

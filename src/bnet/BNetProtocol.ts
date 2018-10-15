@@ -83,12 +83,10 @@ export enum BNetChatEventID {
     EID_EMOTE = 23,	// emote
 }
 
+export const BNET_HEADER_CONSTANT = 0xff;
+export const BNET_INITIALIZE_SELECTOR = 0x01;
+
 export class BNetProtocol extends Protocol {
-
-    BNET_HEADER_CONSTANT = 0xff;
-
-    INITIALIZE_SELECTOR = 0x01;
-
     SID_AUTH_INFO = 0x50;
     SID_PING = 0x25;
     SID_AUTH_CHECK = 0x51;
@@ -147,21 +145,21 @@ export class BNetProtocol extends Protocol {
     // EID_ERROR = '\x13\x00\x00\x00';
     // EID_EMOTE = '\x17\x00\x00\x00';
 
-    EID_SHOWUSER = 1;	// received when you join a channel (includes users in the channel and their information)
-    EID_JOIN = 2;	// received when someone joins the channel you're currently in
-    EID_LEAVE = 3;	// received when someone leaves the channel you're currently in
-    EID_WHISPER = 4;	// received a whisper message
-    EID_TALK = 5;	// received when someone talks in the channel you're currently in
-    EID_BROADCAST = 6;	// server broadcast
-    EID_CHANNEL = 7;	// received when you join a channel (includes the channel's name, flags)
-    EID_USERFLAGS = 9;	// user flags updates
-    EID_WHISPERSENT = 10;	// sent a whisper message
-    EID_CHANNELFULL = 13;	// channel is full
-    EID_CHANNELDOESNOTEXIST = 14;	// channel does not exist
-    EID_CHANNELRESTRICTED = 15;	// channel is restricted
-    EID_INFO = 18;	// broadcast/information message
-    EID_ERROR = 19;	// error message
-    EID_EMOTE = 23;	// emote
+    // EID_SHOWUSER = 1;	// received when you join a channel (includes users in the channel and their information)
+    // EID_JOIN = 2;	// received when someone joins the channel you're currently in
+    // EID_LEAVE = 3;	// received when someone leaves the channel you're currently in
+    // EID_WHISPER = 4;	// received a whisper message
+    // EID_TALK = 5;	// received when someone talks in the channel you're currently in
+    // EID_BROADCAST = 6;	// server broadcast
+    // EID_CHANNEL = 7;	// received when you join a channel (includes the channel's name, flags)
+    // EID_USERFLAGS = 9;	// user flags updates
+    // EID_WHISPERSENT = 10;	// sent a whisper message
+    // EID_CHANNELFULL = 13;	// channel is full
+    // EID_CHANNELDOESNOTEXIST = 14;	// channel does not exist
+    // EID_CHANNELRESTRICTED = 15;	// channel is restricted
+    // EID_INFO = 18;	// broadcast/information message
+    // EID_ERROR = 19;	// error message
+    // EID_EMOTE = 23;	// emote
 
     // CLANRANK_INITIATE = 0;
     // CLANRANK_PEON = 1;
@@ -188,7 +186,7 @@ export class BNetProtocol extends Protocol {
 
     receivers = {};
 
-    constructor(public bnet: BNetConnection) {
+    constructor(private readonly bnet: BNetConnection) {
         super();
 
         this.configureReceivers();
@@ -229,7 +227,7 @@ export class BNetProtocol extends Protocol {
      */
     asPacket(id, ...args) {
         return this.buffer(
-            this.BNET_HEADER_CONSTANT,
+            BNET_HEADER_CONSTANT,
             id,
             ...args
         );
@@ -241,7 +239,7 @@ export class BNetProtocol extends Protocol {
      * @returns {Boolean}
      */
     haveHeader(buffer: Buffer) {
-        return buffer[0] === this.BNET_HEADER_CONSTANT; //String.fromCharCode(buffer[0])
+        return buffer[0] === BNET_HEADER_CONSTANT; //String.fromCharCode(buffer[0])
     }
 
     RECEIVE_SID_NULL(buff: Buffer) {
@@ -377,7 +375,7 @@ export class BNetProtocol extends Protocol {
     SEND_PROTOCOL_INITIALIZE_SELECTOR() {
         debug('SEND_PROTOCOL_INITIALIZE_SELECTOR');
 
-        return Buffer.from([this.INITIALIZE_SELECTOR]);
+        return Buffer.from([BNET_INITIALIZE_SELECTOR]);
     }
 
     SEND_SID_NULL() {
