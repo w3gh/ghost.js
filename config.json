@@ -1,15 +1,15 @@
 {
   "bnet": [
     {
-      "enabled": false,
+      "enabled": true,
       "server": "server.eurobattle.net",
       "alias": "eurobattle.net",
       "username": "jilizart",
       "password": "jilizart",
       "firstchannel": "w3",
       "custom": {
-        "war3version": "27",
-        "exeversion": "173 1 27 1",
+        "war3version": "28",
+        "exeversion": "",
         "exeversionhash": "",
         "passwordhashyype": "pvpgn"
       },
@@ -17,9 +17,9 @@
       "country": "United States",
       "language": "enUS",
       "localeid": 1033,
-      "war3exe": "./war3/1.27b/war3.exe",
-      "stormdll": "./war3/1.27b/Storm.dll",
-      "gamedll": "./war3/1.27b/game.dll",
+      "war3exe": "./war3/1.28.5/war3.exe",
+      "stormdll": "./war3/1.28.5/Storm.dll",
+      "gamedll": "./war3/1.28.5/game.dll",
       "commandtrigger": "!",
       "plugins": {
         "chat": {
@@ -35,7 +35,7 @@
       "password": "4549",
       "firstchannel": "w3",
       "custom": {
-        "war3version": "26",
+        "war3version": "27",
         "exeversion": "",
         "exeversionhash": "",
         "passwordhashyype": "pvpgn"
@@ -44,9 +44,9 @@
       "country": "Russia",
       "language": "ruRU",
       "localeid": 1049,
-      "war3exe": "./war3/1.26a/war3.exe",
-      "stormdll": "./war3/1.26a/Storm.dll",
-      "gamedll": "./war3/1.26a/game.dll",
+      "war3exe": "./war3/1.27b/war3.exe",
+      "stormdll": "./war3/1.27b/Storm.dll",
+      "gamedll": "./war3/1.27b/game.dll",
       "commandtrigger": "!",
       "plugins": {
         "chat": {
@@ -80,7 +80,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "server": "server.pvpgn.pro",
       "alias": "pvpgn.pro 1",
       "username": "jilizart",
@@ -91,9 +91,9 @@
         "passwordhashyype": "pvpgn"
       },
       "localeid": 1033,
-      "war3exe": "./war3/1.26a/war3.exe",
-      "stormdll": "./war3/1.26a/Storm.dll",
-      "gamedll": "./war3/1.26a/game.dll",
+      "war3exe": "./war3/1.27b/war3.exe",
+      "stormdll": "./war3/1.27b/Storm.dll",
+      "gamedll": "./war3/1.27b/game.dll",
       "commandtrigger": "!",
       "plugins": {
         "chat": {
