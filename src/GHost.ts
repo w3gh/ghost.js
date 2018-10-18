@@ -8,6 +8,9 @@ import {Bot} from './Bot';
 import {create} from './Logger';
 import {CRC32} from './CRC32';
 import {BNetCollection} from "./bnet/BNetCollection";
+import {GhostBNetSIDHandler} from "./ghost/bnet/GhostBNetSIDHandler";
+import {GhostBNetSIDReceiver} from "./ghost/bnet/GhostBNetSIDReceiver";
+import {IBNetSIDHandler} from "./bnet/IBNetSIDHandler";
 
 const {debug, info, error} = create('GHost');
 
@@ -41,7 +44,8 @@ export class GHost extends Bot {
         super(cfg);
 
         this.configure();
-        this.bnet = new BNetCollection(this.cfg, this.TFT, this.hostPort);
+
+        this.bnet = new BNetCollection(this.cfg, this.TFT, this.hostPort, new GhostBNetSIDHandler(), new GhostBNetSIDReceiver());
 
         // this.extractScripts();
         this.udpSocketSetup();

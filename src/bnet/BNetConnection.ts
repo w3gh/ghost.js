@@ -16,6 +16,9 @@ import {AuthInfo} from "./AuthInfo";
 import {AuthState} from "./AuthState";
 import {AccountLogon} from "./AccountLogon";
 import {AccountLogonProof} from "./AccountLogonProof";
+import {IBNetSIDHandler} from "./IBNetSIDHandler";
+import {IBNetSIDReceiver} from "./IBNetSIDReceiver";
+import {IBNetConnection} from "./IBNetConnection";
 
 const {debug, info, error} = create('BNet');
 
@@ -24,7 +27,7 @@ const {debug, info, error} = create('BNet');
  * @param {Object} options
  * @constructor
  */
-export class BNetConnection extends EventEmitter {
+export class BNetConnection extends EventEmitter implements IBNetConnection {
     private enabled: boolean;
     private socket: net.Socket = new net.Socket();
     private protocol: BNetProtocol = new BNetProtocol(this);
@@ -48,9 +51,9 @@ export class BNetConnection extends EventEmitter {
     private frequencyDelayTimes: number = 0;
     private firstConnect: boolean = true;
     private waitingToConnect: boolean = true;
-    private loggedIn: boolean = false;
-    private inChat: boolean = false;
-    private inGame: boolean = false;
+    private _loggedIn: boolean = false;
+    private _inChat: boolean = false;
+    private _inGame: boolean = false;
     private commandTrigger: string;
     private server: string;
     public alias: string;
@@ -62,7 +65,7 @@ export class BNetConnection extends EventEmitter {
     public readonly exeVersion: string;
     public readonly exeVersionHash: string;
 
-    private passwordHashType: string;
+    private _passwordHashType: string;
     private pvpgnRealmName: string;
     private maxMessageLength: number;
     private localeID: number;
@@ -78,35 +81,18 @@ export class BNetConnection extends EventEmitter {
     public readonly keyTFT: string;
     public readonly username: string;
     public readonly password: string;
-    private firstChannel: string;
+    private _firstChannel: string;
     private rootAdmin: string;
     private plugins;
     private waitTicks: number;
-    private nls: Buffer;
-    private handlers = {
-        [BNetSID.SID_PING]: this.HANDLE_SID_PING,
-        [BNetSID.SID_AUTH_INFO]: this.HANDLE_SID_AUTH_INFO,
-        [BNetSID.SID_AUTH_CHECK]: this.HANDLE_SID_AUTH_CHECK,
-        [BNetSID.SID_AUTH_ACCOUNTLOGON]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
-        [BNetSID.SID_AUTH_ACCOUNTLOGONPROOF]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
-        [BNetSID.SID_REQUIREDWORK]: this.HANDLE_SID_REQUIREDWORK,
-        [BNetSID.SID_NULL]: this.HANDLE_SID_NULL,
-        [BNetSID.SID_ENTERCHAT]: this.HANDLE_SID_ENTERCHAT,
-        [BNetSID.SID_CHATEVENT]: this.HANDLE_SID_CHATEVENT,
-        [BNetSID.SID_CLANINFO]: this.HANDLE_SID_CLANINFO,
-        [BNetSID.SID_CLANMEMBERLIST]: this.HANDLE_SID_CLANMEMBERLIST,
-        [BNetSID.SID_CLANMEMBERSTATUSCHANGE]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
-        [BNetSID.SID_MESSAGEBOX]: this.HANDLE_SID_MESSAGEBOX,
-        [BNetSID.SID_CLANINVITATION]: this.HANDLE_SID_CLANINVITATION,
-        [BNetSID.SID_CLANMEMBERREMOVED]: this.HANDLE_SID_CLANMEMBERREMOVED,
-        [BNetSID.SID_FRIENDSUPDATE]: this.HANDLE_SID_FRIENDSUPDATE,
-        [BNetSID.SID_FRIENDSLIST]: this.HANDLE_SID_FRIENDSLIST,
-        [BNetSID.SID_FLOODDETECTED]: this.HANDLE_SID_FLOODDETECTED,
-        [BNetSID.SID_FRIENDSADD]: this.HANDLE_SID_FRIENDSADD,
-        [BNetSID.SID_GETADVLISTEX]: this.HANDLE_SID_GETADVLISTEX,
-    };
+    nls: Buffer;
 
-    constructor(private id: number, public readonly TFT: number, private hostPort: number, config: Config) {
+    constructor(private id: number,
+                public readonly TFT: number,
+                public readonly hostPort: number,
+                config: Config,
+                private packetHandler: IBNetSIDHandler,
+                private packetReceiver: IBNetSIDReceiver) {
         super();
 
         if (!config) {
@@ -165,7 +151,7 @@ export class BNetConnection extends EventEmitter {
 
         this.war3version = config.item('custom.war3version', '26');
 
-        this.passwordHashType = config.item('custom.passwordhashyype', '');
+        this._passwordHashType = config.item('custom.passwordhashyype', '');
         this.pvpgnRealmName = config.item('custom.pvpgnrealmname', 'PvPGN Realm');
         this.maxMessageLength = Number(config.item('custom.maxmessagelength', '200'));
 
@@ -175,7 +161,7 @@ export class BNetConnection extends EventEmitter {
         this.language = config.item('language', 'ruRU');
         this.timezone = config.item('timezone', 300);
 
-        this.firstChannel = config.item('firstchannel', 'The Void');
+        this._firstChannel = config.item('firstchannel', 'The Void');
         this.rootAdmin = config.item('rootadmin', null);
         this.plugins = config.item('plugins', {});
     }
@@ -207,8 +193,8 @@ export class BNetConnection extends EventEmitter {
                 error(`[${this.alias}] disconnected from battle.net due to socket error ${err}`);
 
                 this.lastDisconnectedTime = getTime();
-                this.loggedIn = false;
-                this.inChat = false;
+                this._loggedIn = false;
+                this._inChat = false;
                 this.waitingToConnect = true;
                 this.connected = false;
                 this.connecting = false;
@@ -295,7 +281,7 @@ export class BNetConnection extends EventEmitter {
 
             if (packet.type === BNET_HEADER_CONSTANT) {
                 const receiver = this.protocol.receivers[packet.id],
-                    handler = this.handlers[packet.id];
+                    handler = this.packetHandler[packet.id]; // this.handlers[packet.id];
 
                 if (!handler || !receiver) {
                     (!handler) && error(`handler for packet '${packet.id}' not found`);
@@ -304,7 +290,7 @@ export class BNetConnection extends EventEmitter {
                     continue;
                 }
 
-                handler && receiver && handler.call(this, receiver.call(this.protocol, packet.buffer));
+                handler && receiver && handler(this, this.protocol, receiver.call(this.protocol, packet.buffer));
             }
         }
     }
@@ -412,19 +398,19 @@ export class BNetConnection extends EventEmitter {
     }
 
     sendJoinChannel(channel) {
-        if (this.loggedIn && this.inChat) {
+        if (this._loggedIn && this._inChat) {
             this.sendPackets(this.protocol.SEND_SID_JOINCHANNEL(channel));
         }
     }
 
     sendGetFriendsList() {
-        if (this.loggedIn) {
+        if (this._loggedIn) {
             this.sendPackets(this.protocol.SEND_SID_FRIENDSLIST());
         }
     }
 
     sendGetClanList() {
-        if (this.loggedIn) {
+        if (this._loggedIn) {
             this.sendPackets(this.protocol.SEND_SID_CLANMEMBERLIST());
         }
     }
@@ -439,8 +425,8 @@ export class BNetConnection extends EventEmitter {
             return;
         }
 
-        if (this.loggedIn) {
-            if (this.passwordHashType === 'pvpgn' && command.length > this.maxMessageLength) {
+        if (this._loggedIn) {
+            if (this._passwordHashType === 'pvpgn' && command.length > this.maxMessageLength) {
                 command = command.substr(0, this.maxMessageLength);
             }
 
@@ -465,7 +451,7 @@ export class BNetConnection extends EventEmitter {
     }
 
     queueGetGameList(gameName = '', numGames = 1) {
-        if (this.loggedIn) {
+        if (this._loggedIn) {
             if (this.outPackets.length > 10) {
                 info(`[${this.alias}] attempted to queue games list but there are too many (${this.outPackets.length}) packets queued, discarding`);
             } else {
@@ -475,10 +461,10 @@ export class BNetConnection extends EventEmitter {
     }
 
     queueJoinGame(gameName: string) {
-        if (this.loggedIn) {
+        if (this._loggedIn) {
             this.outPackets.push(this.protocol.SEND_SID_NOTIFYJOIN(gameName));
-            this.inChat = false;
-            this.inGame = true;
+            this._inChat = false;
+            this._inGame = true;
         }
     }
 
@@ -490,198 +476,35 @@ export class BNetConnection extends EventEmitter {
         return this.rootAdmin === username;
     }
 
-    HANDLE_SID_PING(d) {
-        debug('HANDLE_SID_PING', d);
-        this.emit('SID_PING', this, d);
-        this.sendPackets(this.protocol.SEND_SID_PING(d));
+    get passwordHashType(): string {
+        return this._passwordHashType;
     }
 
-    HANDLE_SID_NULL() {
-        debug('HANDLE_SID_NULL');
-        // warning: we do not respond to NULL packets with a NULL packet of our own
-        // this is because PVPGN servers are programmed to respond to NULL packets so it will create a vicious cycle of useless traffic
-        // official battle.net servers do not respond to NULL packets
-        return;
+    get loggedIn(): boolean {
+        return this._loggedIn;
     }
 
-    HANDLE_SID_AUTH_INFO(authInfo: AuthInfo) {
-        debug('HANDLE_SID_AUTH_INFO');
-
-        const {
-            exeVersion,
-            exeVersionHash,
-            keyInfoROC,
-            keyInfoTFT,
-            exeInfo
-        } = authInfo.handle(this);
-
-        this.emit('SID_AUTH_INFO', this, authInfo);
-        this.sendPackets(this.protocol.SEND_SID_AUTH_CHECK(
-            this.TFT,
-            this.clientToken,
-            exeVersion,
-            exeVersionHash,
-            keyInfoROC,
-            keyInfoTFT,
-            exeInfo,
-            this.username
-        ));
+    set loggedIn(value: boolean) {
+        this._loggedIn = value;
     }
 
-    HANDLE_SID_AUTH_CHECK(auth: AuthState) {
-        debug('HANDLE_SID_AUTH_CHECK');
-
-        if (auth.isValid()) {
-            let clientPublicKey = auth.createClientPublicKey(this);
-
-            info(`[${this.alias}] cd keys accepted`);
-
-            this.emit('SID_AUTH_CHECK', this, auth);
-            this.sendPackets(this.protocol.SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, this.username));
-        } else {
-            this.disconnect();
-        }
+    get inGame(): boolean {
+        return this._inGame;
     }
 
-    HANDLE_SID_AUTH_ACCOUNTLOGON(logon: AccountLogon) {
-        debug('HANDLE_SID_AUTH_ACCOUNTLOGON');
-
-        if (logon.status > 0) {
-            switch (logon.status) {
-                case 1:
-                    error(`logon failed - account doesn't exist`);
-                    return;
-                case 5:
-                    error(`logon failed - account requires upgrade`);
-                    return;
-                default:
-                    error(`logon failed - proof rejected with status ${logon.status}`);
-                    return;
-            }
-        }
-
-        info(`[${this.alias}] username ${this.username} accepted`);
-
-        let data;
-
-        if (this.passwordHashType === 'pvpgn') {
-            info(`[${this.alias}] using pvpgn logon type (for pvpgn servers only)`);
-
-            data = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
-                BNCSUtil.hashPassword(this.password)
-            );
-
-        } else {
-            info(`[${this.alias}] using battle.net logon type (for official battle.net servers only)`);
-
-            data = this.protocol.SEND_SID_AUTH_ACCOUNTLOGONPROOF(
-                BNCSUtil.nls_get_M1(this.nls, logon.serverPublicKey, logon.salt)
-            );
-        }
-
-        this.emit('SID_AUTH_ACCOUNTLOGON', this, logon);
-        this.sendPackets(data);
+    set inGame(value: boolean) {
+        this._inGame = value;
     }
 
-    HANDLE_SID_AUTH_ACCOUNTLOGONPROOF(logon: AccountLogonProof) {
-        debug('HANDLE_SID_AUTH_ACCOUNTLOGONPROOF');
-
-        this.loggedIn = logon.isValid();
-
-        info(`[${this.alias}] logon successful`);
-
-        this.emit('SID_AUTH_ACCOUNTLOGONPROOF', this, logon);
-        this.sendPackets([
-            this.protocol.SEND_SID_NETGAMEPORT(this.hostPort),
-            this.protocol.SEND_SID_ENTERCHAT(),
-            this.protocol.SEND_SID_FRIENDSLIST(),
-            this.protocol.SEND_SID_CLANMEMBERLIST(),
-        ]);
+    get inChat(): boolean {
+        return this._inChat;
     }
 
-    HANDLE_SID_ENTERCHAT(d) {
-        debug('HANDLE_SID_ENTERCHAT');
-
-        if ('#' === d.toString()[0]) {
-            debug('warning: account already logged in.');
-        }
-
-        info(`[${this.alias}] joining channel [${this.firstChannel}]`);
-
-        this.inChat = true;
-
-        this.emit('SID_ENTERCHAT', this, d);
-        this.sendPackets(this.protocol.SEND_SID_JOINCHANNEL(this.firstChannel));
+    set inChat(value: boolean) {
+        this._inChat = value;
     }
 
-    HANDLE_SID_CHATEVENT(e: IncomingChatEvent) {
-        debug('HANDLE_SID_CHATEVENT', e.idType(), e.user, e.message);
-
-        this.emit('SID_CHATEVENT', this, e);
+    get firstChannel(): string {
+        return this._firstChannel;
     }
-
-    HANDLE_SID_CLANINFO() {
-        debug('HANDLE_SID_CLANINFO');
-    }
-
-    HANDLE_SID_CLANMEMBERLIST() {
-        debug('HANDLE_SID_CLANMEMBERLIST');
-    }
-
-    HANDLE_SID_CLANMEMBERSTATUSCHANGE() {
-        debug('HANDLE_SID_CLANMEMBERSTATUSCHANGE');
-    }
-
-    HANDLE_SID_FRIENDSLIST(friends: IncomingFriend[]) {
-        debug('HANDLE_SID_FRIENDSLIST');
-
-        this.emit('SID_FRIENDSLIST', this, friends);
-    }
-
-    HANDLE_SID_GETADVLISTEX(d) {
-
-    }
-
-    HANDLE_SID_FRIENDSADD() {
-        debug('HANDLE_SID_FRIENDSADD');
-
-        return;
-    }
-
-    HANDLE_SID_FLOODDETECTED() {
-        debug('HANDLE_SID_FLOODDETECTED');
-
-        return;
-    }
-
-    HANDLE_SID_FRIENDSUPDATE() {
-        debug('HANDLE_SID_FRIENDSUPDATE');
-
-        return;
-    }
-
-    HANDLE_SID_MESSAGEBOX() {
-        debug('HANDLE_SID_MESSAGEBOX');
-
-        return;
-    }
-
-    HANDLE_SID_CLANINVITATION() {
-        debug('HANDLE_SID_CLANINVITATION');
-
-        return;
-    }
-
-    HANDLE_SID_CLANMEMBERREMOVED() {
-        debug('HANDLE_SID_CLANMEMBERREMOVED');
-
-        return;
-    }
-
-    HANDLE_SID_REQUIREDWORK() {
-        debug('HANDLE_SID_REQUIREDWORK');
-
-        return;
-    }
-
 }
