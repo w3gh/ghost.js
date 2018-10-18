@@ -35,8 +35,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./bin/w3host --config=./config.json",
-    "dev": "env GHOST_DEBUG=hex,log node ./bin/w3host --config=./config.json",
+    "start": "npm run build && node ./bin/w3host --config=./config.json",
+    "dev": "npm run build && env GHOST_DEBUG=hex,log node ./bin/w3host --config=./config.json",
     "build": "tsc"
   },
   "repository": {

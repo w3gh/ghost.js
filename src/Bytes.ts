@@ -65,7 +65,7 @@ export function AssignLength(buffer: Buffer): Buffer {
  * @returns {Number}
  */
 export function GetLength(buffer: Buffer): number {
-    return buffer.readUInt8(2);
+    return buffer[3] << 8 | buffer[2]
 }
 
 /**

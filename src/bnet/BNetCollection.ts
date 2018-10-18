@@ -43,6 +43,10 @@ export class BNetCollection {
         this.bnets.forEach((bn) => bn.queueChatCommand(command))
     }
 
+    queueGetGameList(gameName = '', numGames = 1) {
+        this.bnets.forEach((bn) => bn.queueGetGameList(gameName, numGames))
+    }
+
     update() {
         for (let bnet of this.bnets) {
             if (bnet.update()) {
