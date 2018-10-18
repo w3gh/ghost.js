@@ -83,40 +83,73 @@ export enum BNetChatEventID {
     EID_EMOTE = 23,	// emote
 }
 
+export enum BNetSID {
+    SID_AUTH_INFO = 0x50,
+    SID_PING = 0x25,
+    SID_AUTH_CHECK = 0x51,
+    SID_REQUIREDWORK = 0x4c,
+    SID_AUTH_ACCOUNTLOGON = 0x53,
+    SID_AUTH_ACCOUNTLOGONPROOF = 0x54,
+    SID_NULL = 0x00,
+    SID_NETGAMEPORT = 0x45,
+    SID_ENTERCHAT = 0x0a,
+    SID_JOINCHANNEL = 0x0c,
+    SID_CHATEVENT = 0x0f,
+    SID_CHATCOMMAND = 0x0e,
+    SID_CLANINFO = 0x75,
+    SID_CLANMEMBERLIST = 0x7d,
+    SID_CLANMEMBERSTATUSCHANGE = 0x7f,
+    SID_MESSAGEBOX = 0x19,
+    SID_CLANINVITATION = 0x77,
+    SID_CLANMEMBERREMOVED = 0x7e,
+    SID_FRIENDSUPDATE = 0x66,
+    SID_FRIENDSLIST = 0x65,
+    SID_FLOODDETECTED = 0x13,
+    SID_FRIENDSADD = 0x67,
+
+    SID_GETADVLISTEX = 0x09,
+    SID_STOPADV = 0x2,	// 0x2
+    SID_CHECKAD = 0x15,	// 0x15
+    SID_STARTADVEX3 = 0x1c,	// 0x1C
+    SID_DISPLAYAD = 0x21,	// 0x21
+    SID_NOTIFYJOIN = 0x22,	// 0x22
+    SID_LOGONRESPONSE = 0x29,	// 0x29
+}
+
 export const BNET_HEADER_CONSTANT = 0xff;
 export const BNET_INITIALIZE_SELECTOR = 0x01;
 
 export class BNetProtocol extends Protocol {
-    SID_AUTH_INFO = 0x50;
-    SID_PING = 0x25;
-    SID_AUTH_CHECK = 0x51;
-    SID_REQUIREDWORK = 0x4c;
-    SID_AUTH_ACCOUNTLOGON = 0x53;
-    SID_AUTH_ACCOUNTLOGONPROOF = 0x54;
-    SID_NULL = 0x00;
-    SID_NETGAMEPORT = 0x45;
-    SID_ENTERCHAT = 0x0a;
-    SID_JOINCHANNEL = 0x0c;
-    SID_CHATEVENT = 0x0f;
-    SID_CHATCOMMAND = 0x0e;
-    SID_CLANINFO = 0x75;
-    SID_CLANMEMBERLIST = 0x7d;
-    SID_CLANMEMBERSTATUSCHANGE = 0x7f;
-    SID_MESSAGEBOX = 0x19;
-    SID_CLANINVITATION = 0x77;
-    SID_CLANMEMBERREMOVED = 0x7e;
-    SID_FRIENDSUPDATE = 0x66;
-    SID_FRIENDSLIST = 0x65;
-    SID_FLOODDETECTED = 0x13;
-    SID_FRIENDSADD = 0x67;
-
-    SID_GETADVLISTEX = 0x09;
-    SID_STOPADV = 0x2;	// 0x2
-    SID_CHECKAD = 0x15;	// 0x15
-    SID_STARTADVEX3 = 0x1c;	// 0x1C
-    SID_DISPLAYAD = 0x21;	// 0x21
-    SID_NOTIFYJOIN = 0x22;	// 0x22
-    SID_LOGONRESPONSE = 0x29;	// 0x29
+    // SID_AUTH_INFO = 0x50;
+    // SID_PING = 0x25;
+    // SID_AUTH_CHECK = 0x51;
+    // SID_REQUIREDWORK = 0x4c;
+    // SID_AUTH_ACCOUNTLOGON = 0x53;
+    // SID_AUTH_ACCOUNTLOGONPROOF = 0x54;
+    // SID_NULL = 0x00;
+    // SID_NETGAMEPORT = 0x45;
+    // SID_ENTERCHAT = 0x0a;
+    // SID_JOINCHANNEL = 0x0c;
+    // SID_CHATEVENT = 0x0f;
+    // SID_CHATCOMMAND = 0x0e;
+    // SID_CLANINFO = 0x75;
+    // SID_CLANMEMBERLIST = 0x7d;
+    // SID_CLANMEMBERSTATUSCHANGE = 0x7f;
+    // SID_MESSAGEBOX = 0x19;
+    // SID_CLANINVITATION = 0x77;
+    // SID_CLANMEMBERREMOVED = 0x7e;
+    // SID_FRIENDSUPDATE = 0x66;
+    // SID_FRIENDSLIST = 0x65;
+    // SID_FLOODDETECTED = 0x13;
+    // SID_FRIENDSADD = 0x67;
+    //
+    // SID_GETADVLISTEX = 0x09;
+    // SID_STOPADV = 0x2;	// 0x2
+    // SID_CHECKAD = 0x15;	// 0x15
+    // SID_STARTADVEX3 = 0x1c;	// 0x1C
+    // SID_DISPLAYAD = 0x21;	// 0x21
+    // SID_NOTIFYJOIN = 0x22;	// 0x22
+    // SID_LOGONRESPONSE = 0x29;	// 0x29
 
     // KR_GOOD = '\x00\x00\x00\x00';
     // KR_OLD_GAME_VERSION = '\x00\x01\x00\x00';
@@ -184,12 +217,33 @@ export class BNetProtocol extends Protocol {
     PRODUCT_ROC = '3RAW';
     PLATFORM_X86 = '68XI';
 
-    receivers = {};
+    receivers = {
+        [BNetSID.SID_PING]: this.RECEIVE_SID_PING,
+        [BNetSID.SID_AUTH_INFO]: this.RECEIVE_SID_AUTH_INFO,
+        [BNetSID.SID_AUTH_CHECK]: this.RECEIVE_SID_AUTH_CHECK,
+        [BNetSID.SID_AUTH_ACCOUNTLOGON]: this.RECEIVE_SID_AUTH_ACCOUNTLOGON,
+        [BNetSID.SID_AUTH_ACCOUNTLOGONPROOF]: this.RECEIVE_SID_AUTH_ACCOUNTLOGONPROOF,
+        [BNetSID.SID_REQUIREDWORK]: this.RECEIVE_SID_REQUIREDWORK,
+        [BNetSID.SID_NULL]: this.RECEIVE_SID_NULL,
+        [BNetSID.SID_ENTERCHAT]: this.RECEIVE_SID_ENTERCHAT,
+        [BNetSID.SID_CHATEVENT]: this.RECEIVE_SID_CHATEVENT,
+        [BNetSID.SID_CLANINFO]: this.RECEIVE_SID_CLANINFO,
+        [BNetSID.SID_CLANMEMBERLIST]: this.RECEIVE_SID_CLANMEMBERLIST,
+        [BNetSID.SID_CLANMEMBERSTATUSCHANGE]: this.RECEIVE_SID_CLANMEMBERSTATUSCHANGE,
+        [BNetSID.SID_MESSAGEBOX]: this.RECEIVE_SID_MESSAGEBOX,
+        [BNetSID.SID_CLANINVITATION]: this.RECEIVE_SID_CLANINVITATION,
+        [BNetSID.SID_CLANMEMBERREMOVED]: this.RECEIVE_SID_CLANMEMBERREMOVED,
+        [BNetSID.SID_FRIENDSUPDATE]: this.RECEIVE_SID_FRIENDSUPDATE,
+        [BNetSID.SID_FRIENDSLIST]: this.RECEIVE_SID_FRIENDSLIST,
+        [BNetSID.SID_FLOODDETECTED]: this.RECEIVE_SID_FLOODDETECTED,
+        [BNetSID.SID_FRIENDSADD]: this.RECEIVE_SID_FRIENDSADD,
+        [BNetSID.SID_GETADVLISTEX]: this.RECEIVE_SID_GETADVLISTEX,
+    };
 
     constructor(private readonly bnet: BNetConnection) {
         super();
 
-        this.configureReceivers();
+        // this.configureReceivers();
     }
 
     configureReceivers() {
@@ -215,7 +269,7 @@ export class BNetProtocol extends Protocol {
             'SID_FRIENDSADD',
             'SID_GETADVLISTEX'
         ]) {
-            this.receivers[this[type]] = this[`RECEIVE_${type}`];
+            this.receivers[BNetSID[type]] = this[`RECEIVE_${type}`];
         }
     }
 
@@ -244,6 +298,46 @@ export class BNetProtocol extends Protocol {
 
     RECEIVE_SID_NULL(buff: Buffer) {
         debug('RECEIVE_SID_NULL');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_REQUIREDWORK(buff: Buffer) {
+        debug('RECEIVE_SID_REQUIREDWORK');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_CLANINFO(buff: Buffer) {
+        debug('RECEIVE_SID_CLANINFO');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_MESSAGEBOX(buff: Buffer) {
+        debug('RECEIVE_SID_MESSAGEBOX');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_CLANINVITATION(buff: Buffer) {
+        debug('RECEIVE_SID_CLANINVITATION');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_CLANMEMBERREMOVED(buff: Buffer) {
+        debug('RECEIVE_SID_CLANMEMBERREMOVED');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_FRIENDSUPDATE(buff: Buffer) {
+        debug('RECEIVE_SID_FRIENDSUPDATE');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_FLOODDETECTED(buff: Buffer) {
+        debug('RECEIVE_SID_FLOODDETECTED');
+        return ValidateLength(buff);
+    }
+
+    RECEIVE_SID_FRIENDSADD(buff: Buffer) {
+        debug('RECEIVE_SID_FRIENDSADD');
         return ValidateLength(buff);
     }
 
@@ -379,7 +473,7 @@ export class BNetProtocol extends Protocol {
     }
 
     SEND_SID_NULL() {
-        return this.asPacket([this.SID_NULL]);
+        return this.asPacket([BNetSID.SID_NULL]);
     }
 
     SEND_SID_STOPADV() {
@@ -427,7 +521,7 @@ export class BNetProtocol extends Protocol {
         }
 
         return this.asPacket(
-            this.SID_GETADVLISTEX,
+            BNetSID.SID_GETADVLISTEX,
             cond1,
             cond2,
             cond3,
@@ -441,7 +535,7 @@ export class BNetProtocol extends Protocol {
 
     SEND_SID_ENTERCHAT() {
         return this.asPacket(
-            this.SID_ENTERCHAT,
+            BNetSID.SID_ENTERCHAT,
             this.NULL, //Account Name is NULL on Warcraft III/The Frozen Throne
             this.NULL //Stat String is NULL on CDKEY'd products
         );
@@ -452,7 +546,7 @@ export class BNetProtocol extends Protocol {
         const firstJoin = '\x01\x00\x00\x00';
 
         return this.asPacket(
-            this.SID_JOINCHANNEL,
+            BNetSID.SID_JOINCHANNEL,
             channel.length > 0 ? noCreateJoin : firstJoin,
             ByteString(channel)
         );
@@ -460,7 +554,7 @@ export class BNetProtocol extends Protocol {
 
     SEND_SID_CHATCOMMAND(command: string) {
         return this.asPacket(
-            this.SID_CHATCOMMAND,
+            BNetSID.SID_CHATCOMMAND,
             ByteString(command)
         );
     }
@@ -473,7 +567,7 @@ export class BNetProtocol extends Protocol {
         assert(payload.length === 4, 'invalid parameters passed to SEND_SID_PING');
 
         return this.asPacket(
-            this.SID_PING,
+            BNetSID.SID_PING,
             payload
         );
     }
@@ -498,7 +592,7 @@ export class BNetProtocol extends Protocol {
         const IP = localIP().split('.').map(Number); //[127, 0, 0, 1];
 
         return this.asPacket(
-            this.SID_AUTH_INFO,
+            BNetSID.SID_AUTH_INFO,
             protocolID,
             this.PLATFORM_X86,
             TFT ? this.PRODUCT_TFT : this.PRODUCT_ROC,
@@ -517,7 +611,7 @@ export class BNetProtocol extends Protocol {
         const numKeys = (tft) ? 2 : 1;
 
         return this.asPacket(
-            this.SID_AUTH_CHECK,
+            BNetSID.SID_AUTH_CHECK,
             clientToken,
             exeVersion,
             exeVersionHash,
@@ -534,7 +628,7 @@ export class BNetProtocol extends Protocol {
         assert(clientPublicKey.length === 32, 'public key length error');
 
         return this.asPacket(
-            this.SID_AUTH_ACCOUNTLOGON,
+            BNetSID.SID_AUTH_ACCOUNTLOGON,
             clientPublicKey,
             ByteString(accountName)
         );
@@ -544,21 +638,21 @@ export class BNetProtocol extends Protocol {
         assert(M1.length === 20, 'password length error');
 
         return this.asPacket(
-            this.SID_AUTH_ACCOUNTLOGONPROOF,
+            BNetSID.SID_AUTH_ACCOUNTLOGONPROOF,
             M1
         );
     }
 
     SEND_SID_NETGAMEPORT(serverPort) {
         return this.asPacket(
-            this.SID_NETGAMEPORT,
+            BNetSID.SID_NETGAMEPORT,
             ByteUInt32(serverPort)
         );
     }
 
     SEND_SID_FRIENDSLIST() {
         return this.asPacket(
-            this.SID_FRIENDSLIST
+            BNetSID.SID_FRIENDSLIST
         );
     }
 
@@ -566,7 +660,7 @@ export class BNetProtocol extends Protocol {
         const cookie = this.NULL_4;
 
         return this.asPacket(
-            this.SID_CLANMEMBERLIST,
+            BNetSID.SID_CLANMEMBERLIST,
             cookie
         );
     }

@@ -50,6 +50,10 @@ export class GHost extends Bot {
             this.adminGameSetup();
         }, 5000); //host admin game after 5 seconds, so all mpq scripts are extracted
 
+        setTimeout(() => {
+            this.bnet.queueGetGameList('', 20)
+        }, 5000);
+
         this.on('update', this.onUpdate)
     }
 

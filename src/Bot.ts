@@ -45,6 +45,11 @@ export class Bot extends EventEmitter {
             }
         }, UPDATE_INTERVAL);
 
+        process.on('SIGINT', function () {
+            info('Caught interrupt signal');
+            this.exiting = true;
+        });
+
         process.on('SIGTERM', function () {
             info('process exiting');
             this.exiting = true;

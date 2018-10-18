@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as EventEmitter from 'events';
 import {getTicks, getTime} from '../util';
 import {BytesExtract, GetLength, ByteExtractUInt32} from '../Bytes';
-import {BNET_HEADER_CONSTANT, BNetProtocol} from './BNetProtocol';
+import {BNET_HEADER_CONSTANT, BNetProtocol, BNetSID} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from '../BNCSUtil';
@@ -81,9 +81,30 @@ export class BNetConnection extends EventEmitter {
     private firstChannel: string;
     private rootAdmin: string;
     private plugins;
-    private handlers;
     private waitTicks: number;
-    nls: Buffer;
+    private nls: Buffer;
+    private handlers = {
+        [BNetSID.SID_PING]: this.HANDLE_SID_PING,
+        [BNetSID.SID_AUTH_INFO]: this.HANDLE_SID_AUTH_INFO,
+        [BNetSID.SID_AUTH_CHECK]: this.HANDLE_SID_AUTH_CHECK,
+        [BNetSID.SID_AUTH_ACCOUNTLOGON]: this.HANDLE_SID_AUTH_ACCOUNTLOGON,
+        [BNetSID.SID_AUTH_ACCOUNTLOGONPROOF]: this.HANDLE_SID_AUTH_ACCOUNTLOGONPROOF,
+        [BNetSID.SID_REQUIREDWORK]: this.HANDLE_SID_REQUIREDWORK,
+        [BNetSID.SID_NULL]: this.HANDLE_SID_NULL,
+        [BNetSID.SID_ENTERCHAT]: this.HANDLE_SID_ENTERCHAT,
+        [BNetSID.SID_CHATEVENT]: this.HANDLE_SID_CHATEVENT,
+        [BNetSID.SID_CLANINFO]: this.HANDLE_SID_CLANINFO,
+        [BNetSID.SID_CLANMEMBERLIST]: this.HANDLE_SID_CLANMEMBERLIST,
+        [BNetSID.SID_CLANMEMBERSTATUSCHANGE]: this.HANDLE_SID_CLANMEMBERSTATUSCHANGE,
+        [BNetSID.SID_MESSAGEBOX]: this.HANDLE_SID_MESSAGEBOX,
+        [BNetSID.SID_CLANINVITATION]: this.HANDLE_SID_CLANINVITATION,
+        [BNetSID.SID_CLANMEMBERREMOVED]: this.HANDLE_SID_CLANMEMBERREMOVED,
+        [BNetSID.SID_FRIENDSUPDATE]: this.HANDLE_SID_FRIENDSUPDATE,
+        [BNetSID.SID_FRIENDSLIST]: this.HANDLE_SID_FRIENDSLIST,
+        [BNetSID.SID_FLOODDETECTED]: this.HANDLE_SID_FLOODDETECTED,
+        [BNetSID.SID_FRIENDSADD]: this.HANDLE_SID_FRIENDSADD,
+        [BNetSID.SID_GETADVLISTEX]: this.HANDLE_SID_GETADVLISTEX,
+    };
 
     constructor(private id: number, public readonly TFT: number, private hostPort: number, config: Config) {
         super();
@@ -202,35 +223,6 @@ export class BNetConnection extends EventEmitter {
             });
     }
 
-    configureHandlers() {
-        this.handlers = {};
-
-        for (let type of [
-            'SID_PING',
-            'SID_AUTH_INFO',
-            'SID_AUTH_CHECK',
-            'SID_AUTH_ACCOUNTLOGON',
-            'SID_AUTH_ACCOUNTLOGONPROOF',
-            'SID_REQUIREDWORK',
-            'SID_NULL',
-            'SID_ENTERCHAT',
-            'SID_CHATEVENT',
-            'SID_CLANINFO',
-            'SID_CLANMEMBERLIST',
-            'SID_CLANMEMBERSTATUSCHANGE',
-            'SID_MESSAGEBOX',
-            'SID_CLANINVITATION',
-            'SID_CLANMEMBERREMOVED',
-            'SID_FRIENDSUPDATE',
-            'SID_FRIENDSLIST',
-            'SID_FLOODDETECTED',
-            'SID_FRIENDSADD',
-            'SID_GETADVLISTEX'
-        ]) {
-            this.handlers[this.protocol[type]] = this[`HANDLE_${type}`];
-        }
-    }
-
     configurePlugins() {
         Plugin.emit('onBNetInit', this);
     }
@@ -265,6 +257,9 @@ export class BNetConnection extends EventEmitter {
     }
 
     extractPackets() {
+        let lengthProcessed = 0;
+
+        // a packet is at least 4 bytes so loop as long as the buffer contains 4 bytes
         while (this.incomingBuffer.length >= 4) {
             const buffer = this.incomingBuffer;
 
@@ -276,22 +271,19 @@ export class BNetConnection extends EventEmitter {
 
             const bytesLength = GetLength(buffer);
 
-            if (bytesLength >= 4) {
-                if (buffer.length >= bytesLength) {
-                    this.incomingPackets.push(
-                        new CommandPacket(
-                            BNET_HEADER_CONSTANT,
-                            buffer[1],
-                            buffer.slice(0, bytesLength)
-                        )
-                    );
+            if (buffer.length >= bytesLength) {
+                this.incomingPackets.push(
+                    new CommandPacket(
+                        BNET_HEADER_CONSTANT,
+                        buffer[1],
+                        buffer.slice(0, bytesLength)
+                    )
+                );
 
-                    this.incomingBuffer = buffer.slice(bytesLength);
-                } else { // still waiting for rest of the packet
-                    return;
-                }
-            } else {
-                error('received invalid packet from battle.net (bad length), disconnecting');
+                this.incomingBuffer = buffer.slice(bytesLength);
+
+                lengthProcessed += bytesLength
+            } else { // still waiting for rest of the packet
                 return;
             }
         }
@@ -401,8 +393,6 @@ export class BNetConnection extends EventEmitter {
     connect() {
         try {
             this.configureSocket();
-
-            this.configureHandlers();
             this.configurePlugins();
 
             this.socket.connect(6112, this.server);
@@ -651,4 +641,47 @@ export class BNetConnection extends EventEmitter {
     HANDLE_SID_GETADVLISTEX(d) {
 
     }
+
+    HANDLE_SID_FRIENDSADD() {
+        debug('HANDLE_SID_FRIENDSADD');
+
+        return;
+    }
+
+    HANDLE_SID_FLOODDETECTED() {
+        debug('HANDLE_SID_FLOODDETECTED');
+
+        return;
+    }
+
+    HANDLE_SID_FRIENDSUPDATE() {
+        debug('HANDLE_SID_FRIENDSUPDATE');
+
+        return;
+    }
+
+    HANDLE_SID_MESSAGEBOX() {
+        debug('HANDLE_SID_MESSAGEBOX');
+
+        return;
+    }
+
+    HANDLE_SID_CLANINVITATION() {
+        debug('HANDLE_SID_CLANINVITATION');
+
+        return;
+    }
+
+    HANDLE_SID_CLANMEMBERREMOVED() {
+        debug('HANDLE_SID_CLANMEMBERREMOVED');
+
+        return;
+    }
+
+    HANDLE_SID_REQUIREDWORK() {
+        debug('HANDLE_SID_REQUIREDWORK');
+
+        return;
+    }
+
 }

@@ -93,6 +93,8 @@ export class SIDGetAdvListEx {
             }
         }
 
+        console.log('games', games);
+
         return games;
     }
 }
