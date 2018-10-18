@@ -242,35 +242,6 @@ export class BNetProtocol extends Protocol {
 
     constructor(private readonly bnet: BNetConnection) {
         super();
-
-        // this.configureReceivers();
-    }
-
-    configureReceivers() {
-        for (let type of [
-            'SID_PING',
-            'SID_AUTH_INFO',
-            'SID_AUTH_CHECK',
-            'SID_AUTH_ACCOUNTLOGON',
-            'SID_AUTH_ACCOUNTLOGONPROOF',
-            'SID_REQUIREDWORK',
-            'SID_NULL',
-            'SID_ENTERCHAT',
-            'SID_CHATEVENT',
-            'SID_CLANINFO',
-            'SID_CLANMEMBERLIST',
-            'SID_CLANMEMBERSTATUSCHANGE',
-            'SID_MESSAGEBOX',
-            'SID_CLANINVITATION',
-            'SID_CLANMEMBERREMOVED',
-            'SID_FRIENDSUPDATE',
-            'SID_FRIENDSLIST',
-            'SID_FLOODDETECTED',
-            'SID_FRIENDSADD',
-            'SID_GETADVLISTEX'
-        ]) {
-            this.receivers[BNetSID[type]] = this[`RECEIVE_${type}`];
-        }
     }
 
     /**

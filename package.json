@@ -1,6 +1,6 @@
 {
   "name": "w3ghost",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Warcraft 3 Game Host",
   "main": "lib/GHost.js",
   "bin": {
