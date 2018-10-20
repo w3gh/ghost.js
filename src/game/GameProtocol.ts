@@ -1,11 +1,11 @@
 'use strict';
 
 import {ByteArray, ByteString, AssignLength, ValidateLength, ByteUInt32, ByteUInt16} from './../Bytes';
-import {Protocol} from './../Protocol';
+import {Protocol} from '../Protocol';
 import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 import {GameSlot} from './GameSlot';
 import * as bp from 'bufferpack';
-import {getTicks, getTime} from './../util';
+import {getTicks, getTime} from '../util';
 import {create, hex} from '../Logger';
 import {Game} from "./Game";
 
