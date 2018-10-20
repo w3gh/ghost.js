@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as EventEmitter from 'events';
 import {getTicks, getTime} from '../util';
 import {BytesExtract, GetLength, ByteExtractUInt32} from '../Bytes';
-import {BNET_HEADER_CONSTANT, BNetProtocol, BNetSID} from './BNetProtocol';
+import {BNET_HEADER_CONSTANT, BNetProtocol} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from '../BNCSUtil';
@@ -280,7 +280,7 @@ export class BNetConnection extends EventEmitter implements IBNetConnection {
             const packet = this.incomingPackets.pop();
 
             if (packet.type === BNET_HEADER_CONSTANT) {
-                const receiver = this.protocol.receivers[packet.id],
+                const receiver = this.packetReceiver[packet.id], // this.protocol.receivers[packet.id],
                     handler = this.packetHandler[packet.id]; // this.handlers[packet.id];
 
                 if (!handler || !receiver) {
@@ -290,7 +290,7 @@ export class BNetConnection extends EventEmitter implements IBNetConnection {
                     continue;
                 }
 
-                handler && receiver && handler(this, this.protocol, receiver.call(this.protocol, packet.buffer));
+                handler && receiver && handler(this, this.protocol, receiver(packet.buffer));
             }
         }
     }

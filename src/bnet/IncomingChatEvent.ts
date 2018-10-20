@@ -1,4 +1,4 @@
-import {BNetChatEventID, BNetProtocol} from './BNetProtocol';
+import {BNetChatEventID} from "./BNetChatEventID"
 import * as assert from "assert";
 import {ByteExtractString, ValidateLength} from "../Bytes";
 

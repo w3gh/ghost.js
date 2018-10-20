@@ -1,4 +1,4 @@
-import {BNetProtocol, BNetSID} from "../../bnet/BNetProtocol";
+import {BNetSID} from "../../bnet/BNetSID";
 import {IAuthInfo} from "../../bnet/IAuthInfo";
 import {IAuthState} from "../../bnet/IAuthState";
 import {IAccountLogon} from "../../bnet/IAccountLogon";
@@ -166,46 +166,45 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
 
     }
 
-    [BNetSID.SID_FRIENDSADD](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_FRIENDSADD](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_FRIENDSADD');
 
         return;
     }
 
-    [BNetSID.SID_FLOODDETECTED](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_FLOODDETECTED](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_FLOODDETECTED');
 
         return;
     }
 
-    [BNetSID.SID_FRIENDSUPDATE](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_FRIENDSUPDATE](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_FRIENDSUPDATE');
 
         return;
     }
 
-    [BNetSID.SID_MESSAGEBOX](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_MESSAGEBOX](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_MESSAGEBOX');
 
         return;
     }
 
-    [BNetSID.SID_CLANINVITATION](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_CLANINVITATION](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_CLANINVITATION');
 
         return;
     }
 
-    [BNetSID.SID_CLANMEMBERREMOVED](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_CLANMEMBERREMOVED](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_CLANMEMBERREMOVED');
 
         return;
     }
 
-    [BNetSID.SID_REQUIREDWORK](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_REQUIREDWORK](bnet: BNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_REQUIREDWORK');
 
         return;
     }
-
 }
