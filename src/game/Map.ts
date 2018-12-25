@@ -4,12 +4,12 @@ import * as path from 'path';
 
 import {BytesExtract, BYTEARRAY, ByteArray, ByteUInt32, ByteDecodeToString} from '../Bytes';
 import {GameSlot} from './GameSlot';
-import {create} from '../Logger';
+import {createLoggerFor} from '../Logger';
 import {Config} from "../Config";
 import {GHost} from "../GHost";
 import {arch} from "os";
 
-const {debug, info, error} = create('Map');
+const {debug, info, error} = createLoggerFor('Map');
 
 export interface MapJSON {
     localpath: string,

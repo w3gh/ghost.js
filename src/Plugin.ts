@@ -1,8 +1,8 @@
 import {Config} from './Config';
 import {resolve} from 'path';
-import {create} from './Logger';
+import {createLoggerFor} from './Logger';
 
-const {debug, info, error} = create('Plugin');
+const {debug, info, error} = createLoggerFor('Plugin');
 
 interface LoadedPlugins {
     [name: string]: Plugin;

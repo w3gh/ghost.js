@@ -1,26 +1,35 @@
-import {ByteExtractString, ValidateLength} from "../Bytes";
+import {ByteExtractString, ByteExtractUInt32, ValidateLength} from "../Bytes";
 import {IncomingGameHost} from "./IncomingGameHost";
+
+const reverse = (n: number) => parseInt(String(n).split('').reverse().join(''), 10);
 
 export class SIDGetAdvListEx {
     constructor(buff: Buffer) {
         // 2 bytes					-> Header
         // 2 bytes					-> Length
         // 4 bytes					-> GamesFound
-        // if( GamesFound > 0 )
-        //		10 bytes			-> ???
+        // for( 1 .. GamesFound )
+        //		2 bytes				-> GameType
+        //		2 bytes				-> Parameter
+        //		4 bytes				-> Language ID
+        //		2 bytes				-> AF_INET
         //		2 bytes				-> Port
         //		4 bytes				-> IP
+        //		4 bytes				-> zeros
+        //		4 bytes				-> zeros
+        //		4 bytes				-> Status
+        //		4 bytes				-> ElapsedTime
         //		null term string	-> GameName
-        //		2 bytes				-> ???
-        //		8 bytes				-> HostCounter
+        //		1 byte				-> GamePassword
+        //		1 byte				-> SlotsTotal
+        //		8 bytes				-> HostCounter (ascii hex format)
+        //		null term string	-> StatString
 
         let games = [];
 
         if (ValidateLength(buff) && buff.length >= 8) {
             let i = 8;
             let gamesFound = buff.readInt32LE(4);
-
-            console.log('gamesFound', gamesFound, buff);
 
             if (gamesFound > 0 && buff.length >= 25) {
                 while (gamesFound > 0) {
@@ -29,46 +38,50 @@ export class SIDGetAdvListEx {
                     if (buff.length < i + 33)
                         break;
 
-                    let gameType = buff.readInt16LE(i);
+                    const gameType = buff.readInt16LE(i);
                     i += 2;
-                    let parameter = buff.readInt16LE(i);
+                    const parameter = buff.readInt16LE(i);
                     i += 2;
-                    let languageID = buff.readInt32LE(i);
+                    const languageID = buff.readInt32LE(i);
                     i += 4;
                     // AF_INET
                     i += 2;
-                    let port = buff.readInt32LE(i);
-                    let ip = buff.slice(i, i + 4);
+                    const port = reverse(buff.readInt32LE(i));
+                    const ip = buff.slice(i, i + 4);
                     i += 4;
                     // zeros
                     i += 4;
                     // zeros
                     i += 4;
-                    let status = buff.readInt32LE(i);
+                    const status = buff.readInt32LE(i);
                     i += 4;
-                    let elapsedTime = buff.readInt32LE(i);
+                    const elapsedTime = buff.readInt32LE(i);
                     i += 4;
-                    let gameName = ByteExtractString(buff.slice(i));
+                    const gameName = ByteExtractString(buff.slice(i));
                     i += gameName.length + 1;
 
                     if (buff.length < i + 1)
                         break;
 
-                    let gamePassword = ByteExtractString(buff.slice(i));
+                    const gamePassword = ByteExtractString(buff.slice(i));
                     i += gamePassword.length + 1;
 
                     if (buff.length < i + 10)
                         break;
 
                     // SlotsTotal is in ascii hex format
-                    let slotsTotal = buff[i];
+                    const slotsTotal = buff[i];
                     i++;
 
                     let hostCounterRaw = buff.slice(i, i + 8);
                     let hostCounterString = hostCounterRaw.toString();
                     let hostCounter = 0;
 
-                    //@TODO handle hostCounter from hostCounterString
+                    for (let j = 0; j < 4; j++) {
+                        let c = hostCounterString.substr(j * 2, 2);
+
+                        hostCounter |= parseInt(c) << ( 24 - j * 8 );
+                    }
 
                     i += 8;
                     let statString = ByteExtractString(buff.slice(i));
@@ -93,7 +106,7 @@ export class SIDGetAdvListEx {
             }
         }
 
-        console.log('games', games);
+        // console.log('games', games);
 
         return games;
     }

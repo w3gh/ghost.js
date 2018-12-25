@@ -1,16 +1,16 @@
 import * as EventEmitter from 'events';
 import {Config} from './Config';
-import {create} from './Logger';
+import {createLoggerFor} from './Logger';
 import {Plugin} from './Plugin';
 import Timer = NodeJS.Timer;
 
-const {debug, info, error} = create('Bot');
+const {debug, info, error} = createLoggerFor('Bot');
 const UPDATE_INTERVAL = 50; //50ms
 
 export class Bot extends EventEmitter {
     cfg: Config;
     plugins: any = {};
-    exiting: boolean = false;
+    exitingNice: boolean = false;
     intervalID: Timer;
 
     constructor(cfg) {
@@ -38,21 +38,22 @@ export class Bot extends EventEmitter {
         this.intervalID = setInterval(() => {
             this.emit('update', this);
 
-            if (this.exiting) {
+            if (this.exitingNice) {
+                info('exiting');
                 this.emit('exit', this);
-                process.exit(0);
                 clearInterval(this.intervalID);
+                process.exit(0);
             }
         }, UPDATE_INTERVAL);
 
         process.on('SIGINT', function () {
-            info('Caught interrupt signal');
-            this.exiting = true;
+            info('caught interrupt signal');
+            this.exitingNice = true;
         });
 
         process.on('SIGTERM', function () {
             info('process exiting');
-            this.exiting = true;
+            this.exitingNice = true;
         });
 
         return this;

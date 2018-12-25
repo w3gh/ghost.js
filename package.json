@@ -31,12 +31,13 @@
     "eslint-config-es": "^0.8.0",
     "eslint-plugin-extended": "^0.2.0",
     "eslint-plugin-mocha": "^4.5.1",
+    "ts-node": "^7.0.1",
     "typescript": "^2.9.2"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npm run build && node ./bin/w3host --config=./config.json",
-    "dev": "npm run build && env GHOST_DEBUG=hex,log node ./bin/w3host --config=./config.json",
+    "start": "ts-node ./src/cli/host.ts --config=./config.json",
+    "dev": "env GHOST_DEBUG=hex,log ts-node ./src/cli/host.ts --config=./config.json",
     "build": "tsc"
   },
   "repository": {

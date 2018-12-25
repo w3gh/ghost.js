@@ -1,8 +1,8 @@
 import {ValidateLength, ByteExtractString} from '../Bytes';
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import * as assert from "assert";
 
-const {debug, info, error} = create('AccountLogonProof');
+const {debug, info, error} = createLoggerFor('AccountLogonProof');
 
 export class AccountLogonProof {
     public readonly proof: Buffer;

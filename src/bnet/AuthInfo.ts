@@ -1,10 +1,10 @@
 import * as assert from "assert";
 import {ByteExtractString, ByteExtractUInt32, BytesExtract, ValidateLength} from "../Bytes";
 import {BNCSUtil} from "../BNCSUtil";
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {BNetConnection} from "./BNetConnection";
 
-const {debug, info, error} = create('AuthInfo');
+const {debug, info, error} = createLoggerFor('AuthInfo');
 
 export class AuthInfo {
     public readonly logonType: Buffer;

@@ -11,9 +11,9 @@ import {FriendList} from "../../bnet/FriendList";
 import {ClanMemberList} from "../../bnet/ClanMemberList";
 import {IncomingClanList} from "../../bnet/IncomingClanList";
 import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32, ByteArray} from '../../Bytes';
-import {create} from "../../Logger";
+import {createLoggerFor} from "../../Logger";
 
-const {debug, info, error} = create('BNet_SID_Receiver');
+const {debug, info, error} = createLoggerFor('BNet_SID_Receiver');
 
 export class GhostBNetSIDReceiver {
 

@@ -8,7 +8,7 @@ import {BNET_HEADER_CONSTANT, BNetProtocol} from './BNetProtocol';
 import {Plugin} from '../Plugin';
 import {CommandPacket} from '../CommandPacket';
 import {BNCSUtil} from '../BNCSUtil';
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {Config} from "../Config";
 import {IncomingFriend} from "./IncomingFriend";
 import {IncomingChatEvent} from "./IncomingChatEvent";
@@ -19,15 +19,16 @@ import {AccountLogonProof} from "./AccountLogonProof";
 import {IBNetSIDHandler} from "./IBNetSIDHandler";
 import {IBNetSIDReceiver} from "./IBNetSIDReceiver";
 import {IBNetConnection} from "./IBNetConnection";
+import {IBNet} from "./IBNet";
 
-const {debug, info, error} = create('BNet');
+const {debug, info, error} = createLoggerFor('BNet');
 
 /**
  * Class for connecting to battle.net
  * @param {Object} options
  * @constructor
  */
-export class BNetConnection extends EventEmitter implements IBNetConnection {
+export class BNetConnection extends EventEmitter implements IBNetConnection, IBNet {
     private enabled: boolean;
     private socket: net.Socket = new net.Socket();
     private protocol: BNetProtocol = new BNetProtocol(this);
@@ -38,7 +39,7 @@ export class BNetConnection extends EventEmitter implements IBNetConnection {
     private incomingBuffer: Buffer = Buffer.from('');
     public readonly clientToken: Buffer = Buffer.from('\xdc\x01\xcb\x07', 'binary');
 
-    private admins: string[] = [];
+    private readonly admins: string[] = [];
     private outPackets = [];
     private connected: boolean = false;
     private connecting: boolean = false;
@@ -391,7 +392,9 @@ export class BNetConnection extends EventEmitter implements IBNetConnection {
     }
 
     disconnect() {
+        info(`[${this.alias}] disconnecting`);
         this.socket.end();
+        this.socket.destroy();
         this.exiting = true;
         this.connecting = false;
         this.connected = false;
@@ -416,8 +419,9 @@ export class BNetConnection extends EventEmitter implements IBNetConnection {
     }
 
     queueEnterChat() {
-        // if( m_LoggedIn )
-        // m_OutPackets.push( m_Protocol->SEND_SID_ENTERCHAT( ) );
+        if (this._loggedIn) {
+            this.sendPackets(this.protocol.SEND_SID_ENTERCHAT())
+        }
     }
 
     queueChatCommand(command: string, silent = false) {

@@ -34,7 +34,7 @@ export function hex(buffer) {
 	}
 }
 
-export function create(category): Logger {
+export function createLoggerFor(category): Logger {
 	if (GHOST_DEBUG && GHOST_DEBUG.indexOf('log') !== -1) {
 		return {
 			info: (message, ...vars) => console.log([chalk.gray(isoDate()), chalk.green(category), chalk.blue('info'), message, ...vars].join(' ')),

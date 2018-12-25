@@ -108,7 +108,7 @@ export function ByteUInt32(num: number): Buffer {
  * @param buff
  * @returns {number}
  */
-export function ByteExtractUInt32(buff: Buffer): Number {
+export function ByteExtractUInt32(buff: Buffer): number {
     return buff.readUInt32LE(0);
 }
 
@@ -151,9 +151,7 @@ export function ByteExtractString(buffer: Buffer) {
  * @returns {Buffer}
  */
 export function BytesExtract(text: string, count: number): Buffer {
-    var bytes = text.split(' ').map(function (el) {
-        return String(el);
-    });
+    const bytes = text.split(' ').map(String);
 
     if (bytes.length > count || bytes.length < count) {
         throw 'invalid length bytes given ' + bytes.length + ', expected ' + count;
