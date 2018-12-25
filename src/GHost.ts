@@ -34,7 +34,7 @@ export class GHost extends Bot {
     private adminGamePassword: string;
     private adminGameMapName: string;
     public lanWar3Version: string;
-    // private adminMap: Map;
+    private adminMap: Map;
 
     public CRC = new CRC32();
     private bnet: BNetCollection;
@@ -46,25 +46,26 @@ export class GHost extends Bot {
 
         this.bnet = new BNetCollection(this.cfg, this.TFT, this.hostPort, new GhostBNetSIDHandler(), new GhostBNetSIDReceiver());
 
-        // this.extractScripts();
+        this.extractScripts();
         this.udpSocketSetup();
 
-        // setTimeout(() => {
-        //     this.adminGameSetup();
-        // }, 5000); //host admin game after 5 seconds, so all mpq scripts are extracted
-
         setTimeout(() => {
-            this.bnet.queueGetGameList('', 20)
-        }, 5000);
+            this.adminGameSetup();
+        }, 1000); //host admin game after 5 seconds, so all mpq scripts are extracted
 
-        this.on('update', this.onUpdate)
+        // setTimeout(() => {
+        //     this.bnet.queueGetGameList('', 20)
+        // }, 5000);
+
+        this.on('update', this.onUpdate);
+        this.on('exit', this.onExit);
     }
 
     onUpdate = () => {
         this.lastUpdateTime = getTime();
 
         if (this.exitingNice) {
-            if (this.bnet.isEmpty()) {
+            if (!this.bnet.isEmpty()) {
                 info('deleting all battle.net connections in preparation for exiting nicely');
 
                 this.bnet.destroy();
@@ -81,6 +82,12 @@ export class GHost extends Bot {
 
     };
 
+    onExit = () => {
+        info(`closing connection`);
+        this.udpSocket.close();
+        // this.bnet.destroy();
+    };
+
     getMapPath(filename) {
         return path.resolve(path.join(this.mapConfigsPath, `${filename}.json`))
     };
@@ -93,43 +100,34 @@ export class GHost extends Bot {
         //this.udpSocket.setBroadcast(true);
     }
 
-    // protected extractScripts() {
-    //     const mpq = require('mech-mpq');
-    //     const fs = require('fs');
-    //     const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
-    //     const archive = mpq.openArchive(patchPath);
-    //
-    //     if (archive) {
-    //         info(`loading MPQ file '${patchPath}'`);
-    //
-    //         // common.j
-    //         const commonJ = archive.openFile("Scripts\\common.j");
-    //         if (commonJ) {
-    //             const commonJContent = commonJ.read();
-    //
-    //             commonJ.close();
-    //
-    //             fs.writeFile(`${this.mapConfigsPath}/common.j`, commonJContent, (err) => {
-    //                 if (err) throw err;
-    //                 info(`extracting Scripts\\common.j from MPQ file to '${this.mapConfigsPath}/common.j'`);
-    //             });
-    //         }
-    //
-    //         // blizzard.j
-    //         const blizzardJ = archive.openFile("Scripts\\blizzard.j");
-    //
-    //         if (blizzardJ) {
-    //             const blizzardJContent = commonJ.read();
-    //
-    //             blizzardJ.close();
-    //
-    //             fs.writeFile(`${this.mapConfigsPath}/blizzard.j`, blizzardJContent, (err) => {
-    //                 if (err) throw err;
-    //                 info(`extracting Scripts\\blizzard.j from MPQ file to '${this.mapConfigsPath}/blizzard.j'`);
-    //             });
-    //         }
-    //     }
-    // }
+    protected extractScripts() {
+        // const mpq = require('mech-mpq');
+        const MPQ = require('blizzardry/lib/mpq');
+
+        const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
+
+        console.log('patchPath', patchPath);
+
+        MPQ.open(patchPath, (mpq) => {
+            info(`loading MPQ file '${patchPath}'`);
+
+            // common.j
+            const commonJPath = 'Scripts\\common.j';
+            if (mpq.files.contains(commonJPath)) {
+                mpq.files.extract(commonJPath, `${this.mapConfigsPath}/common.j`);
+
+                info(`extracting Scripts\\common.j from MPQ file to '${this.mapConfigsPath}/common.j'`);
+            }
+
+            // blizzard.j
+            const blizzardJPath = 'Scripts\\blizzard.j';
+            if (mpq.files.contains(blizzardJPath)) {
+                mpq.files.extract(blizzardJPath, `${this.mapConfigsPath}/blizzard.j`);
+
+                info(`extracting Scripts\\blizzard.j from MPQ file to '${this.mapConfigsPath}/blizzard.j'`);
+            }
+        });
+    }
 
     onMessage = (...args) => {
         debug('Bot', 'message', ...args);
@@ -153,15 +151,33 @@ export class GHost extends Bot {
         this.TFT = config.item('tft', 1);
         this.hostPort = config.item('bot.hostport', 6112);
         this.defaultMapName = config.item('bot.defaultmap', 'map');
-        this.mapConfigsPath = config.item('bot.mapcfgpath', './maps');
-        this.war3Path = config.item('bot.war3path', 'war3');
+        this.mapConfigsPath = this.toAbsolutePath(config.item('bot.mapcfgpath', './maps'));
+        this.war3Path = this.toAbsolutePath(config.item('bot.war3path', 'war3'));
 
         this.haveAdminGame = config.item('admingame.create', false);
         this.adminGamePort = config.item('admingame.port', 6114);
         this.adminGamePassword = config.item('admingame.password', '');
-        this.adminGameMapName = config.item('admingame.map', 'map');
+        this.adminGameMapName = config.item('admingame.map', 'adminMap');
 
         this.lanWar3Version = config.item('bot.war3version', "26");
+    }
+
+    protected adminGameSetup() {
+        if (this.haveAdminGame) {
+            info('configure admin game');
+
+            this.adminMap = new Map(this, this.getMapPath(this.adminGameMapName));
+
+            this.adminGame = new AdminGame(
+                this,
+                this.adminMap,
+                null,
+                this.adminGamePort,
+                0,
+                'Admin Game',
+                'JiLiZART'
+            );
+        }
     }
 
     queueBNetsChatCommand(command: string) {

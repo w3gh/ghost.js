@@ -13,7 +13,7 @@ export class AdminGame extends BaseGame {
                 public ownerName: string,
                 public creatorName = 'JiLiZART',
                 public creatorServer: string = '') {
-        super(ghost, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer);
+        super(ghost, 1, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer);
 
         this.virtualHostName = '|cFFC04040Admin';
     }
