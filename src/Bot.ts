@@ -1,4 +1,5 @@
 import * as EventEmitter from 'events';
+import * as path from 'path'
 import {Config} from './Config';
 import {createLoggerFor} from './Logger';
 import {Plugin} from './Plugin';
@@ -39,23 +40,33 @@ export class Bot extends EventEmitter {
             this.emit('update', this);
 
             if (this.exitingNice) {
-                info('exiting');
-                this.emit('exit', this);
-                clearInterval(this.intervalID);
-                process.exit(0);
+                this.exit()
             }
         }, UPDATE_INTERVAL);
 
         process.on('SIGINT', function () {
             info('caught interrupt signal');
-            this.exitingNice = true;
+            this.exit()
         });
 
         process.on('SIGTERM', function () {
             info('process exiting');
-            this.exitingNice = true;
+            this.exit()
         });
 
         return this;
+    }
+
+    exit() {
+        this.exitingNice = true;
+        clearInterval(this.intervalID);
+        info('exiting');
+        this.emit('update', this);
+        this.emit('exit', this);
+        process.exit(0);
+    }
+
+    toAbsolutePath(src) {
+        return path.resolve(path.join(process.cwd(), src))
     }
 }

@@ -7,10 +7,11 @@ export class Config {
         if (!configPath) return null;
 
         if (typeof configPath === 'string') {
-            this.data = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            const file = fs.readFileSync(configPath, 'utf-8');
+            this.data = JSON.parse(file);
+        } else {
+            this.data = Object.assign({}, configPath);
         }
-
-        this.data = Object.assign({}, configPath);
     }
 
     /**

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "binary": "^0.3.0",
+    "blizzardry": "^0.5.0",
     "bufferpack": "^0.0.6",
     "bunyan": "^1.8.1",
     "chalk": "^1.1.3",
