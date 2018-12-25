@@ -4,13 +4,13 @@ import {EventEmitter} from 'events';
 import {GameProtocol} from './GameProtocol';
 import {Map} from './Map';
 import {GamePlayer} from './GamePlayer';
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {PotentialPlayer} from "./PotentialPlayer";
 import {GameSlot} from "./GameSlot";
 import {GHost} from "../GHost";
 import {getTicks} from "../util";
 
-const {debug, info, error} = create('BaseGame');
+const {debug, info, error} = createLoggerFor('BaseGame');
 
 const GAME_REHOST_INTERVAL = 5000;
 
@@ -27,13 +27,13 @@ export class BaseGame extends EventEmitter {
     private creationTime: number = getTicks();
     private exiting: boolean = false;
     private saving: boolean = false;
-    private hostCounter: number;
     private virtualHostPID: number = 255;
     protected virtualHostName: string = 'Map';
 
     private fakePlayerPID: number = 255;
 
     constructor(public ghost: GHost,
+                private hostCounter: number,
                 public map: Map,
                 public saveGame = null,
                 public hostPort: number,
@@ -46,7 +46,6 @@ export class BaseGame extends EventEmitter {
 
         this.slots = this.map.slots;
 
-        this.hostCounter = ghost.hostCounter++;
         this.lastGameName = gameName;
 
         this.socketServerSetup(hostPort);

@@ -13,6 +13,8 @@ import {BNetConnection} from "../../bnet/BNetConnection";
 // white
 // gray
 
+const stringReverse = (s) => s.split('').reverse().join('');
+
 module.exports = function (Plugin: PluginInterface) {
     return class Chat extends Plugin {
         /**
@@ -20,8 +22,8 @@ module.exports = function (Plugin: PluginInterface) {
          */
         onBNetInit(bnet: BNetConnection) {
             bnet
-                .on('SID_CHATEVENT', this.SID_CHATEVENT.bind(this))
-                .on('chatCommand', this.chatCommand.bind(this));
+                .on('SID_CHATEVENT', this.ON_SID_CHATEVENT)
+                .on('chatCommand', this.chatCommand);
         }
 
         /**
@@ -30,22 +32,22 @@ module.exports = function (Plugin: PluginInterface) {
          * @param {IncomingChatEvent} event
          * @constructor
          */
-        SID_CHATEVENT(bnet: BNetConnection, event: IncomingChatEvent) {
+        ON_SID_CHATEVENT = (bnet: BNetConnection, event: IncomingChatEvent) => {
             if (this.config.consolePrint) {
                 this.print(bnet.alias, event);
             }
-        }
+        };
 
         /**
          *
          * @param {BNetConnection} bnet
          * @param {string} command
          */
-        chatCommand(bnet: BNetConnection, command: string) {
+        chatCommand = (bnet: BNetConnection, command: string) => {
             if (this.config.consolePrint) {
                 console.log(chalk.blue(`BNET[${bnet.alias}] `) + command)
             }
-        }
+        };
 
         /**
          *
@@ -53,23 +55,24 @@ module.exports = function (Plugin: PluginInterface) {
          * @param {IncomingChatEvent} event
          */
         print(BNetAlias: string, event: IncomingChatEvent) {
-            const bnet = chalk.blue(`BNET[${BNetAlias}] `);
+            const alias = chalk.blue(`BNET[${BNetAlias}] `);
+            const user = chalk.yellow(event.user);
             let message = '';
 
             if (event.isError())
-                message = bnet + chalk.red(event.message);
+                message = alias + chalk.red(event.message);
             if (event.isInfo())
-                message = bnet + chalk.blue(event.message);
+                message = alias + chalk.blue(event.message);
             if (event.isWhisper())
-                message = bnet + chalk.magenta(`[${event.user}] ${event.message}`);
+                message = alias + chalk.magenta(`[${event.user}] ${event.message}`);
             if (event.isEmote())
-                message = bnet + chalk.yellow(event.user) + ' ' + chalk.gray(event.message);
+                message = alias + user + ' ' + chalk.gray(event.message);
             if (event.isTalk())
-                message = bnet + chalk.yellow(event.user) + ' ' + event.message;
+                message = alias + user + ' ' + event.message;
             if (event.isShowUser())
-                message = bnet + chalk.yellow(event.user) + ' ' + event.message;
+                message = alias + user + ' SHOW USER ' + stringReverse(event.message);
             if (event.isUserFlags())
-                message = bnet + chalk.yellow(event.user) + ' ' + event.message;
+                message = alias + user+ ' FLAGS ' + stringReverse(event.message);
 
             message && console.log(message);
         }

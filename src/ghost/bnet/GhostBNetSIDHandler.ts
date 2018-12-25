@@ -8,10 +8,10 @@ import {IIncomingFriend} from "../../bnet/IIncomingFriend";
 import {IBNetSIDHandler} from "../../bnet/IBNetSIDHandler";
 import {BNetConnection} from "../../bnet/BNetConnection";
 import {IBNetProtocol} from "../../bnet/IBNetProtocol";
-import {create} from "../../Logger";
+import {createLoggerFor} from "../../Logger";
 import {BNCSUtil} from '../../BNCSUtil';
 
-const {debug, info, error} = create('BNet_SID_Handler');
+const {debug, info, error} = createLoggerFor('BNet_SID_Handler');
 
 export class GhostBNetSIDHandler implements IBNetSIDHandler {
     [BNetSID.SID_PING](bnet: BNetConnection, protocol: IBNetProtocol, d) {

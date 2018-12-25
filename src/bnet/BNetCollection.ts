@@ -1,15 +1,16 @@
 
 import {BNetConnection} from "./BNetConnection";
 import {Config} from "../Config";
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {IBNetSIDReceiver} from "./IBNetSIDReceiver";
 import {IBNetSIDHandler} from "./IBNetSIDHandler";
+import {IBNet} from "./IBNet";
 
-const {debug, info, error} = create('BNetCollection');
+const {debug, info, error} = createLoggerFor('BNetCollection');
 
 const MAX_CONNECTIONS = 32;
 
-export class BNetCollection {
+export class BNetCollection implements IBNet {
     private bnets: BNetConnection[] = [];
 
     constructor(config: Config, TFT: number, hostPort: number, packetHandler: IBNetSIDHandler, packetReceiver: IBNetSIDReceiver) {
@@ -43,12 +44,40 @@ export class BNetCollection {
         this.bnets = []
     }
 
+    private execAll(cb: (bnet: IBNet) => void) {
+        this.bnets.forEach(cb)
+    }
+
+    sendJoinChannel(channel: string) {
+        this.execAll(bn => bn.sendJoinChannel(channel))
+    }
+
+    sendGetFriendsList() {
+        this.execAll(bn => bn.sendGetFriendsList())
+    }
+
+    sendGetClanList() {
+        this.execAll(bn => bn.sendGetClanList())
+    }
+
+    queueEnterChat() {
+        this.execAll(bn => bn.queueEnterChat())
+    }
+
+    queueWhisperCommand(username: string, command: string) {
+        this.execAll(bn => bn .queueWhisperCommand(username, command))
+    }
+
+    queueJoinGame(gameName: string) {
+        this.execAll(bn => bn.queueJoinGame(gameName))
+    }
+
     queueChatCommand(command: string) {
-        this.bnets.forEach((bn) => bn.queueChatCommand(command))
+        this.execAll(bn => bn.queueChatCommand(command))
     }
 
     queueGetGameList(gameName = '', numGames = 1) {
-        this.bnets.forEach((bn) => bn.queueGetGameList(gameName, numGames))
+        this.execAll(bn => bn.queueGetGameList(gameName, numGames))
     }
 
     update() {

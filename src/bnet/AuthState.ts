@@ -1,11 +1,11 @@
 import {ByteExtractString, ByteExtractUInt32, ValidateLength} from "../Bytes";
 import * as assert from "assert";
 import {BNetConnection} from "./BNetConnection";
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {BNetKR} from "./BNetKR";
 import {BNCSUtil} from "../BNCSUtil";
 
-const {debug, info, error} = create('AuthState');
+const {debug, info, error} = createLoggerFor('AuthState');
 
 /*
  0x000: Passed challenge

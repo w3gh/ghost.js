@@ -3,11 +3,11 @@ import {localIP, getTimezone} from '../util';
 import {ValidateLength, ByteUInt32, ByteString, ByteExtractString, ByteExtractUInt32, ByteArray} from '../Bytes';
 import {Protocol} from '../Protocol';
 
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {BNetConnection} from "./BNetConnection";
 import {BNetSID} from "./BNetSID";
 
-const {debug, info, error} = create('BNetProtocol');
+const {debug, info, error} = createLoggerFor('BNetProtocol');
 
 export enum BNetFriendStatus {
     // Bitfield

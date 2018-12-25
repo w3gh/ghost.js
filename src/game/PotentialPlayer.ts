@@ -7,10 +7,10 @@ import {GameProtocol} from './GameProtocol';
 import {CommandPacket} from '../CommandPacket';
 import {Protocol} from '../Protocol';
 
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {BaseGame} from "./BaseGame";
 
-const {debug, info, error} = create('GamePlayer');
+const {debug, info, error} = createLoggerFor('GamePlayer');
 
 /**
  * Potential connecting player

@@ -5,10 +5,10 @@ import {Map} from './game/Map';
 import {Bot} from './Bot';
 import {BNetConnection} from './bnet/BNetConnection';
 import {GameProtocol} from './game/GameProtocol';
-import {create} from './Logger';
+import {createLoggerFor} from './Logger';
 import {GHost} from "./GHost";
 
-const {debug, info, error} = create('GProxy');
+const {debug, info, error} = createLoggerFor('GProxy');
 
 export class GProxy extends GHost {
     static version = 'Public Alpha 1.0 (Tue Sep 06 2016)';
@@ -43,7 +43,7 @@ export class GProxy extends GHost {
         this.totalPacketsReceivedFromLocal = 0;
         this.totalPacketsReceivedFromRemote = 0;
 
-        this.exiting = false;
+        this.exitingNice = false;
 
         // this.TFT = this.cfg.item('tft', 1);
         // this.war3Path = this.cfg.item('war3path', false);

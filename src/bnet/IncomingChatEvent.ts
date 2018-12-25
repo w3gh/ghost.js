@@ -31,73 +31,58 @@ export class IncomingChatEvent {
      * @constructor
      */
     idType() {
-        switch (this.id) {
-            case BNetChatEventID.EID_SHOWUSER:
-                return 'SHOWUSER';
-            case BNetChatEventID.EID_JOIN:
-                return 'JOIN';
-            case BNetChatEventID.EID_LEAVE:
-                return 'LEAVE';
-            case BNetChatEventID.EID_WHISPER:
-                return 'WHISPER';
-            case BNetChatEventID.EID_TALK:
-                return 'TALK';
-            case BNetChatEventID.EID_BROADCAST:
-                return 'BROADCAST';
-            case BNetChatEventID.EID_CHANNEL:
-                return 'CHANNEL';
-            case BNetChatEventID.EID_USERFLAGS:
-                return 'USERFLAGS';
-            case BNetChatEventID.EID_WHISPERSENT:
-                return 'WHISPERSENT';
-            case BNetChatEventID.EID_CHANNELFULL:
-                return 'CHANNELFULL';
-            case BNetChatEventID.EID_CHANNELDOESNOTEXIST:
-                return 'CHANNELDOESNOTEXIST';
-            case BNetChatEventID.EID_CHANNELRESTRICTED:
-                return 'CHANNELRESTRICTED';
-            case BNetChatEventID.EID_INFO:
-                return 'INFO';
-            case BNetChatEventID.EID_ERROR:
-                return 'ERROR';
-            case BNetChatEventID.EID_EMOTE:
-                return 'EMOTE';
-        }
+        return {
+            [BNetChatEventID.EID_SHOWUSER]: 'SHOWUSER',
+            [BNetChatEventID.EID_JOIN]: 'JOIN',
+            [BNetChatEventID.EID_LEAVE]: 'LEAVE',
+            [BNetChatEventID.EID_WHISPER]: 'WHISPER',
+            [BNetChatEventID.EID_TALK]: 'TALK',
+            [BNetChatEventID.EID_BROADCAST]: 'BROADCAST',
+            [BNetChatEventID.EID_CHANNEL]: 'CHANNEL',
+            [BNetChatEventID.EID_USERFLAGS]: 'USERFLAGS',
+            [BNetChatEventID.EID_WHISPERSENT]: 'WHISPERSENT',
+            [BNetChatEventID.EID_CHANNELFULL]: 'CHANNELFULL',
+            [BNetChatEventID.EID_CHANNELDOESNOTEXIST]: 'CHANNELDOESNOTEXIST',
+            [BNetChatEventID.EID_CHANNELRESTRICTED]: 'CHANNELRESTRICTED',
+            [BNetChatEventID.EID_INFO]: 'INFO',
+            [BNetChatEventID.EID_ERROR]: 'ERROR',
+            [BNetChatEventID.EID_EMOTE]: 'EMOTE',
+        }[this.id];
     }
 
     isUserFlags(): boolean {
-        return this.idType() === 'USERFLAGS';
+        return this.id === BNetChatEventID.EID_USERFLAGS;
     }
 
     isShowUser(): boolean {
-        return this.idType() === 'SHOWUSER';
+        return this.id === BNetChatEventID.EID_SHOWUSER;
     }
 
     isJoin(): boolean {
-        return this.idType() === 'JOIN';
+        return this.id === BNetChatEventID.EID_JOIN;
     }
 
     isLeave(): boolean {
-        return this.idType() === 'LEAVE';
+        return this.id === BNetChatEventID.EID_LEAVE;
     }
 
     isWhisper(): boolean {
-        return this.idType() === 'WHISPER';
+        return this.id === BNetChatEventID.EID_WHISPER;
     }
 
     isTalk(): boolean {
-        return this.idType() === 'TALK';
+        return this.id === BNetChatEventID.EID_TALK;
     }
 
     isError(): boolean {
-        return this.idType() === 'ERROR';
+        return this.id === BNetChatEventID.EID_ERROR;
     }
 
     isInfo(): boolean {
-        return this.idType() === 'INFO';
+        return this.id === BNetChatEventID.EID_INFO;
     }
 
     isEmote(): boolean {
-        return this.idType() === 'EMOTE';
+        return this.id === BNetChatEventID.EID_EMOTE;
     }
 }

@@ -5,19 +5,18 @@ import {AdminGame} from './game/AdminGame';
 import {Map} from './game/Map';
 import {Game} from './game/Game';
 import {Bot} from './Bot';
-import {create} from './Logger';
+import {createLoggerFor} from './Logger';
 import {CRC32} from './CRC32';
 import {BNetCollection} from "./bnet/BNetCollection";
 import {GhostBNetSIDHandler} from "./ghost/bnet/GhostBNetSIDHandler";
 import {GhostBNetSIDReceiver} from "./ghost/bnet/GhostBNetSIDReceiver";
-import {IBNetSIDHandler} from "./bnet/IBNetSIDHandler";
+import {Config} from "./Config";
 
-const {debug, info, error} = create('GHost');
+const {debug, info, error} = createLoggerFor('GHost');
 
 export class GHost extends Bot {
     private currentGame?: Game = null;
     private adminGame?: AdminGame = null;
-    private exitingNice: boolean = false;
     private bnetExiting: boolean = false;
     private adminExiting: boolean = false;
     public hostCounter: number = 1;
@@ -35,12 +34,12 @@ export class GHost extends Bot {
     private adminGamePassword: string;
     private adminGameMapName: string;
     public lanWar3Version: string;
-    private adminMap: Map;
+    // private adminMap: Map;
 
     public CRC = new CRC32();
     private bnet: BNetCollection;
 
-    constructor(cfg) {
+    constructor(cfg: Config) {
         super(cfg);
 
         this.configure();
@@ -50,9 +49,9 @@ export class GHost extends Bot {
         // this.extractScripts();
         this.udpSocketSetup();
 
-        setTimeout(() => {
-            this.adminGameSetup();
-        }, 5000); //host admin game after 5 seconds, so all mpq scripts are extracted
+        // setTimeout(() => {
+        //     this.adminGameSetup();
+        // }, 5000); //host admin game after 5 seconds, so all mpq scripts are extracted
 
         setTimeout(() => {
             this.bnet.queueGetGameList('', 20)
@@ -71,18 +70,6 @@ export class GHost extends Bot {
                 this.bnet.destroy();
             }
 
-            if (this.currentGame) {
-                info('deleting current game in preparation for exiting nicely');
-                this.currentGame.close();
-                this.currentGame = null;
-            }
-
-            if (this.adminGame) {
-                info('deleting admin game in preparation for exiting nicely');
-                this.adminGame.close();
-                this.adminGame = null;
-            }
-
             if (!this.games.length) {
                 //@TODO handle games and child processes
             }
@@ -92,13 +79,6 @@ export class GHost extends Bot {
             this.bnetExiting = true;
         }
 
-        if (this.adminGame) {
-            if (this.adminGame.update()) {
-                info('deleting admin game');
-                this.adminGame = null;
-                this.adminExiting = true;
-            }
-        }
     };
 
     getMapPath(filename) {
@@ -113,42 +93,43 @@ export class GHost extends Bot {
         //this.udpSocket.setBroadcast(true);
     }
 
-    protected extractScripts() {
-        const mpq = require('mech-mpq');
-        const fs = require('fs');
-        const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
-        const archive = mpq.openArchive(patchPath);
-
-        if (archive) {
-            info(`loading MPQ file '${patchPath}'`);
-
-            // common.j
-            const commonJ = archive.openFile("Scripts\\common.j");
-            if (commonJ) {
-                const commonJContent = commonJ.read();
-
-                commonJ.close();
-
-                fs.writeFile(`${this.mapConfigsPath}/common.j`, commonJContent, (err) => {
-                    if (err) throw err;
-                    info(`extracting Scripts\\common.j from MPQ file to '${this.mapConfigsPath}/common.j'`);
-                });
-            }
-
-            // blizzard.j
-            const blizzardJ = archive.openFile("Scripts\\blizzard.j");
-            if (blizzardJ) {
-                const blizzardJContent = commonJ.read();
-
-                blizzardJ.close();
-
-                fs.writeFile(`${this.mapConfigsPath}/blizzard.j`, blizzardJContent, (err) => {
-                    if (err) throw err;
-                    info(`extracting Scripts\\blizzard.j from MPQ file to '${this.mapConfigsPath}/blizzard.j'`);
-                });
-            }
-        }
-    }
+    // protected extractScripts() {
+    //     const mpq = require('mech-mpq');
+    //     const fs = require('fs');
+    //     const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
+    //     const archive = mpq.openArchive(patchPath);
+    //
+    //     if (archive) {
+    //         info(`loading MPQ file '${patchPath}'`);
+    //
+    //         // common.j
+    //         const commonJ = archive.openFile("Scripts\\common.j");
+    //         if (commonJ) {
+    //             const commonJContent = commonJ.read();
+    //
+    //             commonJ.close();
+    //
+    //             fs.writeFile(`${this.mapConfigsPath}/common.j`, commonJContent, (err) => {
+    //                 if (err) throw err;
+    //                 info(`extracting Scripts\\common.j from MPQ file to '${this.mapConfigsPath}/common.j'`);
+    //             });
+    //         }
+    //
+    //         // blizzard.j
+    //         const blizzardJ = archive.openFile("Scripts\\blizzard.j");
+    //
+    //         if (blizzardJ) {
+    //             const blizzardJContent = commonJ.read();
+    //
+    //             blizzardJ.close();
+    //
+    //             fs.writeFile(`${this.mapConfigsPath}/blizzard.j`, blizzardJContent, (err) => {
+    //                 if (err) throw err;
+    //                 info(`extracting Scripts\\blizzard.j from MPQ file to '${this.mapConfigsPath}/blizzard.j'`);
+    //             });
+    //         }
+    //     }
+    // }
 
     onMessage = (...args) => {
         debug('Bot', 'message', ...args);
@@ -175,29 +156,12 @@ export class GHost extends Bot {
         this.mapConfigsPath = config.item('bot.mapcfgpath', './maps');
         this.war3Path = config.item('bot.war3path', 'war3');
 
-        this.haveAdminGame = this.cfg.item('admingame.create', false);
-        this.adminGamePort = this.cfg.item('admingame.port', 6114);
-        this.adminGamePassword = this.cfg.item('admingame.password', '');
-        this.adminGameMapName = this.cfg.item('admingame.map', 'map');
+        this.haveAdminGame = config.item('admingame.create', false);
+        this.adminGamePort = config.item('admingame.port', 6114);
+        this.adminGamePassword = config.item('admingame.password', '');
+        this.adminGameMapName = config.item('admingame.map', 'map');
 
-        this.lanWar3Version = this.cfg.item('bot.war3version', "26");
-    }
-
-    protected adminGameSetup() {
-        if (this.haveAdminGame) {
-            info('configure admin game');
-
-            this.adminMap = new Map(this, this.getMapPath(this.adminGameMapName));
-
-            this.adminGame = new AdminGame(
-                this,
-                this.adminMap, null,
-                this.adminGamePort,
-                0,
-                'Admin Game',
-                'JiLiZART'
-            );
-        }
+        this.lanWar3Version = config.item('bot.war3version', "26");
     }
 
     queueBNetsChatCommand(command: string) {

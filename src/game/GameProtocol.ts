@@ -6,10 +6,10 @@ import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 import {GameSlot} from './GameSlot';
 import * as bp from 'bufferpack';
 import {getTicks, getTime} from '../util';
-import {create, hex} from '../Logger';
+import {createLoggerFor, hex} from '../Logger';
 import {Game} from "./Game";
 
-const {debug, info, error} = create('GameProtocol');
+const {debug, info, error} = createLoggerFor('GameProtocol');
 
 export class GameProtocol extends Protocol {
 
