@@ -1,4 +1,6 @@
-
+import crc32 = require('fast-crc32c');
+import CC32 = require('crc-32');
+import {ByteExtractUInt32, ByteInt32} from "./Bytes";
 /*
 #include "crc32.h"
 
@@ -45,7 +47,6 @@ void CCRC32 :: PartialCRC( uint32_t *ulInCRC, unsigned char *sData, uint32_t ulL
 */
 
 export class CRC32 {
-
     ulTable = new Uint32Array(256);
 
     CRC32_POLYNOMIAL = 0x04c11db7;
@@ -80,20 +81,25 @@ export class CRC32 {
         return ulValue;
     }
 
-    fullCRC(sData, ulLength: number) {
+    fullCRC(sData: Buffer, ulLength: number) {
         let ulCRC = 0xFFFFFFFF;
 
         ulCRC = this.partialCRC(ulCRC, sData, ulLength);
 
-        return ulCRC ^ 0xFFFFFFFF;
+        const uints = new Uint32Array([ulCRC ^ 0xFFFFFFFF]);
+
+        return uints[0]
     }
 
-    partialCRC(ulInCRC: number, sData, ulLength) {
+    partialCRC(ulInCRC: number, sData: Uint8Array, ulLength: number) {
         let ulTable = this.ulTable;
+        let initCRC = ulInCRC;
 
-        while (ulLength--)
-            ulInCRC = ( ulInCRC >> 8 ) ^ ulTable[( ulInCRC & 0xFF ) ^ sData++];
+        for (let index = 0; index < ulLength; index++) {
+            const byte = sData[index];
+            initCRC = ulTable[(initCRC ^ byte) & 0xff] ^ initCRC >>> 8;
+        }
 
-        return ulInCRC
+        return initCRC
     }
 }
