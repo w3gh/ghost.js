@@ -174,5 +174,14 @@ export function ByteHeader(buffer: Buffer): Number {
  * @returns {string}
  */
 export function ByteDecodeToString(buffer: any): string {
-    return Buffer.isBuffer(buffer) ? JSON.stringify(buffer.toJSON().data) : buffer.toString();
+    return Buffer.isBuffer(buffer) ? buffer.toJSON().data.join(' ') : buffer.toString();
+}
+
+export function ByteToArrayBuffer(buf: Buffer) {
+    const ab = new ArrayBuffer(buf.length);
+    const view = new Uint8Array(ab);
+    for (let i = 0; i < buf.length; ++i) {
+        view[i] = buf[i];
+    }
+    return ab;
 }
