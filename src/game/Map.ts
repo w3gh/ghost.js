@@ -226,9 +226,9 @@ export class Map {
                     mapSize = ByteUInt32(mapFile.length);
                     info(`calculated map_size = ${ByteDecodeToString(mapSize)}`);
 
-                    const crc = this.ghost.CRC.fullCRC(mapFile.toString(), mapFile.length);
+                    const crc = this.ghost.CRC.fullCRC(mapFile, mapFile.length);
 
-                    mapInfo = ByteUInt32(Math.abs(crc));
+                    mapInfo = ByteUInt32(crc);
                     info(`calculated map_info = ${ByteDecodeToString(mapInfo)}`);
 
                     const crypto = require('crypto'),
@@ -258,7 +258,7 @@ export class Map {
                                 info(`overriding default common.j with map copy while calculating map_crc/sha1`);
                                 overrodeCommonJ = true;
 
-                                val = val ^ this.XORRotateLeft(mapCommonJ, mapCommonJ.length);
+                                val = val ^ this.XORRotateLeft(mapCommonJ, mapCommonJ.byteLength());
                                 SHA1.update(mapCommonJ);
                             }
 
