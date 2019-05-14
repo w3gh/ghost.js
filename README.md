@@ -1,5 +1,5 @@
 # GHost.js
-Ghost++ — is a Warcraft III game hosting bot. As the original project https://github.com/w3gh/ghost, 
+Ghost++ — is a Warcraft III game hosting bot. As the original project https://github.com/w3gh/ghostplusplus based on https://github.com/w3gh/ghost, 
 
 This version is a try to port ghost++ to js
 
