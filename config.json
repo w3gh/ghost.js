@@ -1,7 +1,7 @@
 {
   "bnet": [
     {
-      "enabled": false,
+      "enabled": true,
       "server": "server.eurobattle.net",
       "alias": "eurobattle.net",
       "username": "jilizart",
@@ -28,7 +28,7 @@
       }
     },
     {
-      "enabled": false,
+      "enabled": true,
       "server": "rubattle.net",
       "alias": "rubattle.net",
       "username": "JELEZORT",
@@ -80,7 +80,7 @@
       }
     },
     {
-      "enabled": false,
+      "enabled": true,
       "server": "server.pvpgn.pro",
       "alias": "pvpgn.pro 1",
       "username": "jilizart",

@@ -185,3 +185,23 @@ export function ByteToArrayBuffer(buf: Buffer) {
     }
     return ab;
 }
+
+export function StringToUint8(str: string): Uint8Array {
+    const array = new Uint8Array(str.length);
+
+    for (let i = 0; i < str.length; i++) {
+        array[i] = str.charCodeAt(i);
+    }
+
+    return array
+}
+
+export function ArrayToString(nums: number[]) : string {
+    let str = '';
+
+    for (let i = 0; i < nums.length; i++) {
+        str += String.fromCharCode(nums[i]);
+    }
+
+    return str
+}
