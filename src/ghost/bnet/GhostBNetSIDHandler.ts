@@ -10,11 +10,12 @@ import {BNetConnection} from "../../bnet/BNetConnection";
 import {IBNetProtocol} from "../../bnet/IBNetProtocol";
 import {createLoggerFor} from "../../Logger";
 import {BNCSUtil} from '../../BNCSUtil';
+import {IBNetConnection} from "../../bnet/IBNetConnection";
 
 const {debug, info, error} = createLoggerFor('BNet_SID_Handler');
 
 export class GhostBNetSIDHandler implements IBNetSIDHandler {
-    [BNetSID.SID_PING](bnet: BNetConnection, protocol: IBNetProtocol, d) {
+    [BNetSID.SID_PING](bnet: IBNetConnection, protocol: IBNetProtocol, d) {
         debug('HANDLE_SID_PING', d);
         bnet.emit('SID_PING', bnet, d);
         bnet.sendPackets(protocol.SEND_SID_PING(d));
@@ -28,7 +29,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         return;
     }
 
-    [BNetSID.SID_AUTH_INFO](bnet: BNetConnection, protocol: IBNetProtocol, authInfo: IAuthInfo) {
+    [BNetSID.SID_AUTH_INFO](bnet: IBNetConnection, protocol: IBNetProtocol, authInfo: IAuthInfo) {
         debug('HANDLE_SID_AUTH_INFO');
 
         const {

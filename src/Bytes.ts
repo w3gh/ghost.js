@@ -157,7 +157,7 @@ export function BytesExtract(text: string, count: number): Buffer {
         throw 'invalid length bytes given ' + bytes.length + ', expected ' + count;
     }
 
-    return Buffer.from(bytes);
+    return Buffer.from(bytes.map(Number));
 }
 
 /**
