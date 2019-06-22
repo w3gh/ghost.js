@@ -1,7 +1,7 @@
-import {PluginInterface} from '../../Plugin';
+import {IPlugin} from '../../Plugin';
 import * as chalk from 'chalk';
 import {IncomingChatEvent} from "../../bnet/IncomingChatEvent";
-import {BNetConnection} from "../../bnet/BNetConnection";
+import {IBNetConnection} from "../../bnet/IBNetConnection";
 
 // black
 // red
@@ -15,12 +15,12 @@ import {BNetConnection} from "../../bnet/BNetConnection";
 
 const stringReverse = (s) => s.split('').reverse().join('');
 
-module.exports = function (Plugin: PluginInterface) {
+module.exports = function (Plugin: IPlugin) {
     return class Chat extends Plugin {
         /**
-         * @param {BNetConnection} bnet
+         * @param {IBNetConnection} bnet
          */
-        onBNetInit(bnet: BNetConnection) {
+        onBNetInit(bnet: IBNetConnection) {
             bnet
                 .on('SID_CHATEVENT', this.ON_SID_CHATEVENT)
                 .on('chatCommand', this.chatCommand);
@@ -28,11 +28,11 @@ module.exports = function (Plugin: PluginInterface) {
 
         /**
          *
-         * @param {BNetConnection} bnet
+         * @param {IBNetConnection} bnet
          * @param {IncomingChatEvent} event
          * @constructor
          */
-        ON_SID_CHATEVENT = (bnet: BNetConnection, event: IncomingChatEvent) => {
+        ON_SID_CHATEVENT = (bnet: IBNetConnection, event: IncomingChatEvent) => {
             if (this.config.consolePrint) {
                 this.print(bnet.alias, event);
             }
@@ -40,10 +40,10 @@ module.exports = function (Plugin: PluginInterface) {
 
         /**
          *
-         * @param {BNetConnection} bnet
+         * @param {IBNetConnection} bnet
          * @param {string} command
          */
-        chatCommand = (bnet: BNetConnection, command: string) => {
+        chatCommand = (bnet: IBNetConnection, command: string) => {
             if (this.config.consolePrint) {
                 console.log(chalk.blue(`BNET[${bnet.alias}] `) + command)
             }

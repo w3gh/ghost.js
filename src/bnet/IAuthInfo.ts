@@ -1,5 +1,5 @@
-import {BNetConnection} from "./BNetConnection";
+import {IBNetConnection} from "./IBNetConnection";
 
 export interface IAuthInfo {
-    handle(bnet: BNetConnection): any;
+    handle(bnet: IBNetConnection): any;
 }

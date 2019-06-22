@@ -5,7 +5,7 @@ import {IAccountLogonProof} from "./IAccountLogonProof";
 import {IIncomingChatEvent} from "./IIncomingChatEvent";
 import {IIncomingFriend} from "./IIncomingFriend";
 import {ICommand} from "./ICommand";
+import {BNetSID} from "./BNetSID";
 
 export interface IBNetSIDHandler {
-
 }

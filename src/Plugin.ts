@@ -4,14 +4,12 @@ import {createLoggerFor} from './Logger';
 
 const {debug, info, error} = createLoggerFor('Plugin');
 
-interface LoadedPlugins {
-    [name: string]: Plugin;
+export interface IPlugin {
+    new (config: any);
 }
 
-export interface PluginInterface {
-    config: any;
-
-    new(config: any): PluginInterface
+interface LoadedPlugins {
+    [name: string]: Plugin;
 }
 
 export interface PluginDefinition {

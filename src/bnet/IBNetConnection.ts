@@ -1,5 +1,9 @@
 
 export interface IBNetConnection {
+    TFT: number;
+    username: string;
+    clientToken: Buffer;
+    alias: string;
 
     connect();
 
