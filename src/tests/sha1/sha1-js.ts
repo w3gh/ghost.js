@@ -9,11 +9,11 @@ function main() {
     if (argv.length > 2) {
         // const m_SHA1 = crypto.createHash('sha1');
         const m_SHA1 = new SHA1();
-        m_SHA1.reset();
+        // m_SHA1.reset();
 
         if (fs.existsSync(argv[2])) {
             const m_MapData = fs.readFileSync(argv[2]);
-            m_SHA1.update(m_MapData.toString());
+            m_SHA1.update(m_MapData);
 
             const MapSHA1 = m_SHA1.digest();
             console.log(ByteDecodeToString(MapSHA1));
