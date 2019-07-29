@@ -11,6 +11,7 @@ import {BNetCollection} from "./bnet/BNetCollection";
 import {GhostBNetSIDHandler} from "./ghost/bnet/GhostBNetSIDHandler";
 import {GhostBNetSIDReceiver} from "./ghost/bnet/GhostBNetSIDReceiver";
 import {Config} from "./Config";
+import {SHA1} from "./SHA1";
 
 const {debug, info, error} = createLoggerFor('GHost');
 
@@ -37,6 +38,7 @@ export class GHost extends Bot {
     private adminMap: Map;
 
     public CRC = new CRC32();
+    public SHA1 = new SHA1();
     private bnet: BNetCollection;
 
     constructor(cfg: Config) {
@@ -105,8 +107,6 @@ export class GHost extends Bot {
         const MPQ = require('blizzardry/lib/mpq');
 
         const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
-
-        console.log('patchPath', patchPath);
 
         MPQ.open(patchPath, (mpq) => {
             info(`loading MPQ file '${patchPath}'`);
