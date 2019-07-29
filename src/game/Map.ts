@@ -226,16 +226,16 @@ export class Map {
                     mapSize = ByteUInt32(mapFile.length);
                     info(`calculated map_size = ${ByteDecodeToString(mapSize)}`);
 
-                    const crc = this.ghost.CRC.fullCRC(mapFile, mapFile.length);
+                    const crc = this.ghost.CRC.fullCRC(mapFile);
 
                     mapInfo = ByteUInt32(crc);
                     info(`calculated map_info = ${ByteDecodeToString(mapInfo)}`);
 
-                    const crypto = require('crypto'),
-                        SHA1 = crypto.createHash('sha1');
-
+                    const {SHA1} = this.ghost;
                     const commonJPath = path.join(this.ghost.mapConfigsPath, 'common.j');
                     const commonJ = fs.readFileSync(commonJPath);
+
+                    SHA1.reset();
 
                     if (!commonJ.length) {
                         info(`unable to calculate map_crc/sha1 - unable to read file '${commonJPath}'`)

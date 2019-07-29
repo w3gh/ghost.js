@@ -16,7 +16,7 @@ export class SHA1 {
     protected _hash;
 
     constructor() {
-        this._hash = crypto.createHash('sha1')
+        this.reset();
     }
 
     update(str: any) {
@@ -25,5 +25,9 @@ export class SHA1 {
 
     digest() {
         return Buffer.from(this._hash.digest('hex'), "hex")
+    }
+
+    reset() {
+        this._hash = crypto.createHash('sha1')
     }
 }

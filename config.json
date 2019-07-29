@@ -1,7 +1,7 @@
 {
   "bnet": [
     {
-      "enabled": true,
+      "enabled": false,
       "server": "server.eurobattle.net",
       "alias": "eurobattle.net",
       "username": "jilizart",
@@ -28,7 +28,7 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "server": "rubattle.net",
       "alias": "rubattle.net",
       "username": "JELEZORT",
