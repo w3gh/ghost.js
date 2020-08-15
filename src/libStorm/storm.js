@@ -1,5 +1,5 @@
 // libbncsutil
-import ref from 'ref';
+import ref from 'ref-napi';
 import bp from 'bufferpack';
 import os from 'os';
 

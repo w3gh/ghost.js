@@ -1,10 +1,13 @@
 // libbncsutil
-import * as ref from 'ref';
+import * as ref from 'ref-napi';
 import * as bp from 'bufferpack';
 import * as os from 'os';
 
 import * as lib from './libbncsutil/libbncsutil';
 import {ByteArray} from './Bytes';
+import {createLoggerFor} from "./Logger";
+
+const {debug, info, error} = createLoggerFor('BNCSUtil');
 
 export interface BNCSExeInfo {
     length: number,
@@ -222,6 +225,10 @@ export class BNCSUtil {
     static createClientPublicKey(username, password) {
         let nls = BNCSUtil.nls_init(username, password);
 
-        return BNCSUtil.nls_get_A(nls);
+        const buff = BNCSUtil.nls_get_A(nls);
+
+        info('createClientPublicKey', buff.toString('hex'));
+
+        return buff
     }
 }

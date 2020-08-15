@@ -57,7 +57,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         debug('HANDLE_SID_AUTH_CHECK');
 
         if (auth.isValid()) {
-            let clientPublicKey = auth.createClientPublicKey(bnet);
+            const clientPublicKey = auth.createClientPublicKey(bnet);
 
             info(`[${bnet.alias}] cd keys accepted`);
 
@@ -139,7 +139,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         bnet.sendPackets(protocol.SEND_SID_JOINCHANNEL(bnet.firstChannel));
     }
 
-    [BNetSID.SID_CHATEVENT](bnet: BNetConnection, protocol: IBNetProtocol, e: IIncomingChatEvent) {
+    [BNetSID.SID_CHATEVENT](bnet: IBNetConnection, protocol: IBNetProtocol, e: IIncomingChatEvent) {
         debug('HANDLE_SID_CHATEVENT', e.idType(), e.user, e.message);
 
         bnet.emit('SID_CHATEVENT', bnet, e);

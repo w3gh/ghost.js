@@ -23,7 +23,7 @@ export interface IBNetProtocol {
 
     SEND_SID_AUTH_CHECK(tft, clientToken, exeVersion, exeVersionHash, keyInfoRoc, keyInfoTft, exeInfo, keyOwnerName)
 
-    SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey, accountName)
+    SEND_SID_AUTH_ACCOUNTLOGON(clientPublicKey: Buffer, accountName: string)
 
     SEND_SID_AUTH_ACCOUNTLOGONPROOF(M1)
 

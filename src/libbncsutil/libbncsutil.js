@@ -1,6 +1,6 @@
 var FFI = require('ffi-napi'),
     Struct = require('ref-struct'),
-    ref = require('ref'),
+    ref = require('ref-napi'),
     path = require('path');
 
 var voidPtr = ref.refType(ref.types.void);

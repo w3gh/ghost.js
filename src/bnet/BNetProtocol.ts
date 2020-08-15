@@ -6,6 +6,7 @@ import {Protocol} from '../Protocol';
 import {createLoggerFor, hex} from '../Logger';
 import {BNetConnection} from "./BNetConnection";
 import {BNetSID} from "./BNetSID";
+import {IBNetProtocol} from "./IBNetProtocol";
 
 const {debug, info, error} = createLoggerFor('BNetProtocol');
 
@@ -37,7 +38,7 @@ export enum BNetClanRank {
 export const BNET_HEADER_CONSTANT = 0xff;
 export const BNET_INITIALIZE_SELECTOR = 0x01;
 
-export class BNetProtocol extends Protocol {
+export class BNetProtocol extends Protocol implements IBNetProtocol {
     NULL = [0]; // '\x00';
     NULL_2 = [0, 0]; // '\x00\x00';
     NULL_3 = [0, 0, 0]; // '\x00\x00\x00';
