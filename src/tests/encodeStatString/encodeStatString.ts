@@ -5,7 +5,8 @@ import {
     ByteToArrayBuffer,
     BytesExtract,
     ByteArray,
-    encodeStatString
+    encodeStatString,
+    ByteString
 } from "../../Bytes";
 
 /*
@@ -36,8 +37,8 @@ const mapFlags = ByteUInt32(GameFlags);
 const mapWidth = BytesExtract("172 0", 2);
 const mapHeight = BytesExtract("172 0", 2);
 const mapCRC = BytesExtract("108 250 204 59", 4);
-const mapPath = "Maps\\FrozenThrone\\(12)EmeraldGardens.w3x";
-const hostName = "JiLiZART";
+const mapPath = ByteString("Maps\\FrozenThrone\\(12)EmeraldGardens.w3x");
+const hostName = ByteString("JiLiZART");
 
 const statArray = [
     mapFlags,

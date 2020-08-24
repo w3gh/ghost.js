@@ -2,7 +2,7 @@
 
 // import hex from 'hex';
 import * as net from 'net';
-import {ByteHeader} from './../Bytes';
+import {ByteHeader, GetLength} from '../Bytes';
 import {GameProtocol} from './GameProtocol';
 import {CommandPacket} from '../CommandPacket';
 import {Protocol} from '../Protocol';
@@ -10,7 +10,7 @@ import {Protocol} from '../Protocol';
 import {createLoggerFor, hex} from '../Logger';
 import {BaseGame} from "./BaseGame";
 
-const {debug, info, error} = createLoggerFor('GamePlayer');
+const {debug, info, error} = createLoggerFor('PotentialPlayer');
 
 /**
  * Potential connecting player
@@ -21,8 +21,9 @@ const {debug, info, error} = createLoggerFor('GamePlayer');
  */
 export class PotentialPlayer extends Protocol {
     private deleteMe: boolean = false;
-    private packets: CommandPacket[] = [];
     private incomingJoinPlayer;
+    private incomingPackets: CommandPacket[] = [];
+    private incomingBuffer: Buffer = Buffer.from('');
 
     constructor(public protocol: GameProtocol, public game: BaseGame, public socket: net.Socket) {
         super();
@@ -33,7 +34,7 @@ export class PotentialPlayer extends Protocol {
     /**
      * @param {Buffer} buffer
      */
-    send(buffer) {
+    send(buffer: Buffer) {
         this.socket.write(buffer);
     }
 
@@ -50,39 +51,41 @@ export class PotentialPlayer extends Protocol {
     }
 
     onLookup() {
-        info('PotentialPlayer lookup', arguments);
+        info('lookup', arguments);
     }
 
     onConnect() {
-        info('PotentialPlayer connect', arguments);
+        info('connect', arguments);
     }
 
     onData(buffer) {
-        info('PotentialPlayer data');
+        info('data');
         hex(buffer);
 
-        this.extractPackets(buffer);
+        this.incomingBuffer = Buffer.concat([this.incomingBuffer, buffer]);
+
+        this.extractPackets();
         this.processPackets();
     }
 
     onEnd() {
-        info('PotentialPlayer end');
+        info('end');
     }
 
     onTimeout() {
-        info('PotentialPlayer timeout', arguments);
+        info('timeout', arguments);
     }
 
     onDrain() {
-        info('PotentialPlayer drain', arguments);
+        info('drain', arguments);
     }
 
     onError() {
-        info('PotentialPlayer error', arguments);
+        info('error', arguments);
     }
 
     onClose() {
-        info('PotentialPlayer close', arguments);
+        info('close', arguments);
     }
 
     setDeleteMe(value) {
@@ -90,43 +93,113 @@ export class PotentialPlayer extends Protocol {
     }
 
     getExternalIP() {
-        var zeros = [0, 0, 0, 0];
+        return this.socket.address().toString()
     }
 
     getInternalIP() {
 
     }
 
-    getLength(buffer: Buffer) {
-        return 0;
-    }
+    extractPackets() {
+        /*
+        000000   F7 1E 2E 00 01 00 00 00 00 00 00 00 00 E0 17 01   ÷............à..
+        000010   00 00 00 4A 45 4C 45 5A 4F 52 54 00 01 00 02 00   ...JELEZORT.....
+        000020   17 E0 C0 A8 01 68 00 00 00 00 00 00 00 00         .àÀ¨.h........
+         */
 
-    extractPackets(buffer) {
-        var len = this.getLength(buffer);
-
-        if (ByteHeader(buffer) !== Number(this.protocol.W3GS_HEADER_CONSTANT)) {
-            info('error - received invalid packet from player (bad header constant)');
-            this.socket.end();
+        if (!this.socket) {
+            return
         }
 
-        if (len < 4) {
-            info('error - received invalid packet from player (bad length)');
-            this.socket.end();
-        }
+        let lengthProcessed = 0;
 
-        if (buffer.length >= len) {
-            this.packets.push(new CommandPacket(buffer[0], buffer[1], buffer));
-            this.buffer = buffer.slice(len);
+        // a packet is at least 4 bytes so loop as long as the buffer contains 4 bytes
+        while (this.incomingBuffer.length >= 4) {
+            const buffer = this.incomingBuffer;
+
+            if (!this.protocol.haveHeader(buffer)) {
+                error('received invalid packet from player (bad header constant), disconnecting');
+                return;
+            }
+
+            const bytesLength = GetLength(buffer);
+
+            if (bytesLength < 4) {
+                error('received invalid packet from player (bad length)');
+                return;
+            }
+
+            if (buffer.length >= bytesLength) {
+                this.incomingPackets.push(
+                    new CommandPacket(buffer[0], buffer[1], buffer.slice(0, bytesLength))
+                );
+
+                this.incomingBuffer = buffer.slice(bytesLength);
+
+                lengthProcessed += bytesLength
+            } else { // still waiting for rest of the packet
+                error("received invalid packet from player (bad length)");
+                return;
+            }
         }
     }
 
     processPackets() {
-        var packet;
+        let packet;
 
-        while (this.packets.length) {
-            packet = this.packets.pop();
+        /*
+if( !m_Socket )
+		return;
+
+	// process all the received packets in the m_Packets queue
+
+	while( !m_Packets.empty( ) )
+	{
+		CCommandPacket *Packet = m_Packets.front( );
+		m_Packets.pop( );
+
+		if( Packet->GetPacketType( ) == W3GS_HEADER_CONSTANT )
+		{
+			// the only packet we care about as a potential player is W3GS_REQJOIN, ignore everything else
+
+			switch( Packet->GetID( ) )
+			{
+			case CGameProtocol :: W3GS_REQJOIN:
+				delete m_IncomingJoinPlayer;
+				m_IncomingJoinPlayer = m_Protocol->RECEIVE_W3GS_REQJOIN( Packet->GetData( ) );
+
+				if( m_IncomingJoinPlayer )
+					m_Game->EventPlayerJoined( this, m_IncomingJoinPlayer );
+
+				// don't continue looping because there may be more packets waiting and this parent class doesn't handle them
+				// EventPlayerJoined creates the new player, NULLs the socket, and sets the delete flag on this object so it'll be deleted shortly
+				// any unprocessed packets will be copied to the new CGamePlayer in the constructor or discarded if we get deleted because the game is full
+
+				delete Packet;
+				return;
+			}
+		}
+
+		delete Packet;
+	}
+         */
+
+        while (this.incomingPackets.length) {
+            const packet = this.incomingPackets.pop();
 
             if (packet.type === this.protocol.W3GS_HEADER_CONSTANT) {
+                // const receiver = this.packetReceiver[packet.id], // this.protocol.receivers[packet.id],
+                //     handler = this.packetHandler[packet.id]; // this.handlers[packet.id];
+                //
+                // if (!handler || !receiver) {
+                //     (!handler) && error(`handler for packet '${packet.id}' not found`);
+                //     (!receiver) && error(`receiver for packet '${packet.id}' not found`);
+                //
+                //     continue;
+                // }
+                //
+                // handler && receiver && handler(this, this.protocol, receiver(packet.buffer));
+
                 switch (packet.id) {
                     case this.protocol.W3GS_REQJOIN:
                         this.incomingJoinPlayer = null;
@@ -143,5 +216,21 @@ export class PotentialPlayer extends Protocol {
                 }
             }
         }
+    }
+
+    update() {
+        if (this.deleteMe)
+            return true;
+
+        if (!this.socket)
+            return false;
+
+        return this.deleteMe
+    }
+
+    disconnect() {
+        info(`disconnecting`);
+        this.socket.end();
+        this.socket.destroy();
     }
 }

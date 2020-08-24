@@ -8,6 +8,7 @@ import * as bp from 'bufferpack';
 import {getTicks, getTime} from '../util';
 import {createLoggerFor, hex} from '../Logger';
 import {Game} from "./Game";
+import {BNET_HEADER_CONSTANT} from "../bnet/BNetProtocol";
 
 const {debug, info, error} = createLoggerFor('GameProtocol');
 
@@ -102,6 +103,15 @@ export class GameProtocol extends Protocol {
             id,
             ...args
         );
+    }
+
+    /**
+     * Checks if given buffer a BNet Packet
+     * @param {Buffer} buffer
+     * @returns {Boolean}
+     */
+    haveHeader(buffer: Buffer) {
+        return buffer[0] === this.W3GS_HEADER_CONSTANT
     }
 
     /**
@@ -233,49 +243,25 @@ export class GameProtocol extends Protocol {
     SEND_W3GS_SEARCHGAME() {
     }
 
-    SEND_W3GS_GAMEINFO(TFT,
-                       war3Version,
-                       mapGameType,
-                       mapFlags,
-                       mapWidth,
-                       mapHeight,
-                       gameName,
-                       hostName,
-                       upTime,
-                       mapPath,
-                       mapCRC,
-                       slotsTotal,
-                       slotsOpen,
-                       port,
-                       hostCounter) {
-
-        /**
-        // 1.27b
-        0000   f7 30 97 00 50 58 33 57 1b 00 00 00 ba 02 00 00  .0..PX3W........
-        0010   ba 02 00 00 7c 63 46 46 34 30 38 30 43 30 53 45  ....|cFF4080C0SE
-        0020   4e 44 20 54 48 45 20 55 4e 44 45 41 44 20 42 41  ND THE UNDEAD BA
-        0030   43 4b 20 00 00 81 03 49 07 01 01 c1 07 e5 c1 07  CK ....I........
-        0040   f7 09 53 a1 4d cb 61 71 73 5d 45 6f 77 19 6f 6d  ..S.M.aqs]Eow.om
-        0050   6f 61 65 5d 49 27 61 75 6f 75 65 65 21 3d 49 6f  oae]I'auouee!=Io
-        0060   75 73 65 21 77 6f 31 31 35 2f 77 33 79 85 01 45  use!wo115/w3y..E
-        0070   6f 75 2f 49 6f eb 73 75 69 6f 67 31 31 01 01 01  ou/Io.suiog11...
-        0080   00 0c 00 00 00 01 00 00 00 01 00 00 00 0c 00 00  ................
-        0090   00 2b 00 00 00 ed 17                             .+.....
-
-		 */
-
-        /**
-         // 1.27b by ghost.js
-         000000   F7 30 86 00 50 58 33 57 1B 00 00 00 01 00 00 00   ÷0..PX3W........
-         000010   00 00 00 00 47 68 6F 73 74 2E 6A 73 20 41 64 6D   ....Ghost.js Adm
-         000020   69 6E 20 47 61 6D 65 00 01 01 01 01 01 01 AD 01   in Game.......­.
-         000030   C1 AD 01 6D FB CD 3B 4D 8B 61 71 73 5D 47 73 6F   Á­.mûÍ;M.aqs]Gso
-         000040   85 7B 65 6F 55 69 73 6F A5 6F 65 5D 29 31 33 29   .{eoUiso¥oe])13)
-        000050   2F 45 6D 65 73 61 6D 65 A7 47 61 73 65 65 6F 73   /Emesame§Gaseeos
-        000060   4D 2F 77 33 79 4B 69 4D 0B 69 5B 41 53 55 01 00   M/w3yKiM.i[ASU..
-        000070   0C 00 00 00 01 00 00 00 01 00 00 00 0C 00 00 00   ................
-        000080   04 62 00 00 E0 17                                 .b..à.
-         */
+    SEND_W3GS_GAMEINFO(
+        TFT: boolean,
+        war3Version: string,
+        mapGameType: Buffer,
+        mapFlags: Buffer,
+        mapWidth: Buffer,
+        mapHeight: Buffer,
+        gameName: string,
+        hostName: string,
+        upTime: number,
+        mapPath: string,
+        mapCRC: Buffer,
+        slotsTotal: number,
+        slotsOpen: number,
+        port: number,
+        hostCounter: number
+    ) {
+        const ProductID_ROC = [51, 82, 65, 87];	// "WAR3"
+        const ProductID_TFT = [80, 88, 51, 87];	// "W3XP"
 
         if (mapGameType.length !== 4) {
             throw 'map game type length invalid, 4 expected';
@@ -298,30 +284,29 @@ export class GameProtocol extends Protocol {
         }
 
         if (gameName && hostName && mapPath) {
-            var statArray = [
+            const statArray = [
                 mapFlags,
                 0, //filled in encodeStatString
                 mapWidth,
                 mapHeight,
                 mapCRC,
-                mapPath,
-                hostName,
+                ByteString(mapPath),
+                ByteString(hostName),
                 0 //filled in encodeStatString
             ];
 
-            console.log('statArray', statArray, mapFlags.toJSON());
-            var statBuffer = this.encodeStatString(ByteArray(statArray));
+            const statBuffer = encodeStatString(ByteArray(statArray));
 
-            var buffer = this.asPacket(
+            const buffer = this.asPacket(
                 this.W3GS_GAMEINFO,
-                TFT ? this.PRODUCT_TFT : this.PRODUCT_ROC,
+                TFT ? ProductID_TFT : ProductID_ROC,
                 [Number(war3Version), 0, 0, 0],
                 ByteUInt32(hostCounter),
-                [0, 0, 0, 0], //game pass
-                gameName,
-                0,
+                ByteUInt32(0), // EntryKey
+                ByteString(gameName),
+                0, // password ?
                 statBuffer,
-                0,
+                0, // Stat String null terminator (the stat string is encoded to remove all even numbers i.e. zeros)
                 ByteUInt32(slotsTotal),
                 mapGameType,
                 [1, 0, 0, 0], //unknown2
@@ -330,10 +315,8 @@ export class GameProtocol extends Protocol {
                 ByteUInt16(port)
             );
 
-            hex(buffer);
-
             if (buffer.length > 166) {
-                debug('erro bytes to big', buffer.length);
+                error('erro bytes to big', buffer.length);
             }
 
             return buffer;
@@ -365,31 +348,18 @@ export class GameProtocol extends Protocol {
         // 2 bytes					-> InternalPort (???)
         // 4 bytes					-> InternalIP
 
-        //log('RECEIVE_W3GS_REQJOIN', buffer.length, ValidateLength(buffer));
+        debug('RECEIVE_W3GS_REQJOIN');
         hex(buffer);
 
         if (ValidateLength(buffer) && buffer.length >= 20) {
-            var hostCounter = bp.unpack('<I', buffer, 4)[0];
-            var entryKey = bp.unpack('<I', buffer, 8)[0];
-            var name = bp.unpack('<S', buffer, 19)[0];
+            const hostCounter = bp.unpack('<I', buffer, 4)[0];
+            const entryKey = bp.unpack('<I', buffer, 8)[0];
+            const name = bp.unpack('<S', buffer, 19)[0];
 
             if (name.length && buffer.length >= name.length + 30) {
-                var internalIPBuffer = buffer.slice(26 + name.length, 30 + name.length);
+                const internalIPBuffer = buffer.slice(name.length + 26, name.length + 30);
                 return new IncomingJoinPlayer(hostCounter, entryKey, name, internalIPBuffer);
             }
-
-            /**
-             uint32_t HostCounter = UTIL_ByteArrayToUInt32( data, false, 4 );
-             uint32_t EntryKey = UTIL_ByteArrayToUInt32( data, false, 8 );
-             BYTEARRAY Name = UTIL_ExtractCString( data, 19 );
-
-             if( !Name.empty( ) && data.size( ) >= Name.size( ) + 30 )
-             {
-                BYTEARRAY InternalIP = BYTEARRAY( data.begin( ) + Name.size( ) + 26, data.begin( ) + Name.size( ) + 30 );
-                return new CIncomingJoinPlayer( HostCounter, EntryKey, string( Name.begin( ), Name.end( ) ), InternalIP );
-            }
-             */
-
         }
     }
 
@@ -398,30 +368,38 @@ export class GameProtocol extends Protocol {
         // 2 bytes					-> Length
         // 4 bytes					-> Reason
 
-
+        debug('RECEIVE_W3GS_LEAVEGAME');
     }
 
     RECEIVE_W3GS_GAMELOADED_SELF() {
+        debug('RECEIVE_W3GS_GAMELOADED_SELF');
     }
 
     RECEIVE_W3GS_OUTGOING_ACTION() {
+        debug('RECEIVE_W3GS_OUTGOING_ACTION');
     }
 
     RECEIVE_W3GS_OUTGOING_KEEPALIVE() {
+        debug('RECEIVE_W3GS_OUTGOING_KEEPALIVE');
     }
 
     RECEIVE_W3GS_CHAT_TO_HOST() {
+        debug('RECEIVE_W3GS_CHAT_TO_HOST');
     }
 
     RECEIVE_W3GS_SEARCHGAME() {
+        debug('RECEIVE_W3GS_SEARCHGAME');
     }
 
     RECEIVE_W3GS_MAPSIZE() {
+        debug('RECEIVE_W3GS_MAPSIZE');
     }
 
     RECEIVE_W3GS_MAPPARTOK() {
+        debug('RECEIVE_W3GS_MAPPARTOK');
     }
 
     RECEIVE_W3GS_PONG_TO_HOST() {
+        debug('RECEIVE_W3GS_PONG_TO_HOST');
     }
 }
