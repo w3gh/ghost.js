@@ -12,6 +12,7 @@ export class Bot extends EventEmitter {
     cfg: Config;
     plugins: any = {};
     exitingNice: boolean = false;
+    exitingNow: boolean = false;
     intervalID: Timer;
 
     constructor(cfg) {
@@ -44,14 +45,18 @@ export class Bot extends EventEmitter {
             }
         }, UPDATE_INTERVAL);
 
-        process.on('SIGINT', function () {
-            info('caught interrupt signal');
-            this.exit()
+        process.on('SIGINT', () => {
+            if (!this.exitingNow) {
+                info('caught interrupt signal (SIGINT)');
+                this.exit()
+            }
         });
 
-        process.on('SIGTERM', function () {
-            info('process exiting');
-            this.exit()
+        process.on('SIGTERM', () => {
+            if (!this.exitingNow) {
+                info('process exiting (SIGTERM)');
+                this.exit()
+            }
         });
 
         return this;
@@ -59,11 +64,14 @@ export class Bot extends EventEmitter {
 
     exit() {
         this.exitingNice = true;
+        this.exitingNow = true;
         clearInterval(this.intervalID);
         info('exiting');
         this.emit('update', this);
         this.emit('exit', this);
-        process.exit(0);
+        setTimeout(() => {
+            process.exit(0);
+        }, 1000)
     }
 
     toAbsolutePath(src) {

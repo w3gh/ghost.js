@@ -1,6 +1,6 @@
 'use strict';
 
-import {ByteArray, ByteString, AssignLength, ValidateLength, ByteUInt32, ByteUInt16} from './../Bytes';
+import {ByteArray, ByteString, AssignLength, ValidateLength, ByteUInt32, ByteUInt16, encodeStatString} from './../Bytes';
 import {Protocol} from '../Protocol';
 import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 import {GameSlot} from './GameSlot';
@@ -13,16 +13,16 @@ const {debug, info, error} = createLoggerFor('GameProtocol');
 
 export class GameProtocol extends Protocol {
 
-    W3GS_HEADER_CONSTANT = '\xf7';
+    W3GS_HEADER_CONSTANT = 247;
 
-    GAME_NONE = '\x00';
-    GAME_FULL = '\x02';
+    GAME_NONE = 0;
+    GAME_FULL = 2;
 
-    GAME_PUBLIC = '\x10';
-    GAME_PRIVATE = '\x11';
+    GAME_PUBLIC = 16;
+    GAME_PRIVATE = 17;
 
-    GAMETYPE_CUSTOM = '\x01';
-    GAMETYPE_BLIZZARD = '\x09';
+    GAMETYPE_CUSTOM = 1;
+    GAMETYPE_BLIZZARD = 9;
 
     PLAYERLEAVE_DISCONNECT = 1;
     PLAYERLEAVE_LOST = 7;
@@ -155,25 +155,8 @@ export class GameProtocol extends Protocol {
      return Result;
      */
     encodeStatString(data: Buffer) {
-        var mask = 1, result = [];
-
-        for (var i = 0; i < data.length; ++i) {
-            if (data[i] % 2 == 0) {
-                result.push(data[i] + 1);
-            } else {
-                result.push(data[i]);
-                mask |= 1 << ( (i % 7) + 1 );
-            }
-
-            if (i % 7 == 6 || i == data.length - 1) {
-                result.splice(result.length - 1 - (i % 7), 0, mask);
-                mask = 1;
-            }
-        }
-
-        return Buffer.from(result);
+        return encodeStatString(data);
     }
-
 
     SEND_W3GS_PING_FROM_HOST() {
         return this.asPacket(
@@ -281,6 +264,19 @@ export class GameProtocol extends Protocol {
 
 		 */
 
+        /**
+         // 1.27b by ghost.js
+         000000   F7 30 86 00 50 58 33 57 1B 00 00 00 01 00 00 00   ÷0..PX3W........
+         000010   00 00 00 00 47 68 6F 73 74 2E 6A 73 20 41 64 6D   ....Ghost.js Adm
+         000020   69 6E 20 47 61 6D 65 00 01 01 01 01 01 01 AD 01   in Game.......­.
+         000030   C1 AD 01 6D FB CD 3B 4D 8B 61 71 73 5D 47 73 6F   Á­.mûÍ;M.aqs]Gso
+         000040   85 7B 65 6F 55 69 73 6F A5 6F 65 5D 29 31 33 29   .{eoUiso¥oe])13)
+        000050   2F 45 6D 65 73 61 6D 65 A7 47 61 73 65 65 6F 73   /Emesame§Gaseeos
+        000060   4D 2F 77 33 79 4B 69 4D 0B 69 5B 41 53 55 01 00   M/w3yKiM.i[ASU..
+        000070   0C 00 00 00 01 00 00 00 01 00 00 00 0C 00 00 00   ................
+        000080   04 62 00 00 E0 17                                 .b..à.
+         */
+
         if (mapGameType.length !== 4) {
             throw 'map game type length invalid, 4 expected';
         }
@@ -313,6 +309,7 @@ export class GameProtocol extends Protocol {
                 0 //filled in encodeStatString
             ];
 
+            console.log('statArray', statArray, mapFlags.toJSON());
             var statBuffer = this.encodeStatString(ByteArray(statArray));
 
             var buffer = this.asPacket(

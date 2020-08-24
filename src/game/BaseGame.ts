@@ -1,5 +1,5 @@
 import * as net from 'net';
-import {ByteUInt32} from './../Bytes';
+import {ByteUInt32} from '../Bytes';
 import {EventEmitter} from 'events';
 import {GameProtocol} from './GameProtocol';
 import {Map} from './Map';
@@ -220,10 +220,11 @@ export class BaseGame extends EventEmitter {
 
     update() {
         const interval = getTicks() - this.lastPingTime;
-        const socket = this.ghost.udpSocket;
+        const {udpSocket} = this.ghost;
         const fixedHostCounter = this.hostCounter & 0x0FFFFFFF;
 
         if (interval > GAME_REHOST_INTERVAL) { // refresh every 5 sec
+            // war3/1.27b/Maps/FrozenThrone/(12)EmeraldGardens.w3x
 
             if (!this.countDownStarted) {
                 const buffer = this.protocol.SEND_W3GS_GAMEINFO(
@@ -244,25 +245,45 @@ export class BaseGame extends EventEmitter {
                     fixedHostCounter
                 );
 
-                const errCallback = (err, bytes) => {
-                    if (err) throw err;
+                info('GAMEINFO', [
+                    this.ghost.TFT,
+                    this.ghost.lanWar3Version,
+                    ByteUInt32(Map.TYPE_UNKNOWN0),
+                    this.map.getGameFlags(),
+                    this.map.mapWidth,
+                    this.map.mapHeight,
+                    this.gameName,
+                    this.creatorName,
+                    getTicks() - this.creationTime,
+                    this.map.mapPath,
+                    this.map.mapCRC,
+                    12,
+                    12,
+                    this.hostPort,
+                    fixedHostCounter
+                ]);
 
-                    info('localhost', 6112, 'BaseGame bytes sent', bytes);
-                };
+                // const errCallback = (err, bytes) => {
+                //     info('send error', 6112, 'BaseGame bytes sent', bytes);
+                //
+                //     if (err) throw err;
+                // };
 
                 // this.ghost.networkInterfaces().forEach((iface) => {
                 // 	//this.udpSocket.addMembership(iface.address);
                 // 	socket.send(buffer, 0, buffer.length, 6112, iface.address, errCallback);
                 // });
 
-                socket.send(buffer, 6112, 'localhost', errCallback);
+                udpSocket.send(buffer, 6112);
             }
 
             this.lastPingTime = getTicks();
         }
+
+        return this.exiting;
     }
 
-    close() {
+    exit() {
         this.server.close();
     }
 }

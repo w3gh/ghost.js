@@ -1,4 +1,3 @@
-import * as bp from 'bufferpack';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -116,14 +115,43 @@ export class Map {
     }
 
     loadDefaultMap() {
+        /**
+         [AURA] extracting Scripts\common.j from MPQ file to [mapcfgs/common.j]
+         [AURA] extracting Scripts\blizzard.j from MPQ file to [mapcfgs/blizzard.j]
+         [CONFIG] loading file [mapcfgs/emerlands.cfg]
+         [MAP] loading MPQ file [maps/(12)EmeraldGardens.w3x]
+         [MAP] calculated map_size = 67 224 4 0
+         [MAP] calculated map_info = 147 79 155 253
+         [MAP] calculated map_crc = 108 250 204 59
+         [MAP] calculated map_sha1 = 35 81 104 182 223 63 204 215 1 17 87 234 220 66 3 185 82 99 6 13
+         [MAP] calculated map_options = 4
+         [MAP] calculated map_width = 172 0
+         [MAP] calculated map_height = 172 0
+         [MAP] calculated map_numplayers = 12
+         [MAP] calculated map_numteams = 1
+         [MAP] calculated map_slot1 = 0 255 0 0 0 0 1 1 100
+         [MAP] calculated map_slot2 = 0 255 0 0 0 1 2 1 100
+         [MAP] calculated map_slot3 = 0 255 0 0 0 2 8 1 100
+         [MAP] calculated map_slot4 = 0 255 0 0 0 3 4 1 100
+         [MAP] calculated map_slot5 = 0 255 0 0 0 4 1 1 100
+         [MAP] calculated map_slot6 = 0 255 0 0 0 5 2 1 100
+         [MAP] calculated map_slot7 = 0 255 0 0 0 6 8 1 100
+         [MAP] calculated map_slot8 = 0 255 0 0 0 7 4 1 100
+         [MAP] calculated map_slot9 = 0 255 0 0 0 8 1 1 100
+         [MAP] calculated map_slot10 = 0 255 0 0 0 9 2 1 100
+         [MAP] calculated map_slot11 = 0 255 0 0 0 10 8 1 100
+         [MAP] calculated map_slot12 = 0 255 0 0 0 11 4 1 100
+         [MAP] found melee map, initializing slots
+         [MAP] adding 12 observer slots
+         */
         this.valid = true;
         this.mapPath = 'Maps\\FrozenThrone\\(12)EmeraldGardens.w3x';
-        this.mapSize = BytesExtract('174 221 4 0', 4);
-        this.mapInfo = BytesExtract('251 57 68 98', 4);
+        this.mapSize = BytesExtract('67 224 4 0', 4);
+        this.mapInfo = BytesExtract('147 79 155 253', 4);
         this.mapCRC = BytesExtract('108 250 204 59', 4);
         this.mapSHA1 = BytesExtract('35 81 104 182 223 63 204 215 1 17 87 234 220 66 3 185 82 99 6 13', 20);
 
-        info('using hardcoded Emerald Gardens map data for Warcraft 3 version 1.24 & 1.24b');
+        info('using hardcoded Emerald Gardens map data for Warcraft 3 version 1.27 & 1.27b');
 
         this.speed = Map.SPEED_FAST;
         this.visibility = Map.VIS_DEFAULT;
@@ -322,11 +350,11 @@ export class Map {
 
                             !foundMapScript && info(`couldn't find war3map.j or scripts\\war3map.j in MPQ file, calculated map_crc/sha1 is probably wrong`);
 
-                            mapCRC = ByteUInt32(val);
-                            info(`calculated map_crc = ${ByteDecodeToString(mapCRC)}`);
-
-                            mapSHA1 = SHA1.digest();
-                            info(`calculated map_sha1 = ${ByteDecodeToString(mapSHA1)}`);
+                            // mapCRC = ByteUInt32(val);
+                            // info(`calculated map_crc = ${ByteDecodeToString(mapCRC)}`);
+                            //
+                            // mapSHA1 = SHA1.digest();
+                            // info(`calculated map_sha1 = ${ByteDecodeToString(mapSHA1)}`);
                         }
                     }
                 });
@@ -457,7 +485,7 @@ export class Map {
             this.gameFlags |= 0x04000000;
         }
 
-        return bp.pack('<I', this.gameFlags);
+        return ByteUInt32(this.gameFlags);
     }
 
     ROTL(x, n) {

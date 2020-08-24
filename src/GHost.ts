@@ -82,6 +82,15 @@ export class GHost extends Bot {
             this.bnetExiting = true;
         }
 
+        if (this.adminGame) {
+            if (this.adminGame.update()) {
+                info(' deleting admin game');
+                this.adminGame.exit();
+                delete this.adminGame;
+                this.adminExiting = true;
+            }
+        }
+
     };
 
     onExit = () => {
@@ -95,6 +104,9 @@ export class GHost extends Bot {
     };
 
     protected udpSocketSetup() {
+        this.udpSocket.bind(() => {
+            this.udpSocket.setBroadcast(true);
+        });
         this.udpSocket.on('listening', this.onListening);
         this.udpSocket.on('message', this.onMessage);
         this.udpSocket.on('error', this.onError);
@@ -157,9 +169,9 @@ export class GHost extends Bot {
         this.haveAdminGame = config.item('admingame.create', false);
         this.adminGamePort = config.item('admingame.port', 6114);
         this.adminGamePassword = config.item('admingame.password', '');
-        this.adminGameMapName = config.item('admingame.map', 'adminMap');
+        this.adminGameMapName = config.item('admingame.map', '');
 
-        this.lanWar3Version = config.item('bot.war3version', "26");
+        this.lanWar3Version = config.item('bot.war3version', "27");
     }
 
     protected adminGameSetup() {
@@ -174,7 +186,7 @@ export class GHost extends Bot {
                 null,
                 this.adminGamePort,
                 0,
-                'Admin Game',
+                'Ghost.js Admin Game',
                 'JiLiZART'
             );
         }

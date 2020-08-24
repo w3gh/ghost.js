@@ -205,3 +205,23 @@ export function ArrayToString(nums: number[]) : string {
 
     return str
 }
+
+export function encodeStatString(data: Buffer) {
+    var mask = 1, result = [];
+
+    for (var i = 0; i < data.length; ++i) {
+        if (data[i] % 2 == 0) {
+            result.push(data[i] + 1);
+        } else {
+            result.push(data[i]);
+            mask |= 1 << ( (i % 7) + 1 );
+        }
+
+        if (i % 7 == 6 || i == data.length - 1) {
+            result.splice(result.length - 1 - (i % 7), 0, mask);
+            mask = 1;
+        }
+    }
+
+    return Buffer.from(result);
+}
