@@ -145,74 +145,22 @@ export class PotentialPlayer extends Protocol {
     }
 
     processPackets() {
-        let packet;
-
-        /*
-if( !m_Socket )
-		return;
-
-	// process all the received packets in the m_Packets queue
-
-	while( !m_Packets.empty( ) )
-	{
-		CCommandPacket *Packet = m_Packets.front( );
-		m_Packets.pop( );
-
-		if( Packet->GetPacketType( ) == W3GS_HEADER_CONSTANT )
-		{
-			// the only packet we care about as a potential player is W3GS_REQJOIN, ignore everything else
-
-			switch( Packet->GetID( ) )
-			{
-			case CGameProtocol :: W3GS_REQJOIN:
-				delete m_IncomingJoinPlayer;
-				m_IncomingJoinPlayer = m_Protocol->RECEIVE_W3GS_REQJOIN( Packet->GetData( ) );
-
-				if( m_IncomingJoinPlayer )
-					m_Game->EventPlayerJoined( this, m_IncomingJoinPlayer );
-
-				// don't continue looping because there may be more packets waiting and this parent class doesn't handle them
-				// EventPlayerJoined creates the new player, NULLs the socket, and sets the delete flag on this object so it'll be deleted shortly
-				// any unprocessed packets will be copied to the new CGamePlayer in the constructor or discarded if we get deleted because the game is full
-
-				delete Packet;
-				return;
-			}
-		}
-
-		delete Packet;
-	}
-         */
-
         while (this.incomingPackets.length) {
             const packet = this.incomingPackets.pop();
 
             if (packet.type === this.protocol.W3GS_HEADER_CONSTANT) {
-                // const receiver = this.packetReceiver[packet.id], // this.protocol.receivers[packet.id],
-                //     handler = this.packetHandler[packet.id]; // this.handlers[packet.id];
-                //
-                // if (!handler || !receiver) {
-                //     (!handler) && error(`handler for packet '${packet.id}' not found`);
-                //     (!receiver) && error(`receiver for packet '${packet.id}' not found`);
-                //
-                //     continue;
-                // }
-                //
-                // handler && receiver && handler(this, this.protocol, receiver(packet.buffer));
+                if (packet.id === this.protocol.W3GS_REQJOIN) {
+                    this.incomingJoinPlayer = null;
+                    this.incomingJoinPlayer = this.protocol.RECEIVE_W3GS_REQJOIN(packet.buffer);
 
-                switch (packet.id) {
-                    case this.protocol.W3GS_REQJOIN:
-                        this.incomingJoinPlayer = null;
-                        this.incomingJoinPlayer = this.protocol.RECEIVE_W3GS_REQJOIN(packet.buffer);
+                    if (this.incomingJoinPlayer) {
+                        this.game.emit('player.joined', this, this.incomingJoinPlayer);
+                    }
 
-                        if (this.incomingJoinPlayer) {
-                            this.game.emit('player.joined', this, this.incomingJoinPlayer);
-                        }
-
-                        // don't continue looping because there may be more packets waiting and this parent class doesn't handle them
-                        // EventPlayerJoined creates the new player, NULLs the socket, and sets the delete flag on this object so it'll be deleted shortly
-                        // any unprocessed packets will be copied to the new CGamePlayer in the constructor or discarded if we get deleted because the game is full
-                        break;
+                    // don't continue looping because there may be more packets waiting and this parent class doesn't handle them
+                    // EventPlayerJoined creates the new player, NULLs the socket, and sets the delete flag on this object so it'll be deleted shortly
+                    // any unprocessed packets will be copied to the new CGamePlayer in the constructor or discarded if we get deleted because the game is full
+                    break;
                 }
             }
         }

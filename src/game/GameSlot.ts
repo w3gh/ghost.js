@@ -1,6 +1,6 @@
 'use strict';
 
-import {ByteArray} from './../Bytes';
+import {ByteArray} from '../Bytes';
 
 export class GameSlot {
     static STATUS_OPEN = 0;
@@ -18,13 +18,13 @@ export class GameSlot {
     static COMP_NORMAL = 1;
     static COMP_HARD = 2;
 
-    constructor(public PID,
-                public DownloadStatus,
-                public Status,
-                public Computer,
-                public Team,
-                public Color,
-                public Race,
+    constructor(public PID: number,
+                public DownloadStatus: number,
+                public Status: number,
+                public Computer: number,
+                public Team: number,
+                public Color: number,
+                public Race: number,
                 public ComputerType = 1,
                 public Handicap = 100) {
     }

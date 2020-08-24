@@ -80,14 +80,14 @@
       }
     },
     {
-      "enabled": true,
+      "enabled": false,
       "server": "server.pvpgn.pro",
       "alias": "pvpgn.pro 1",
       "username": "jilizart",
       "password": "jilizart",
       "firstchannel": "w3",
       "custom": {
-        "war3version": "26",
+        "war3version": "27",
         "passwordhashyype": "pvpgn"
       },
       "localeid": 1033,
@@ -139,6 +139,6 @@
   },
   "admingame": {
     "create": true,
-    "port": 6114
+    "port": 6112
   }
 }

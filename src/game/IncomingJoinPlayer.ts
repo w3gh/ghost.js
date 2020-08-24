@@ -19,6 +19,10 @@ export class IncomingJoinPlayer {
 		return this.name
 	}
 
+    getHostCounter() {
+	    return this.hostCounter
+    }
+
 	getIP() {
 		return this.internalIP.toJSON().data.join('.')
 	}
