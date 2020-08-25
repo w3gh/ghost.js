@@ -105,8 +105,8 @@ export class Map {
     private options: number;
     public mapWidth: Buffer;
     public mapHeight: Buffer;
-    private mapNumPlayer: number;
-    private mapNumTeams: number;
+    public mapNumPlayers: number;
+    public mapNumTeams: number;
 
     constructor(private ghost: GHost, path) {
         if (!this.load(path)) {
@@ -166,7 +166,7 @@ export class Map {
         this.mapWidth = BytesExtract('172 0', 2);
         this.mapHeight = BytesExtract('172 0', 2);
 
-        this.mapNumPlayer = 12;
+        this.mapNumPlayers = 12;
         this.mapNumTeams = 1;
 
         this.slots = [
@@ -217,7 +217,7 @@ export class Map {
         this.mapWidth = ByteArray(file.item('width', []));
         this.mapHeight = ByteArray(file.item('height', []));
 
-        this.mapNumPlayer = file.item('players', 0);
+        this.mapNumPlayers = file.item('players', 0);
         this.mapNumTeams = file.item('teams', 0);
 
         if (Array.isArray(file.item('slots'))) {
@@ -486,6 +486,29 @@ export class Map {
         }
 
         return ByteUInt32(this.gameFlags);
+    }
+
+    getLayoutStyle(): number {
+        // 0 = melee
+        // 1 = custom forces
+        // 2 = fixed player settings (not possible with the Warcraft III map editor)
+        // 3 = custom forces + fixed player settings
+
+        if (!(this.options & Map.OPT_CUSTOMFORCES))
+            return 0;
+
+        if (!(this.options & Map.OPT_FIXEDPLAYERSETTINGS))
+            return 1;
+
+        return 3;
+    }
+
+    getOptions() {
+       return this.options;
+    }
+
+    getFlags() {
+        return this.flags;
     }
 
     ROTL(x, n) {

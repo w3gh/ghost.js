@@ -17,10 +17,11 @@
     "bunyan": "^1.8.1",
     "chalk": "^1.1.3",
     "crc": "^3.8.0",
-    "debug": "^2.2.0",
+    "debug": "2.6.9",
     "ffi-napi": "^2.4.5",
     "hex": "^0.1.0",
     "ip": "^1.1.3",
+    "pino": "6.5.1",
     "ref-array": "^1.1.2",
     "ref-napi": "3.0.0",
     "ref-struct": "^1.1.0",
@@ -33,8 +34,8 @@
     "eslint-config-es": "^0.8.0",
     "eslint-plugin-extended": "^0.2.0",
     "eslint-plugin-mocha": "^4.5.1",
-    "ts-node": "^8.3.0",
-    "typescript": "^3.5.2"
+    "ts-node": "9.0.0",
+    "typescript": "4.0.2"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

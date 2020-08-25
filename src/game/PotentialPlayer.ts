@@ -2,28 +2,24 @@
 
 // import hex from 'hex';
 import * as net from 'net';
-import {ByteHeader, GetLength} from '../Bytes';
+import {GetLength} from '../Bytes';
 import {GameProtocol} from './GameProtocol';
 import {CommandPacket} from '../CommandPacket';
 import {Protocol} from '../Protocol';
 
 import {createLoggerFor, hex} from '../Logger';
 import {BaseGame} from "./BaseGame";
+import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 
 const {debug, info, error} = createLoggerFor('PotentialPlayer');
 
-/**
- * Potential connecting player
- * @param {GameProtocol} protocol
- * @param {BaseGame} game
- * @param {net.Socket} socket
- * @constructor
- */
 export class PotentialPlayer extends Protocol {
-    private deleteMe: boolean = false;
-    private incomingJoinPlayer;
-    private incomingPackets: CommandPacket[] = [];
-    private incomingBuffer: Buffer = Buffer.from('');
+    protected isError: string = null;
+    protected errorString: string = null;
+    protected isDeleteMe: boolean = false;
+    protected incomingJoinPlayer: IncomingJoinPlayer;
+    protected incomingPackets: CommandPacket[] = [];
+    protected incomingBuffer: Buffer = Buffer.from('');
 
     constructor(public protocol: GameProtocol, public game: BaseGame, public socket: net.Socket) {
         super();
@@ -31,34 +27,27 @@ export class PotentialPlayer extends Protocol {
         this.socketSetup();
     }
 
-    /**
-     * @param {Buffer} buffer
-     */
-    send(buffer: Buffer) {
-        this.socket.write(buffer);
-    }
-
     socketSetup() {
-        this.socket.on('lookup', this.onLookup.bind(this));
-        this.socket.on('connect', this.onConnect.bind(this));
-        this.socket.on('data', this.onData.bind(this));
-        this.socket.on('end', this.onEnd.bind(this));
-        this.socket.on('timeout', this.onTimeout.bind(this));
-        this.socket.on('drain', this.onDrain.bind(this));
-
-        this.socket.on('error', this.onError.bind(this));
-        this.socket.on('close', this.onClose.bind(this));
+        this.socket
+            .on('lookup', this.onLookup)
+            .on('connect', this.onConnect)
+            .on('data', this.onData)
+            .on('end', this.onEnd)
+            .on('timeout', this.onTimeout)
+            .on('drain', this.onDrain)
+            .on('error', this.onError)
+            .on('close', this.onClose);
     }
 
-    onLookup() {
-        info('lookup', arguments);
-    }
+    onLookup = (...args) => {
+        info('lookup', ...args);
+    };
 
-    onConnect() {
-        info('connect', arguments);
-    }
+    onConnect = (...args) => {
+        info('connect', ...args);
+    };
 
-    onData(buffer) {
+    onData = (buffer) => {
         info('data');
         hex(buffer);
 
@@ -66,38 +55,50 @@ export class PotentialPlayer extends Protocol {
 
         this.extractPackets();
         this.processPackets();
+    };
+
+    onEnd = (...args) => {
+        info('end', ...args);
+    };
+
+    onTimeout = (...args) => {
+        info('timeout', ...args);
+    };
+
+    onDrain = (...args) => {
+        info('drain', ...args);
+    };
+
+    onError = (...args) => {
+        info('error', ...args);
+    };
+
+    onClose = (...args) => {
+        info('close', ...args);
+    };
+
+    setDeleteMe(value: boolean) {
+        this.isDeleteMe = value;
+
+        return this
     }
 
-    onEnd() {
-        info('end');
-    }
+    setSocket(value: net.Socket | null) {
+        this.socket = value;
 
-    onTimeout() {
-        info('timeout', arguments);
-    }
-
-    onDrain() {
-        info('drain', arguments);
-    }
-
-    onError() {
-        info('error', arguments);
-    }
-
-    onClose() {
-        info('close', arguments);
-    }
-
-    setDeleteMe(value) {
-        this.deleteMe = value;
+        return this
     }
 
     getExternalIP() {
-        return this.socket.address().toString()
+        return this.socket.localAddress.replace('::ffff:', '')
     }
 
-    getInternalIP() {
+    getExternalPort() {
+        return this.socket.localPort
+    }
 
+    getJoinPlayer() {
+        return this.incomingJoinPlayer
     }
 
     extractPackets() {
@@ -154,7 +155,7 @@ export class PotentialPlayer extends Protocol {
                     this.incomingJoinPlayer = this.protocol.RECEIVE_W3GS_REQJOIN(packet.buffer);
 
                     if (this.incomingJoinPlayer) {
-                        this.game.emit('player.joined', this, this.incomingJoinPlayer);
+                        this.game.emit(BaseGame.EVENT_PLAYER_JOINED, this, this.incomingJoinPlayer);
                     }
 
                     // don't continue looping because there may be more packets waiting and this parent class doesn't handle them
@@ -167,13 +168,17 @@ export class PotentialPlayer extends Protocol {
     }
 
     update() {
-        if (this.deleteMe)
+        if (this.isDeleteMe)
             return true;
 
         if (!this.socket)
             return false;
 
-        return this.deleteMe
+        return this.isDeleteMe
+    }
+
+    send(buffer: Buffer) {
+        this.socket.write(buffer);
     }
 
     disconnect() {

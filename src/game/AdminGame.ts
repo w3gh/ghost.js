@@ -4,15 +4,15 @@ import {BaseGame} from './BaseGame';
 import {GHost} from "../GHost";
 
 export class AdminGame extends BaseGame {
-    constructor(public ghost: GHost,
+    constructor(ghost: GHost,
                 map,
-                public saveGame = null,
-                public hostPort: number,
-                public gameState: number,
-                public gameName: string,
-                public ownerName: string,
-                public creatorName = 'JiLiZART',
-                public creatorServer: string = '') {
+                saveGame = null,
+                hostPort: number,
+                gameState: number,
+                gameName: string,
+                ownerName: string,
+                creatorName = 'JiLiZART',
+                creatorServer: string = '') {
         super(ghost, 1, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer);
 
         this.virtualHostName = '|cFFC04040Admin';

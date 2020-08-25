@@ -1,9 +1,12 @@
+
+const startTime = Date.now();
+
 export function getTime() {
     return Math.floor(Date.now() / 1000);
 }
 
 export function getTicks() {
-    return Date.now();
+    return Date.now() - startTime;
 }
 
 export function getTimezone() {
@@ -40,4 +43,8 @@ export function networkInterfaces() {
 
 export function localIP() {
     return require('ip').address();
+}
+
+export function ipToBuffer(ip:string) {
+    return require('ip').toBuffer(ip);
 }

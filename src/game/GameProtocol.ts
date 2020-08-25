@@ -1,14 +1,13 @@
 'use strict';
 
-import {ByteArray, ByteString, AssignLength, ValidateLength, ByteUInt32, ByteUInt16, encodeStatString} from './../Bytes';
+import {ByteArray, ByteString, AssignLength, ValidateLength, ByteUInt32, ByteUInt16, encodeStatString} from '../Bytes';
 import {Protocol} from '../Protocol';
 import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 import {GameSlot} from './GameSlot';
 import * as bp from 'bufferpack';
-import {getTicks, getTime} from '../util';
+import {getTicks, getTime, ipToBuffer} from '../util';
 import {createLoggerFor, hex} from '../Logger';
 import {Game} from "./Game";
-import {BNET_HEADER_CONSTANT} from "../bnet/BNetProtocol";
 
 const {debug, info, error} = createLoggerFor('GameProtocol');
 
@@ -122,20 +121,14 @@ export class GameProtocol extends Protocol {
      * @param playerSlots
      * @returns {Buffer}
      */
-    encodeSlotInfo(slots, /*uint32*/ randomSeed: number, /*uchar*/layoutStyle: string, /*uchar*/playerSlots: string) {
-        var slotInfo = [
-            slots.length
-        ];
-
-        for (var i = 0; i < slots.length; ++i) {
-            slotInfo.push(slots[i].toBuffer());
-        }
-
-        slotInfo.push(ByteUInt32(randomSeed));
-        slotInfo.push(layoutStyle);
-        slotInfo.push(playerSlots);
-
-        return ByteArray(slotInfo);
+    encodeSlotInfo(slots: GameSlot[], /*uint32*/ randomSeed: number, /*uchar*/layoutStyle: number, /*uchar*/playerSlots: number) {
+        return ByteArray([
+            slots.length,
+            ...slots.map(slot => slot.toBuffer()),
+            ByteUInt32(randomSeed),
+            layoutStyle,
+            playerSlots
+        ]);
     }
 
     /**
@@ -175,26 +168,45 @@ export class GameProtocol extends Protocol {
         );
     }
 
-    SEND_W3GS_SLOTINFOJOIN(/*unsigned char*/ PID: string,
-                           /*BYTEARRAY*/ port: Buffer,
-                           /*BYTEARRAY*/ externalIP: Buffer,
-                           /*vector<CGameSlot> &*/slots: GameSlot[],
-                           /*uint32_t*/ randomSeed: number,
-                           /*unsigned char*/ layoutStyle: string,
-                           /*unsigned char*/ playerSlots: string) {
+    SEND_W3GS_SLOTINFOJOIN(
+        /*unsigned char*/ PID: number,
+        /*BYTEARRAY*/ port: number,
+        /*BYTEARRAY*/ externalIP: string,
+        /*vector<CGameSlot> &*/slots: GameSlot[],
+        /*uint32_t*/ randomSeed: number,
+        /*unsigned char*/ layoutStyle: number,
+        /*unsigned char*/ playerSlots: number
+    ) {
 
         const zeros = this.NULL_4;
         const slotInfo = this.encodeSlotInfo(slots, randomSeed, layoutStyle, playerSlots);
 
-        if (port.length === 2 && externalIP.length === 4) {
+        const portBuffer = ByteUInt16(port);
+        const ipBuffer = ipToBuffer(externalIP);
+
+        /*
+        PID: 0, port: 6112, externalIP: '192.168.1.136', randomSeed: 1869, layoutStyle: 0, playerSlots: 12
+        000000   F7 04 8C 00 73 00 00 00 0C 00 FF 02 00 00 00 60   ÷...s.....ÿ....`
+        000010   01 64 00 FF 00 00 01 01 60 01 64 00 FF 00 00 02   .d.ÿ....`.d.ÿ...
+        000020   02 60 01 64 00 FF 00 00 03 03 60 01 64 00 FF 00   .`.d.ÿ....`.d.ÿ.
+        000030   00 04 04 60 01 64 00 FF 00 00 05 05 60 01 64 00   ...`.d.ÿ....`.d.
+        000040   FF 00 00 06 06 60 01 64 00 FF 00 00 07 07 60 01   ÿ....`.d.ÿ....`.
+        000050   64 00 FF 00 00 08 08 60 01 64 00 FF 00 00 09 09   d.ÿ....`.d.ÿ....
+        000060   60 01 64 00 FF 00 00 0A 0A 60 01 64 00 FF 00 00   `.d.ÿ....`.d.ÿ..
+        000070   0B 0B 60 01 64 4D 07 00 00 00 0C 00 02 00 E0 17   ..`.dM........à.
+        000080   C0 A8 01 88 00 00 00 00 00 00 00 00               À¨..........
+         */
+        if (portBuffer.length === 2 && ipBuffer.length === 4) {
+            debug('SEND_W3GS_SLOTINFOJOIN', {PID, port, externalIP, randomSeed, layoutStyle, playerSlots, slotInfo});
+
             return this.asPacket(
                 this.W3GS_SLOTINFOJOIN,
                 ByteUInt32(slotInfo.length),
                 slotInfo,
                 PID,
                 [2, 0], //AF_INET
-                port,
-                externalIP,
+                portBuffer,
+                ipBuffer,
                 zeros,
                 zeros
             );
@@ -204,6 +216,7 @@ export class GameProtocol extends Protocol {
     }
 
     SEND_W3GS_REJECTJOIN(/* uint32 */ reason) {
+        debug('SEND_W3GS_REJECTJOIN', reason);
         return this.buffer(
             this.W3GS_REJECTJOIN,
             reason
@@ -213,7 +226,18 @@ export class GameProtocol extends Protocol {
     SEND_W3GS_PLAYERINFO() {
     }
 
-    SEND_W3GS_PLAYERLEAVE_OTHERS() {
+    SEND_W3GS_PLAYERLEAVE_OTHERS(/*unsigned char*/PID: number, /*uint32_t*/leftCode: number) {
+        if (PID !== 255) {
+            debug('SEND_W3GS_PLAYERLEAVE_OTHERS', {PID, leftCode});
+
+            return this.asPacket(
+                this.W3GS_PLAYERLEAVE_OTHERS,
+                PID,
+                ByteUInt32(leftCode)
+            );
+        } else {
+            error('invalid parameters passed to SEND_W3GS_PLAYERLEAVE_OTHERS')
+        }
     }
 
     SEND_W3GS_GAMELOADED_OTHERS() {
@@ -284,6 +308,7 @@ export class GameProtocol extends Protocol {
         }
 
         if (gameName && hostName && mapPath) {
+            debug('SEND_W3GS_GAMEINFO', {TFT, war3Version, mapGameType, mapFlags, mapWidth, mapHeight, gameName, hostName, upTime, mapPath, mapCRC, slotsTotal, slotsOpen, port, hostCounter});
             const statArray = [
                 mapFlags,
                 0, //filled in encodeStatString
@@ -335,7 +360,7 @@ export class GameProtocol extends Protocol {
     SEND_W3GS_DECREATEGAME() {
     }
 
-    RECEIVE_W3GS_REQJOIN(buffer) {
+    RECEIVE_W3GS_REQJOIN(buffer): IncomingJoinPlayer | null {
         // 2 bytes					-> Header
         // 2 bytes					-> Length
         // 4 bytes					-> Host Counter (Game ID)
@@ -361,6 +386,8 @@ export class GameProtocol extends Protocol {
                 return new IncomingJoinPlayer(hostCounter, entryKey, name, internalIPBuffer);
             }
         }
+
+        return null
     }
 
     RECEIVE_W3GS_LEAVEGAME() {

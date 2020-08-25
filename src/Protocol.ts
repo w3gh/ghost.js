@@ -1,4 +1,8 @@
 import {ByteArray, AssignLength} from './Bytes';
+import {createLoggerFor, hex} from "./Logger";
+
+const {debug, info, error} = createLoggerFor('BaseGame');
+
 
 /**
  * Abstract class for BNet and Game protocols
@@ -13,7 +17,7 @@ export class Protocol {
      * @returns {Buffer}
      */
     buffer(header: number|string, id: any, ...args: Array<any>): Buffer {
-        return AssignLength(
+        const buffer = AssignLength(
             ByteArray(
                 [
                     [header],
@@ -23,6 +27,11 @@ export class Protocol {
                 ]
             )
         );
+
+        debug('packet', header, id);
+        // hex(buffer);
+
+        return buffer;
     }
 }
 

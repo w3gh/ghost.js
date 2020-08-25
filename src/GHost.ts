@@ -186,10 +186,20 @@ export class GHost extends Bot {
                 null,
                 this.adminGamePort,
                 0,
-                'Ghost.js Admin Game',
+                `w3gh.js admin game ${(new Date()).toTimeString()}`,
                 'JiLiZART'
             );
         }
+    }
+
+    getBanMethod(): number {
+        // @TODO: implement
+        return 0
+    }
+
+    __t(message: string, ...vars: any[]) {
+        // @TODO: implement
+        return message
     }
 
     queueBNetsChatCommand(command: string) {

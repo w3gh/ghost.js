@@ -2,6 +2,8 @@
 
 import {ByteArray} from '../Bytes';
 
+export const MAX_SLOTS = 24;
+
 export class GameSlot {
     static STATUS_OPEN = 0;
     static STATUS_CLOSED = 1;

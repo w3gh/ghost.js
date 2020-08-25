@@ -6,7 +6,7 @@ import {Map} from './Map';
 import {GamePlayer} from './GamePlayer';
 import {createLoggerFor, hex} from '../Logger';
 import {PotentialPlayer} from "./PotentialPlayer";
-import {GameSlot} from "./GameSlot";
+import {GameSlot, MAX_SLOTS} from "./GameSlot";
 import {GHost} from "../GHost";
 import {getTicks} from "../util";
 import { IncomingJoinPlayer } from './IncomingJoinPlayer';
@@ -15,7 +15,13 @@ const {debug, info, error} = createLoggerFor('BaseGame');
 
 const GAME_REHOST_INTERVAL = 5000;
 
+const GAME_SLOT_MAX = 255;
+
+const GAME_NAME_MAX = 31;
+
 export class BaseGame extends EventEmitter {
+    static EVENT_PLAYER_JOINED = 'player.joined';
+
     private protocol: GameProtocol = new GameProtocol(this);
     private server: net.Server = net.createServer();
     private potentials: PotentialPlayer[] = [];
@@ -28,10 +34,13 @@ export class BaseGame extends EventEmitter {
     private creationTime: number = getTicks();
     private exiting: boolean = false;
     private saving: boolean = false;
-    private virtualHostPID: number = 255;
+    private virtualHostPID: number = GAME_SLOT_MAX;
+    private randomSeed: number = getTicks();
     protected virtualHostName: string = 'Map';
+    protected joinedRealm: string = '';
+    public gameName: string = '';
 
-    private fakePlayerPID: number = 255;
+    private fakePlayerPID: number = GAME_SLOT_MAX;
 
     constructor(public ghost: GHost,
                 private hostCounter: number,
@@ -39,7 +48,7 @@ export class BaseGame extends EventEmitter {
                 public saveGame = null,
                 public hostPort: number,
                 public gameState: number,
-                public gameName: string,
+                gameName: string,
                 public ownerName: string,
                 public creatorName = 'JiLiZART',
                 public creatorServer: string = '') {
@@ -47,11 +56,12 @@ export class BaseGame extends EventEmitter {
 
         this.slots = this.map.slots;
 
-        this.lastGameName = gameName;
+        this.lastGameName = gameName.substr(0 , GAME_NAME_MAX);
+        this.gameName = this.lastGameName;
 
         this.socketServerSetup(hostPort);
 
-        this.on('player.joined', this.onPlayerJoined.bind(this));
+        this.on(BaseGame.EVENT_PLAYER_JOINED, this.onPlayerJoined.bind(this));
     }
 
     /**
@@ -121,14 +131,14 @@ export class BaseGame extends EventEmitter {
             }
          */
 
-        const isReserved = this.isReserved(joinPlayer.name) || this.isOwner(joinPlayer.name);
+        const isPlayerReserved = this.isReserved(joinPlayer.name) || this.isOwner(joinPlayer.name);
 
         // try to find a slot
-        let SID = 255;
-        const EnforcePID = 255;
+        let SID = GAME_SLOT_MAX;
+        const EnforcePID = GAME_SLOT_MAX;
         const EnforceSID = 0;
 
-        const EnforceSlot = [255, 0, 0, 0, 0, 0, 0];
+        const EnforceSlot = new GameSlot(255, 0, 0, 0, 0, 0, 0);
 
         if (this.saveGame) {
             /**
@@ -168,66 +178,202 @@ export class BaseGame extends EventEmitter {
 
             SID = this.getEmptySlot( false );
 
+            if (SID == GAME_SLOT_MAX && isPlayerReserved) {
+                SID = this.getEmptySlot( true );
+
+                if (SID !== GAME_SLOT_MAX) {
+                    const kickedPlayer = this.getPlayerFromSID(SID);
+
+                    if (kickedPlayer) {
+                        kickedPlayer
+                            .setDeleteMe(true)
+                            .setLeftReason(this.ghost.__t('WasKickedForReservedPlayer', joinPlayer.getName()))
+                            .setLeftCode(this.protocol.PLAYERLEAVE_LOBBY);
+
+                        // send a playerleave message immediately since it won't normally get sent until the player is deleted which is after we send a playerjoin message
+                        // we don't need to call OpenSlot here because we're about to overwrite the slot data anyway
+                        this.sendAll(this.protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(kickedPlayer.getPID(), kickedPlayer.getLeftCode()));
+                        kickedPlayer.setLeftMessageSent(true);
+                    }
+                }
+            }
+
+            if (SID === GAME_SLOT_MAX && this.isOwner(joinPlayer.getName())) {
+                // the owner player is trying to join the game but it's full and we couldn't even find a reserved slot, kick the player in the lowest numbered slot
+                // updated this to try to find a player slot so that we don't end up kicking a computer
+
+                SID = 0;
+
+                for( let idx = 0; idx < this.slots.length; ++idx) {
+                    if (this.slots[idx].Status === GameSlot.STATUS_OCCUPIED && this.slots[idx].Computer === 0) {
+                        SID = idx;
+                        break;
+                    }
+                }
+
+                const kickedPlayer = this.getPlayerFromSID(SID);
+
+                if (kickedPlayer) {
+                    kickedPlayer
+                        .setDeleteMe(true)
+                        .setLeftReason(this.ghost.__t('WasKickedForOwnerPlayer', joinPlayer.getName()))
+                        .setLeftCode(this.protocol.PLAYERLEAVE_LOBBY);
+
+                    // send a playerleave message immediately since it won't normally get sent until the player is deleted which is after we send a playerjoin message
+                    // we don't need to call OpenSlot here because we're about to overwrite the slot data anyway
+                    this.sendAll(this.protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(kickedPlayer.getPID(), kickedPlayer.getLeftCode()));
+                    kickedPlayer.setLeftMessageSent(true);
+                }
+            }
         }
 
         if (SID >= this.slots.length) {
-            potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
-            potentialPlayer.setDeleteMe(true);
-            return null;
+            potentialPlayer
+                .setDeleteMe(true)
+                .send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
+
+            return;
         }
 
-        if (this.getNumPlayers() >= 11 || EnforcePID === this.virtualHostPID) {
+        // check if the new player's name is banned but only if bot_banmethod is 0
+        // this is because if bot_banmethod is 0 we need to wait to announce the ban until now because they could have been rejected because the game was full
+        // this would have allowed the player to spam the chat by attempting to join the game multiple times in a row
+
+        if (this.ghost.getBanMethod() === 0) {
+            // for( vector<CBNET *> :: iterator i = m_GHost->m_BNETs.begin( ); i != m_GHost->m_BNETs.end( ); ++i )
+            // {
+            //     if( (*i)->GetServer( ) == JoinedRealm )
+            //     {
+            //         CDBBan *Ban = (*i)->IsBannedName( joinPlayer->GetName( ) );
+            //
+            //         if( Ban )
+            //         {
+            //             CONSOLE_Print( "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is using a banned name" );
+            //             SendAllChat( m_GHost->m_Language->HasBannedName( joinPlayer->GetName( ) ) );
+            //             SendAllChat( m_GHost->m_Language->UserWasBannedOnByBecause( Ban->GetServer( ), Ban->GetName( ), Ban->GetDate( ), Ban->GetAdmin( ), Ban->GetReason( ) ) );
+            //             break;
+            //         }
+            //     }
+            //
+            //     CDBBan *Ban = (*i)->IsBannedIP( potential->GetExternalIPString( ) );
+            //
+            //     if( Ban )
+            //     {
+            //         CONSOLE_Print( "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is using a banned IP address" );
+            //         SendAllChat( m_GHost->m_Language->HasBannedIP( joinPlayer->GetName( ), potential->GetExternalIPString( ), Ban->GetName( ) ) );
+            //         SendAllChat( m_GHost->m_Language->UserWasBannedOnByBecause( Ban->GetServer( ), Ban->GetName( ), Ban->GetDate( ), Ban->GetAdmin( ), Ban->GetReason( ) ) );
+            //         break;
+            //     }
+            // }
+        }
+
+        // we have a slot for the new player
+        // make room for them by deleting the virtual host player if we have to
+        if (this.getNumPlayers() >= MAX_SLOTS - 1 || EnforcePID === this.virtualHostPID) {
             this.deleteVirtualHost();
         }
 
+
+
+        // turning the CPotentialPlayer into a CGamePlayer is a bit of a pain because we have to be careful not to close the socket
+        // this problem is solved by setting the socket to NULL before deletion and handling the NULL case in the destructor
+        // we also have to be careful to not modify the m_Potentials vector since we're currently looping through it
+
         infoPlayer('joined the game');
 
-        // this.players.push(new GamePlayer(
-        //     potentialPlayer,
-        //     this.getNewPID(),
-        //     null,
-        //     joinPlayer.name,
-        //     joinPlayer.getInternalIP(),
-        //     Reserved
-        // ));
+        const player = GamePlayer.fromPotentialPlayer(
+            potentialPlayer,
+            this.saveGame ? EnforcePID : this.getNewPID(),
+            this.joinedRealm,
+            joinPlayer.getName(),
+            joinPlayer.getInternalIP(),
+            isPlayerReserved
+        );
 
-        potentialPlayer.setDeleteMe(true);
+        // consider LAN players to have already spoof checked since they can't
+        // since so many people have trouble with this feature we now use the JoinedRealm to determine LAN status
 
-        /*
-         if( m_Map->GetMapOptions( ) & MAPOPT_CUSTOMFORCES )
-         m_Slots[SID] = CGameSlot( Player->GetPID( ), 255, SLOTSTATUS_OCCUPIED, 0, m_Slots[SID].GetTeam( ), m_Slots[SID].GetColour( ), m_Slots[SID].GetRace( ) );
-         else
-         {
-         if( m_Map->GetMapFlags( ) & MAPFLAG_RANDOMRACES )
-         m_Slots[SID] = CGameSlot( Player->GetPID( ), 255, SLOTSTATUS_OCCUPIED, 0, 12, 12, SLOTRACE_RANDOM );
-         else
-         m_Slots[SID] = CGameSlot( Player->GetPID( ), 255, SLOTSTATUS_OCCUPIED, 0, 12, 12, SLOTRACE_RANDOM | SLOTRACE_SELECTABLE );
+        player.setSpoofed(joinedRealm.length === 0);
+        // Player->SetWhoisShouldBeSent( m_GHost->m_SpoofChecks == 1 || ( m_GHost->m_SpoofChecks == 2 && AnyAdminCheck ) );
 
-         // try to pick a team and colour
-         // make sure there aren't too many other players already
+        this.players.push(player);
 
-         unsigned char NumOtherPlayers = 0;
+        potentialPlayer.setSocket(null).setDeleteMe(true);
 
-         for( unsigned char i = 0; i < m_Slots.size( ); ++i )
-         {
-         if( m_Slots[i].GetSlotStatus( ) == SLOTSTATUS_OCCUPIED && m_Slots[i].GetTeam( ) != 12 )
-         NumOtherPlayers++;
-         }
+        if (this.saveGame) {
+            this.slots[SID] = EnforceSlot
+        } else {
+            if (this.map.getOptions() & Map.OPT_CUSTOMFORCES) {
+                this.slots[SID] = new GameSlot(
+                    player.PID, 255,
+                    GameSlot.STATUS_OCCUPIED, 0,
+                    this.slots[SID].Team,
+                    this.slots[SID].Color,
+                    this.slots[SID].Race
+                )
+            } else {
+                if (this.map.getFlags() & Map.FLAG_RANDOMRACES) {
+                    this.slots[SID] = new GameSlot(
+                        player.PID,
+                        255,
+                        GameSlot.STATUS_OCCUPIED,
+                        0,
+                        MAX_SLOTS,
+                        MAX_SLOTS,
+                        GameSlot.RACE_RANDOM
+                    )
+                } else {
+                    this.slots[SID] = new GameSlot(
+                        player.PID,
+                        255,
+                        GameSlot.STATUS_OCCUPIED,
+                        0,
+                        MAX_SLOTS,
+                        MAX_SLOTS,
+                        GameSlot.RACE_RANDOM | GameSlot.RACE_SELECTABLE
+                    )
+                }
 
-         if( NumOtherPlayers < m_Map->GetMapNumPlayers( ) )
-         {
-         if( SID < m_Map->GetMapNumPlayers( ) )
-         m_Slots[SID].SetTeam( SID );
-         else
-         m_Slots[SID].SetTeam( 0 );
+                // try to pick a team and colour
+                // make sure there aren't too many other players already
 
-         m_Slots[SID].SetColour( GetNewColour( ) );
-         }
-         }
-         */
+                let numOtherPlayers = 0;
+
+                // @TODO: rework with reducer
+                for (let idx = 0; idx < this.slots.length; ++idx) {
+                    if (this.slots[idx].Status == GameSlot.STATUS_OCCUPIED && this.slots[idx].Team !== MAX_SLOTS) {
+                        numOtherPlayers++;
+                    }
+                }
+
+                if (numOtherPlayers < this.map.mapNumPlayers) {
+                    this.slots[SID].Team = SID < this.map.mapNumPlayers ? SID : 0;
+
+                    this.slots[SID].Color = this.getNewColor();
+                }
+            }
+        }
+
+        // send slot info to the new player
+        // the SLOTINFOJOIN packet also tells the client their assigned PID and that the join was successful
+
+        // Player->Send( m_Protocol->SEND_W3GS_SLOTINFOJOIN( Player->GetPID( ), Player->GetSocket( )->GetPort( ), Player->GetExternalIP( ), m_Slots, m_RandomSeed, m_Map->GetMapLayoutStyle( ), m_Map->GetMapNumPlayers( ) ) );
+
+        player.send(
+            this.protocol.SEND_W3GS_SLOTINFOJOIN(
+                player.PID,
+                player.getExternalPort(),
+                player.getExternalIP(),
+                this.slots,
+                this.randomSeed,
+                this.map.getLayoutStyle(),
+                this.map.mapNumPlayers
+            )
+        )
+
     }
 
-    socketServerSetup(hostPort) {
+    socketServerSetup(hostPort: number) {
         this.server.on('listening', this.onListening);
         this.server.on('connection', this.onConnection);
 
@@ -241,8 +387,8 @@ export class BaseGame extends EventEmitter {
         info('BaseGame listening');
     };
 
-    onConnection = (socket) => {
-        info('BaseGame Potential Player connected', socket.remoteAddress + ':' + socket.remotePort);
+    onConnection = (socket: net.Socket) => {
+        info('new connection', socket.remoteAddress + ':' + socket.remotePort);
 
         this.potentials.push(new PotentialPlayer(this.protocol, this, socket));
     };
@@ -259,9 +405,13 @@ export class BaseGame extends EventEmitter {
         return 0;
     }
 
+    getNewColor(): number {
+        return 0
+    }
+
     getEmptySlot(reserved: boolean) {
-        if (this.slots.length > 255) {
-            return 255
+        if (this.slots.length > GAME_SLOT_MAX) {
+            return GAME_SLOT_MAX
         }
 
         if (this.saveGame) {
@@ -281,88 +431,62 @@ export class BaseGame extends EventEmitter {
             // look for an empty slot for a new player to occupy
             // if reserved is true then we're willing to use closed or occupied slots as long as it wouldn't displace a player with a reserved slot
 
-            // for( unsigned char i = 0; i < m_Slots.size( ); ++i )
-            // {
-            //     if( m_Slots[i].GetSlotStatus( ) == SLOTSTATUS_OPEN )
-            //         return i;
-            // }
+            const openSlotIdx = this.slots.findIndex( slot => slot.Status === GameSlot.STATUS_OPEN);
 
-            if( reserved )
+            if (openSlotIdx >= 0) {
+                return openSlotIdx;
+            }
+
+            if (reserved)
             {
                 // no empty slots, but since player is reserved give them a closed slot
-                const slotIdx = this.slots.findIndex(slot => slot.Status == GameSlot.STATUS_OPEN);
+                const closedSlotIdx = this.slots.findIndex(slot => slot.Status == GameSlot.STATUS_CLOSED);
 
-                if (slotIdx >= 0) {
-                    return slotIdx
+                if (closedSlotIdx >= 0) {
+                    return closedSlotIdx
                 }
 
                 // no closed slots either, give them an occupied slot but not one occupied by another reserved player
                 // first look for a player who is downloading the map and has the least amount downloaded so far
 
                 let leastDownloaded = 100;
-                let leastSID = 255;
+                let leastSID = GAME_SLOT_MAX;
 
                 this.slots.forEach((slot, idx) => {
                     const player = this.getPlayerFromSID(idx);
 
-                    if (player && !player.getReserved() && slot.DownloadStatus < leastDownloaded) {
-
+                    if (player && !player.isReserved && slot.DownloadStatus < leastDownloaded) {
+                        leastDownloaded = slot.DownloadStatus;
+                        leastSID = idx;
                     }
                 });
 
-                // for( unsigned char i = 0; i < m_Slots.size( ); ++i )
-                // {
-                //     CGamePlayer *Player = GetPlayerFromSID( i );
-                //
-                //     if( Player && !Player->GetReserved( ) && m_Slots[i].GetDownloadStatus( ) < LeastDownloaded )
-                //     {
-                //         LeastDownloaded = m_Slots[i].GetDownloadStatus( );
-                //         LeastSID = i;
-                //     }
-                // }
-
-                if ( leastSID != 255 )
+                if (leastSID != GAME_SLOT_MAX) {
                     return leastSID;
+                }
 
                 // nobody who isn't reserved is downloading the map, just choose the first player who isn't reserved
 
-                // for( unsigned char i = 0; i < m_Slots.size( ); ++i )
-                // {
-                //     CGamePlayer *Player = GetPlayerFromSID( i );
-                //
-                //     if( Player && !Player->GetReserved( ) )
-                //     return i;
-                // }
+                const notReservedPlayerIdx = this.slots.findIndex((slot, idx) => {
+                    const player = this.getPlayerFromSID(idx);
+
+                    return player && !player.isReserved;
+                });
+
+                if (notReservedPlayerIdx >= 0) {
+                    return notReservedPlayerIdx
+                }
             }
         }
 
-        /*
-
-	else
-	{
-
-	}
-
-	return 255;
-         */
-
-        return 255
+        return GAME_SLOT_MAX
     }
 
     getPlayerFromPID(PID: number) {
-        // for( vector<CGamePlayer *> :: iterator i = m_Players.begin( ); i != m_Players.end( ); ++i )
-        // {
-        //     if( !(*i)->GetLeftMessageSent( ) && (*i)->GetPID( ) == PID )
-        //     return *i;
-        // }
-
-        // @TODO:
-        const foundPlayer = this.players.find(player => player.getIsLeftMessageSent() && player.getPID() == PID)
-
-        return null
+        return this.players.find(player => player.getIsLeftMessageSent() && player.getPID() == PID)
     }
 
-    getPlayerFromSID(SID: number) {
+    getPlayerFromSID(SID: number): GamePlayer | null {
         if (SID < this.slots.length)
             return this.getPlayerFromPID(this.slots[SID].PID);
 
@@ -392,6 +516,10 @@ export class BaseGame extends EventEmitter {
                 }
             }
         }
+    }
+
+    sendAll(buffer: Buffer) {
+        this.players.forEach(player => player.send(buffer))
     }
 
     isReserved(name: string) {
@@ -451,12 +579,7 @@ export class BaseGame extends EventEmitter {
                     fixedHostCounter
                 );
 
-                // const errCallback = (err, bytes) => {
-                //     info('send error', 6112, 'BaseGame bytes sent', bytes);
-                //
-                //     if (err) throw err;
-                // };
-
+                // @TODO: erro handling
                 udpSocket.send(buffer, 6112, '255.255.255.255');
             }
 
