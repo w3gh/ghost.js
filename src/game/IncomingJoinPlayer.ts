@@ -1,4 +1,5 @@
 import {createLoggerFor} from "../Logger";
+import { isNameValid } from "../util";
 
 const {debug, info, error} = createLoggerFor('IncomingJoinPlayer');
 
@@ -25,5 +26,9 @@ export class IncomingJoinPlayer {
 
 	getInternalIP() {
 		return this.internalIP.toJSON().data.join('.')
+	}
+
+	isNameValid() {
+		return isNameValid(this.name)
 	}
 }

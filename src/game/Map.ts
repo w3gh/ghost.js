@@ -511,6 +511,26 @@ export class Map {
         return this.flags;
     }
 
+    getPath() {
+        return this.mapPath
+    }
+
+    getSize() {
+        return this.mapSize
+    }
+
+    getInfo() {
+        return this.mapInfo
+    }
+
+    getCRC() {
+        return this.mapCRC
+    }
+
+    getSHA1() {
+        return this.mapSHA1
+    }
+
     ROTL(x, n) {
         return ((x) << (n)) | ((x) >> (32 - (n)));
     }

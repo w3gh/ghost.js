@@ -1,26 +1,25 @@
 import * as net from 'net';
-import {ByteUInt32} from '../Bytes';
+import {ByteUInt32, ByteArray} from '../Bytes';
 import {EventEmitter} from 'events';
 import {GameProtocol} from './GameProtocol';
 import {Map} from './Map';
 import {GamePlayer} from './GamePlayer';
 import {createLoggerFor, hex} from '../Logger';
 import {PotentialPlayer} from "./PotentialPlayer";
-import {GameSlot, MAX_SLOTS} from "./GameSlot";
+import {GameSlot, MAX_SLOTS, GAME_SLOT_MAX} from "./GameSlot";
 import {GHost} from "../GHost";
-import {getTicks} from "../util";
-import { IncomingJoinPlayer } from './IncomingJoinPlayer';
+import {getTicks, getTime} from "../util";
+import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 
 const {debug, info, error} = createLoggerFor('BaseGame');
 
-const GAME_REHOST_INTERVAL = 5000;
+const GAME_REHOST_INTERVAL = 5; // 5 sec
 
-const GAME_SLOT_MAX = 255;
-
-const GAME_NAME_MAX = 31;
+export const GAME_NAME_MAX = 31;
 
 export class BaseGame extends EventEmitter {
     static EVENT_PLAYER_JOINED = 'player.joined';
+    static EVENT_PLAYER_DELETED = 'player.deleted';
 
     private protocol: GameProtocol = new GameProtocol(this);
     private server: net.Server = net.createServer();
@@ -36,9 +35,14 @@ export class BaseGame extends EventEmitter {
     private saving: boolean = false;
     private virtualHostPID: number = GAME_SLOT_MAX;
     private randomSeed: number = getTicks();
+    private lastConnectionId = 0;
+    private connections: net.Socket[] = [];
     protected virtualHostName: string = 'Map';
     protected joinedRealm: string = '';
     public gameName: string = '';
+    protected gameLoading = false;
+    protected gameLoaded = false;
+    protected slotInfoChanged = false;
 
     private fakePlayerPID: number = GAME_SLOT_MAX;
 
@@ -56,7 +60,7 @@ export class BaseGame extends EventEmitter {
 
         this.slots = this.map.slots;
 
-        this.lastGameName = gameName.substr(0 , GAME_NAME_MAX);
+        this.lastGameName = gameName.substr(0, GAME_NAME_MAX);
         this.gameName = this.lastGameName;
 
         this.socketServerSetup(hostPort);
@@ -72,64 +76,28 @@ export class BaseGame extends EventEmitter {
         info('player joined');
 
         const infoPlayer = msg => info(`[GAME: ${this.gameName}] player [${joinPlayer.getName()}|${potentialPlayer.getExternalIP()}] ${msg}`);
+        const rejectPotentialPlayer = () => potentialPlayer.setDeleteMe(true).send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
 
         // check if the new player's name is empty or too long
-        if (!joinPlayer.name.length || joinPlayer.name.length > 15) {
+        if (!joinPlayer.isNameValid()) {
             infoPlayer(`is trying to join the game with an invalid name of length ${joinPlayer.getName().length}`);
-
-            potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
-            potentialPlayer.setDeleteMe(true);
+            rejectPotentialPlayer();
+            return null
         }
 
         // check if the new player's name is the same as the virtual host name
         if (joinPlayer.name === this.virtualHostName) {
             infoPlayer(`is trying to join the game with the virtual host name`);
-            potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
-            potentialPlayer.setDeleteMe(true);
+            rejectPotentialPlayer();
             return null;
         }
 
         // check if the new player's name is already taken
         if (this.getPlayerFromName(joinPlayer.name, false)) {
             infoPlayer(`is trying to join the game but that name is already taken`);
-            potentialPlayer.send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
-            potentialPlayer.setDeleteMe(true);
+            rejectPotentialPlayer();
             return null;
         }
-
-        // identify their joined realm
-        // this is only possible because when we send a game refresh via LAN or battle.net we encode an ID value in the 4 most significant bits of the host counter
-        // the client sends the host counter when it joins so we can extract the ID value here
-        // note: this is not a replacement for spoof checking since it doesn't verify the player's name and it can be spoofed anyway
-
-        const hostCounterID = joinPlayer.getHostCounter() >> 28;
-        let joinedRealm = '';
-
-        /**
-         for( vector<CBNET *> :: iterator i = m_GHost->m_BNETs.begin( ); i != m_GHost->m_BNETs.end( ); ++i )
-         {
-            if( (*i)->GetHostCounterID( ) == HostCounterID )
-                JoinedRealm = (*i)->GetServer( );
-         }
-
-             if( JoinedRealm.empty( ) )
-             {
-            // the player is pretending to join via LAN, which they might or might not be (i.e. it could be spoofed)
-            // however, we've been broadcasting a random entry key to the LAN
-            // if the player is really on the LAN they'll know the entry key, otherwise they won't
-            // or they're very lucky since it's a 32 bit number
-
-            if( joinPlayer->GetEntryKey( ) != m_EntryKey )
-            {
-                // oops!
-
-                CONSOLE_Print( "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is trying to join the game over LAN but used an incorrect entry key" );
-                potential->Send( m_Protocol->SEND_W3GS_REJECTJOIN( REJECTJOIN_WRONGPASSWORD ) );
-                potential->SetDeleteMe( true );
-                return;
-            }
-            }
-         */
 
         const isPlayerReserved = this.isReserved(joinPlayer.name) || this.isOwner(joinPlayer.name);
 
@@ -141,45 +109,13 @@ export class BaseGame extends EventEmitter {
         const EnforceSlot = new GameSlot(255, 0, 0, 0, 0, 0, 0);
 
         if (this.saveGame) {
-            /**
-             // in a saved game we enforce the player layout and the slot layout
-             // unfortunately we don't know how to extract the player layout from the saved game so we use the data from a replay instead
-             // the !enforcesg command defines the player layout by parsing a replay
-
-             for( vector<PIDPlayer> :: iterator i = m_EnforcePlayers.begin( ); i != m_EnforcePlayers.end( ); ++i )
-             {
-                if( (*i).second == joinPlayer->GetName( ) )
-                    EnforcePID = (*i).first;
-            }
-
-                 for( vector<CGameSlot> :: iterator i = m_EnforceSlots.begin( ); i != m_EnforceSlots.end( ); ++i )
-                 {
-                if( (*i).GetPID( ) == EnforcePID )
-                {
-                    EnforceSlot = *i;
-                    break;
-                }
-
-                EnforceSID++;
-            }
-
-                 if( EnforcePID == 255 || EnforceSlot.GetPID( ) == 255 || EnforceSID >= m_Slots.size( ) )
-                 {
-                CONSOLE_Print( "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is trying to join the game but isn't in the enforced list" );
-                potential->Send( m_Protocol->SEND_W3GS_REJECTJOIN( REJECTJOIN_FULL ) );
-                potential->SetDeleteMe( true );
-                return;
-            }
-
-                 SID = EnforceSID;
-             */
         } else {
             // try to find an empty slot
 
-            SID = this.getEmptySlot( false );
+            SID = this.getEmptySlot(false);
 
             if (SID == GAME_SLOT_MAX && isPlayerReserved) {
-                SID = this.getEmptySlot( true );
+                SID = this.getEmptySlot(true);
 
                 if (SID !== GAME_SLOT_MAX) {
                     const kickedPlayer = this.getPlayerFromSID(SID);
@@ -204,7 +140,7 @@ export class BaseGame extends EventEmitter {
 
                 SID = 0;
 
-                for( let idx = 0; idx < this.slots.length; ++idx) {
+                for (let idx = 0; idx < this.slots.length; ++idx) {
                     if (this.slots[idx].Status === GameSlot.STATUS_OCCUPIED && this.slots[idx].Computer === 0) {
                         SID = idx;
                         break;
@@ -228,43 +164,10 @@ export class BaseGame extends EventEmitter {
         }
 
         if (SID >= this.slots.length) {
-            potentialPlayer
-                .setDeleteMe(true)
-                .send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
+            error('SID >= this.slots.length');
+            rejectPotentialPlayer();
 
             return;
-        }
-
-        // check if the new player's name is banned but only if bot_banmethod is 0
-        // this is because if bot_banmethod is 0 we need to wait to announce the ban until now because they could have been rejected because the game was full
-        // this would have allowed the player to spam the chat by attempting to join the game multiple times in a row
-
-        if (this.ghost.getBanMethod() === 0) {
-            // for( vector<CBNET *> :: iterator i = m_GHost->m_BNETs.begin( ); i != m_GHost->m_BNETs.end( ); ++i )
-            // {
-            //     if( (*i)->GetServer( ) == JoinedRealm )
-            //     {
-            //         CDBBan *Ban = (*i)->IsBannedName( joinPlayer->GetName( ) );
-            //
-            //         if( Ban )
-            //         {
-            //             CONSOLE_Print( "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is using a banned name" );
-            //             SendAllChat( m_GHost->m_Language->HasBannedName( joinPlayer->GetName( ) ) );
-            //             SendAllChat( m_GHost->m_Language->UserWasBannedOnByBecause( Ban->GetServer( ), Ban->GetName( ), Ban->GetDate( ), Ban->GetAdmin( ), Ban->GetReason( ) ) );
-            //             break;
-            //         }
-            //     }
-            //
-            //     CDBBan *Ban = (*i)->IsBannedIP( potential->GetExternalIPString( ) );
-            //
-            //     if( Ban )
-            //     {
-            //         CONSOLE_Print( "[GAME: " + m_GameName + "] player [" + joinPlayer->GetName( ) + "|" + potential->GetExternalIPString( ) + "] is using a banned IP address" );
-            //         SendAllChat( m_GHost->m_Language->HasBannedIP( joinPlayer->GetName( ), potential->GetExternalIPString( ), Ban->GetName( ) ) );
-            //         SendAllChat( m_GHost->m_Language->UserWasBannedOnByBecause( Ban->GetServer( ), Ban->GetName( ), Ban->GetDate( ), Ban->GetAdmin( ), Ban->GetReason( ) ) );
-            //         break;
-            //     }
-            // }
         }
 
         // we have a slot for the new player
@@ -272,7 +175,6 @@ export class BaseGame extends EventEmitter {
         if (this.getNumPlayers() >= MAX_SLOTS - 1 || EnforcePID === this.virtualHostPID) {
             this.deleteVirtualHost();
         }
-
 
 
         // turning the CPotentialPlayer into a CGamePlayer is a bit of a pain because we have to be careful not to close the socket
@@ -293,12 +195,13 @@ export class BaseGame extends EventEmitter {
         // consider LAN players to have already spoof checked since they can't
         // since so many people have trouble with this feature we now use the JoinedRealm to determine LAN status
 
-        player.setSpoofed(joinedRealm.length === 0);
+        player.setSpoofed(true);
         // Player->SetWhoisShouldBeSent( m_GHost->m_SpoofChecks == 1 || ( m_GHost->m_SpoofChecks == 2 && AnyAdminCheck ) );
 
         this.players.push(player);
+        this.connections[potentialPlayer.socketId]['@owner'] = player;
 
-        potentialPlayer.setSocket(null).setDeleteMe(true);
+        potentialPlayer.setDeleteMe(true);
 
         if (this.saveGame) {
             this.slots[SID] = EnforceSlot
@@ -357,8 +260,6 @@ export class BaseGame extends EventEmitter {
         // send slot info to the new player
         // the SLOTINFOJOIN packet also tells the client their assigned PID and that the join was successful
 
-        // Player->Send( m_Protocol->SEND_W3GS_SLOTINFOJOIN( Player->GetPID( ), Player->GetSocket( )->GetPort( ), Player->GetExternalIP( ), m_Slots, m_RandomSeed, m_Map->GetMapLayoutStyle( ), m_Map->GetMapNumPlayers( ) ) );
-
         player.send(
             this.protocol.SEND_W3GS_SLOTINFOJOIN(
                 player.PID,
@@ -369,8 +270,49 @@ export class BaseGame extends EventEmitter {
                 this.map.getLayoutStyle(),
                 this.map.mapNumPlayers
             )
-        )
+        );
 
+        // send virtual host info and fake player info (if present) to the new player
+
+        this.sendVirtualHostPlayerInfo(player);
+        this.sendFakePlayerInfo(player);
+
+        const blankIP = '0.0.0.0';
+        const hideIP = this.isHideIPAddresses();
+
+        for (let plr of this.players) {
+            if (!plr.getIsLeftMessageSent() && plr !== player) {
+
+                // send info about the new player to every other player
+                plr.send(this.protocol.SEND_W3GS_PLAYERINFO(
+                    player.getPID(),
+                    player.getName(),
+                    hideIP ? blankIP : player.getExternalIP(),
+                    hideIP ? blankIP : player.getInternalIP(),
+                ));
+
+                // send info about every other player to the new player
+                player.send(this.protocol.SEND_W3GS_PLAYERINFO(
+                    plr.getPID(),
+                    plr.getName(),
+                    hideIP ? blankIP : plr.getExternalIP(),
+                    hideIP ? blankIP : plr.getInternalIP(),
+                ))
+            }
+        }
+
+        // send a map check packet to the new player
+
+        player.send(this.protocol.SEND_W3GS_MAPCHECK(this.map.getPath(), this.map.getSize(), this.map.getInfo(), this.map.getCRC(), this.map.getSHA1()))
+
+
+        // send slot info to everyone, so the new player gets this info twice but everyone else still needs to know the new slot layout
+
+        this.sendAllSlotInfo();
+
+        // send a welcome message
+
+        // this.sendWelcomeMessage(player);
     }
 
     socketServerSetup(hostPort: number) {
@@ -384,13 +326,48 @@ export class BaseGame extends EventEmitter {
     }
 
     onListening = () => {
-        info('BaseGame listening');
+        info('listening');
     };
 
     onConnection = (socket: net.Socket) => {
         info('new connection', socket.remoteAddress + ':' + socket.remotePort);
+        const socketId = this.lastConnectionId + 1;
+        const player = new PotentialPlayer(this.protocol, this, socketId);
 
-        this.potentials.push(new PotentialPlayer(this.protocol, this, socket));
+        socket['@owner'] = player;
+
+        this.connections[socketId] = socket;
+
+        socket
+            .on('lookup', function (...args) {
+                socket['@owner'].onLookup(...args);
+            })
+            .on('connect', function (...args) {
+                socket['@owner'].onConnect(...args);
+            })
+            .on('data', function (...args) {
+                socket['@owner'].onData(...args);
+            })
+            .on('end', function (...args) {
+                socket['@owner'].onEnd(...args);
+            })
+            .on('timeout', function (...args) {
+                socket['@owner'].onTimeout(...args);
+            })
+            .on('drain', function (...args) {
+                socket['@owner'].onDrain(...args);
+            })
+            .on('error', function (...args) {
+                socket['@owner'].onError(...args);
+            })
+            .on('close', (...args) => {
+                socket['@owner'].onClose(...args);
+                socket['@owner'].setDeleteMe(true);
+                socket.destroy();
+                this.connections[socketId] = null;
+            });
+
+        this.potentials.push(player);
     };
 
     onError = (...args) => {
@@ -401,12 +378,57 @@ export class BaseGame extends EventEmitter {
         info('BaseGame', 'close', ...args);
     };
 
+    getSocket(id: number): net.Socket {
+        return this.connections[id]
+    }
+
     getNewPID(): number {
-        return 0;
+        // find an unused PID for a new player to use
+
+        for (let testPID = 1; testPID < GAME_SLOT_MAX; ++testPID) {
+            if (testPID === this.virtualHostPID || testPID === this.fakePlayerPID) {
+                continue;
+            }
+
+            let inUse = false;
+
+            for (let plr of this.players) {
+                if (!plr.getIsLeftMessageSent() && plr.getPID() === testPID) {
+                    inUse = true;
+                    break;
+                }
+            }
+
+            if (!inUse) {
+                return testPID;
+            }
+        }
+
+        // this should never happen
+        return GAME_SLOT_MAX;
     }
 
     getNewColor(): number {
-        return 0
+        // find an unused colour for a player to use
+
+        for (let testColor = 0; testColor < MAX_SLOTS; ++testColor) {
+            let inUse = false;
+
+            for (let idx = 0; idx < this.slots.length; ++idx) {
+                if (this.slots[idx].Color === testColor) {
+                    inUse = true;
+                    break;
+                }
+            }
+
+            if (!inUse) {
+                return testColor;
+            }
+        }
+
+        // this should never happen
+
+        return MAX_SLOTS;
     }
 
     getEmptySlot(reserved: boolean) {
@@ -431,14 +453,13 @@ export class BaseGame extends EventEmitter {
             // look for an empty slot for a new player to occupy
             // if reserved is true then we're willing to use closed or occupied slots as long as it wouldn't displace a player with a reserved slot
 
-            const openSlotIdx = this.slots.findIndex( slot => slot.Status === GameSlot.STATUS_OPEN);
+            const openSlotIdx = this.slots.findIndex(slot => slot.Status === GameSlot.STATUS_OPEN);
 
             if (openSlotIdx >= 0) {
                 return openSlotIdx;
             }
 
-            if (reserved)
-            {
+            if (reserved) {
                 // no empty slots, but since player is reserved give them a closed slot
                 const closedSlotIdx = this.slots.findIndex(slot => slot.Status == GameSlot.STATUS_CLOSED);
 
@@ -493,8 +514,17 @@ export class BaseGame extends EventEmitter {
         return null;
     }
 
+    getNumHumanPlayers() {
+        return this.players.filter(player => !player.getIsLeftMessageSent()).length;
+    }
+
     getNumPlayers(): number {
-        return 0;
+        let numPlayers = this.getNumHumanPlayers();
+
+        if (this.fakePlayerPID != GAME_SLOT_MAX)
+            ++numPlayers;
+
+        return numPlayers;
     }
 
     /**
@@ -518,8 +548,91 @@ export class BaseGame extends EventEmitter {
         }
     }
 
+    getHostPID() {
+        // return the player to be considered the host (it can be any player) - mainly used for sending text messages from the bot
+        // try to find the virtual host player first
+
+        if (this.virtualHostPID != GAME_SLOT_MAX)
+            return this.virtualHostPID;
+
+        // try to find the fakeplayer next
+
+        if (this.fakePlayerPID != GAME_SLOT_MAX)
+            return this.fakePlayerPID;
+
+        // try to find the owner player next
+
+        // @TODO:
+
+        // okay then, just use the first available player
+
+        for (let plr of this.players) {
+            if (!plr.getIsLeftMessageSent()) {
+                return plr.getPID();
+            }
+        }
+
+
+        return GAME_SLOT_MAX;
+    }
+
+    // hide player ip from others
+    isHideIPAddresses() {
+        return true
+    }
+
+    sendVirtualHostPlayerInfo(player: GamePlayer) {
+        if (this.virtualHostPID == GAME_SLOT_MAX)
+            return;
+
+        const IP = '0.0.0.0';
+
+        player.send(this.protocol.SEND_W3GS_PLAYERINFO(this.virtualHostPID, this.virtualHostName, IP, IP));
+    }
+
+    sendFakePlayerInfo(player: GamePlayer) {
+        if (this.fakePlayerPID == GAME_SLOT_MAX)
+            return;
+
+        const IP = '0.0.0.0';
+
+        player.send(this.protocol.SEND_W3GS_PLAYERINFO(this.fakePlayerPID, "fake::player", IP, IP));
+    }
+
     sendAll(buffer: Buffer) {
         this.players.forEach(player => player.send(buffer))
+    }
+
+    sendChat(player: GamePlayer, message: string) {
+        // @TODO: make as argument
+        const fromPID = this.getHostPID();
+        if (message.length > 254) {
+            message = message.substr(0, 254);
+        }
+
+        if (player) {
+            if (!this.gameLoading && !this.gameLoaded) {
+                player.send(this.protocol.SEND_W3GS_CHAT_FROM_HOST(fromPID, ByteArray([player.getPID()]), 16, ByteArray([]), message));
+            } else {
+
+            }
+        }
+    }
+
+    sendAllSlotInfo() {
+        if (!this.gameLoading && !this.gameLoaded) {
+            this.sendAll(this.protocol.SEND_W3GS_SLOTINFO(this.slots, this.randomSeed, this.map.getLayoutStyle(), this.map.mapNumPlayers));
+            this.slotInfoChanged = false;
+        }
+    }
+
+    sendWelcomeMessage(player: GamePlayer) {
+        this.sendChat(player, ' ');
+        this.sendChat(player, ' ');
+        this.sendChat(player, ' ');
+        this.sendChat(player, 'Ghost.js https://github.com/w3gh/ghost.js/');
+        this.sendChat(player, '-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+        this.sendChat(player, `     Game Name:                 ${this.gameName}`);
     }
 
     isReserved(name: string) {
@@ -530,36 +643,62 @@ export class BaseGame extends EventEmitter {
         return false;
     }
 
-    deleteVirtualHost() {
+    createVirtualHost() {
+        if (this.virtualHostPID != GAME_SLOT_MAX)
+            return;
 
+        this.virtualHostPID = this.getNewPID();
+        const IP = '0.0.0.0';
+
+        this.sendAll(this.protocol.SEND_W3GS_PLAYERINFO(this.virtualHostPID, this.virtualHostName, IP, IP));
+    }
+
+    deleteVirtualHost() {
+        if (this.virtualHostPID == GAME_SLOT_MAX)
+            return;
+
+        this.sendAll(this.protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(this.virtualHostPID, this.protocol.PLAYERLEAVE_LOBBY));
+        this.virtualHostPID = GAME_SLOT_MAX;
     }
 
     update() {
 
-        /*
-        	for( vector<CPotentialPlayer *> :: iterator i = m_Potentials.begin( ); i != m_Potentials.end( ); )
-            {
-                if( (*i)->Update( fd ) )
-                {
-                    // flush the socket (e.g. in case a rejection message is queued)
+        // update players
 
-                    if( (*i)->GetSocket( ) )
-                        (*i)->GetSocket( )->DoSend( (fd_set *)send_fd );
+        this.players.forEach((player, idx) => {
+            if (player.update()) {
+                info(`deleting GamePlayer ${idx}`);
+                this.emit(BaseGame.EVENT_PLAYER_DELETED, player);
 
-                    delete *i;
-                    i = m_Potentials.erase( i );
-                }
-                else
-                    ++i;
+                this.players[idx] = null;
+                delete this.players[idx];
             }
-            // this.potentials
-         */
+        });
 
-        const interval = getTicks() - this.lastPingTime;
+        this.potentials.forEach((player, idx) => {
+            if (player.update()) {
+                info(`deleting PotentialPlayer ${idx}`);
+                this.potentials[idx] = null;
+                delete this.potentials[idx];
+            }
+        });
+
+        const interval = getTime() - this.lastPingTime;
         const {udpSocket} = this.ghost;
         const fixedHostCounter = this.hostCounter & 0x0FFFFFFF;
 
+        // create the virtual host player
+
+        if (!this.gameLoading && !this.gameLoaded && this.getNumPlayers() < MAX_SLOTS)
+            this.createVirtualHost();
+
         if (interval > GAME_REHOST_INTERVAL) { // refresh every 5 sec
+            // note: we must send pings to players who are downloading the map because Warcraft III disconnects from the lobby if it doesn't receive a ping every ~90 seconds
+            // so if the player takes longer than 90 seconds to download the map they would be disconnected unless we keep sending pings
+            // todotodo: ignore pings received from players who have recently finished downloading the map
+
+            this.sendAll(this.protocol.SEND_W3GS_PING_FROM_HOST());
+
             if (!this.countDownStarted) {
                 const buffer = this.protocol.SEND_W3GS_GAMEINFO(
                     !!this.ghost.TFT,
@@ -583,7 +722,7 @@ export class BaseGame extends EventEmitter {
                 udpSocket.send(buffer, 6112, '255.255.255.255');
             }
 
-            this.lastPingTime = getTicks();
+            this.lastPingTime = getTime();
         }
 
         return this.exiting;

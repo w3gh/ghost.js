@@ -5,11 +5,20 @@ import {Protocol} from '../Protocol';
 import {IncomingJoinPlayer} from './IncomingJoinPlayer';
 import {GameSlot} from './GameSlot';
 import * as bp from 'bufferpack';
-import {getTicks, getTime, ipToBuffer} from '../util';
+import {getTicks, getTime, ipToBuffer, isNameValid} from '../util';
 import {createLoggerFor, hex} from '../Logger';
 import {Game} from "./Game";
 
 const {debug, info, error} = createLoggerFor('GameProtocol');
+
+const encodeSlotInfo = (slots: GameSlot[], /*uint32*/ randomSeed: number, /*uchar*/layoutStyle: number, /*uchar*/playerSlots: number) =>
+    ByteArray([
+        slots.length,
+        ...slots.map(slot => slot.toBuffer()),
+        ByteUInt32(randomSeed),
+        layoutStyle,
+        playerSlots
+    ]);
 
 export class GameProtocol extends Protocol {
 
@@ -113,59 +122,26 @@ export class GameProtocol extends Protocol {
         return buffer[0] === this.W3GS_HEADER_CONSTANT
     }
 
-    /**
-     *
-     * @param slots
-     * @param randomSeed
-     * @param layoutStyle
-     * @param playerSlots
-     * @returns {Buffer}
-     */
-    encodeSlotInfo(slots: GameSlot[], /*uint32*/ randomSeed: number, /*uchar*/layoutStyle: number, /*uchar*/playerSlots: number) {
-        return ByteArray([
-            slots.length,
-            ...slots.map(slot => slot.toBuffer()),
-            ByteUInt32(randomSeed),
-            layoutStyle,
-            playerSlots
-        ]);
-    }
-
-    /**
-     * @param {Array} data
-     * @returns {Array}
-
-     unsigned char Mask = 1;
-     BYTEARRAY Result;
-
-     for( unsigned int i = 0; i < data.size( ); ++i )
-     {
-        if( ( data[i] % 2 ) == 0 )
-            Result.push_back( data[i] + 1 );
-        else
-        {
-            Result.push_back( data[i] );
-            Mask |= 1 << ( ( i % 7 ) + 1 );
-        }
-
-        if( i % 7 == 6 || i == data.size( ) - 1 )
-        {
-            Result.insert( Result.end( ) - 1 - ( i % 7 ), Mask );
-            Mask = 1;
-        }
-    }
-
-     return Result;
-     */
-    encodeStatString(data: Buffer) {
-        return encodeStatString(data);
-    }
-
     SEND_W3GS_PING_FROM_HOST() {
+        debug('SEND_W3GS_PING_FROM_HOST');
+
         return this.asPacket(
             this.W3GS_PING_FROM_HOST,
             getTicks()
         );
+    }
+
+
+    SEND_W3GS_SLOTINFO(slots: GameSlot[], /*uint32_t*/ randomSeed: number, /*unsigned char*/ layoutStyle: number, /*unsigned char*/ playerSlots: number ) {
+        const slotInfo = encodeSlotInfo(slots, randomSeed, layoutStyle, playerSlots);
+
+        debug('SEND_W3GS_SLOTINFO');
+
+        return this.asPacket(
+            this.W3GS_SLOTINFO,
+            ByteUInt32(slotInfo.length),
+            slotInfo
+        )
     }
 
     SEND_W3GS_SLOTINFOJOIN(
@@ -179,25 +155,13 @@ export class GameProtocol extends Protocol {
     ) {
 
         const zeros = this.NULL_4;
-        const slotInfo = this.encodeSlotInfo(slots, randomSeed, layoutStyle, playerSlots);
+        const slotInfo = encodeSlotInfo(slots, randomSeed, layoutStyle, playerSlots);
 
         const portBuffer = ByteUInt16(port);
         const ipBuffer = ipToBuffer(externalIP);
 
-        /*
-        PID: 0, port: 6112, externalIP: '192.168.1.136', randomSeed: 1869, layoutStyle: 0, playerSlots: 12
-        000000   F7 04 8C 00 73 00 00 00 0C 00 FF 02 00 00 00 60   ÷...s.....ÿ....`
-        000010   01 64 00 FF 00 00 01 01 60 01 64 00 FF 00 00 02   .d.ÿ....`.d.ÿ...
-        000020   02 60 01 64 00 FF 00 00 03 03 60 01 64 00 FF 00   .`.d.ÿ....`.d.ÿ.
-        000030   00 04 04 60 01 64 00 FF 00 00 05 05 60 01 64 00   ...`.d.ÿ....`.d.
-        000040   FF 00 00 06 06 60 01 64 00 FF 00 00 07 07 60 01   ÿ....`.d.ÿ....`.
-        000050   64 00 FF 00 00 08 08 60 01 64 00 FF 00 00 09 09   d.ÿ....`.d.ÿ....
-        000060   60 01 64 00 FF 00 00 0A 0A 60 01 64 00 FF 00 00   `.d.ÿ....`.d.ÿ..
-        000070   0B 0B 60 01 64 4D 07 00 00 00 0C 00 02 00 E0 17   ..`.dM........à.
-        000080   C0 A8 01 88 00 00 00 00 00 00 00 00               À¨..........
-         */
         if (portBuffer.length === 2 && ipBuffer.length === 4) {
-            debug('SEND_W3GS_SLOTINFOJOIN', {PID, port, externalIP, randomSeed, layoutStyle, playerSlots, slotInfo});
+            debug('SEND_W3GS_SLOTINFOJOIN');
 
             return this.asPacket(
                 this.W3GS_SLOTINFOJOIN,
@@ -217,13 +181,52 @@ export class GameProtocol extends Protocol {
 
     SEND_W3GS_REJECTJOIN(/* uint32 */ reason) {
         debug('SEND_W3GS_REJECTJOIN', reason);
+
         return this.buffer(
             this.W3GS_REJECTJOIN,
             reason
         );
     }
 
-    SEND_W3GS_PLAYERINFO() {
+    SEND_W3GS_PLAYERINFO(
+        PID: number,
+        name: string,
+        externalIP: string,
+        internalIP: string
+    ) {
+        const playerJoinCounter = [2, 0, 0, 0];
+        const zerosBuffer = ByteArray([0, 0, 0, 0]);
+        const externalIPBuffer = ipToBuffer(externalIP);
+        const internalIPBuffer = ipToBuffer(internalIP);
+
+        if (isNameValid(name) && externalIPBuffer.length === 4 && internalIPBuffer.length === 4) {
+            debug('SEND_W3GS_PLAYERINFO');
+
+            return this.asPacket(
+                this.W3GS_PLAYERINFO,
+                ByteArray(playerJoinCounter),
+                PID,
+                ByteString(name),
+                1,
+                0,
+                2, // AF_INET
+                0, // AF_INET continued...
+                0, // port
+                0, // port continued...
+                externalIPBuffer,
+                zerosBuffer, // ???
+                zerosBuffer, // ???
+                2, // AF_INET
+                0, // AF_INET continued...
+                0, // port
+                0, // port continued...
+                internalIPBuffer,
+                zerosBuffer,
+                zerosBuffer,
+            )
+        } else {
+            error('invalid parameters passed to SEND_W3GS_PLAYERINFO');
+        }
     }
 
     SEND_W3GS_PLAYERLEAVE_OTHERS(/*unsigned char*/PID: number, /*uint32_t*/leftCode: number) {
@@ -243,9 +246,6 @@ export class GameProtocol extends Protocol {
     SEND_W3GS_GAMELOADED_OTHERS() {
     }
 
-    SEND_W3GS_SLOTINFO() {
-    }
-
     SEND_W3GS_COUNTDOWN_START() {
     }
 
@@ -255,7 +255,21 @@ export class GameProtocol extends Protocol {
     SEND_W3GS_INCOMING_ACTION() {
     }
 
-    SEND_W3GS_CHAT_FROM_HOST() {
+    SEND_W3GS_CHAT_FROM_HOST(fromPID: number, toPIDs: Buffer, flag: number, flagExtra: Buffer, message: string) {
+        if (toPIDs.length && message.length && message.length < 255) {
+            debug('SEND_W3GS_CHAT_FROM_HOST');
+            return this.asPacket(
+                this.W3GS_CHAT_FROM_HOST,
+                toPIDs.length,
+                toPIDs,
+                fromPID,
+                flag,
+                flagExtra,
+                ByteString(message)
+            )
+        } else {
+            error('invalid parameters passed to SEND_W3GS_CHAT_FROM_HOST');
+        }
     }
 
     SEND_W3GS_START_LAG() {
@@ -308,7 +322,8 @@ export class GameProtocol extends Protocol {
         }
 
         if (gameName && hostName && mapPath) {
-            debug('SEND_W3GS_GAMEINFO', {TFT, war3Version, mapGameType, mapFlags, mapWidth, mapHeight, gameName, hostName, upTime, mapPath, mapCRC, slotsTotal, slotsOpen, port, hostCounter});
+            debug('SEND_W3GS_GAMEINFO');
+
             const statArray = [
                 mapFlags,
                 0, //filled in encodeStatString
@@ -360,6 +375,25 @@ export class GameProtocol extends Protocol {
     SEND_W3GS_DECREATEGAME() {
     }
 
+    SEND_W3GS_MAPCHECK(mapPath: string, mapSize: Buffer, mapInfo: Buffer, mapCRC: Buffer, mapSHA1: Buffer) {
+        const unknown = ByteArray([1, 0, 0, 0]);
+
+        if (mapPath.length && mapSize.length === 4 && mapInfo.length === 4 && mapCRC.length === 4 && mapSHA1.length === 20) {
+            debug('SEND_W3GS_MAPCHECK');
+            return this.asPacket(
+                this.W3GS_MAPCHECK,
+                unknown,
+                ByteString(mapPath),
+                mapSize,
+                mapInfo,
+                mapCRC,
+                mapSHA1,
+            )
+        } else {
+            error('invalid parameters passed to SEND_W3GS_MAPCHECK')
+        }
+    }
+
     RECEIVE_W3GS_REQJOIN(buffer): IncomingJoinPlayer | null {
         // 2 bytes					-> Header
         // 2 bytes					-> Length
@@ -373,10 +407,12 @@ export class GameProtocol extends Protocol {
         // 2 bytes					-> InternalPort (???)
         // 4 bytes					-> InternalIP
 
-        debug('RECEIVE_W3GS_REQJOIN');
-        hex(buffer);
+
 
         if (ValidateLength(buffer) && buffer.length >= 20) {
+            debug('RECEIVE_W3GS_REQJOIN');
+            hex(buffer);
+
             const hostCounter = bp.unpack('<I', buffer, 4)[0];
             const entryKey = bp.unpack('<I', buffer, 8)[0];
             const name = bp.unpack('<S', buffer, 19)[0];

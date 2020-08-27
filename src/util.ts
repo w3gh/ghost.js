@@ -48,3 +48,7 @@ export function localIP() {
 export function ipToBuffer(ip:string) {
     return require('ip').toBuffer(ip);
 }
+
+export function isNameValid(name) {
+    return name.length && name.length <= 15
+}

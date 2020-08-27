@@ -1,6 +1,5 @@
 'use strict';
 
-import * as net from 'net';
 import {PotentialPlayer} from './PotentialPlayer';
 import {Queue} from "../Queue";
 import { BaseGame } from './BaseGame';
@@ -52,15 +51,15 @@ export class GamePlayer extends PotentialPlayer {
 
     // @TODO: add PID, nJoinedRealm, string nName, BYTEARRAY nInternalIP, bool nReserved
     // CGamePlayer( , unsigned char nPID, string nJoinedRealm, string nName, BYTEARRAY nInternalIP, bool nReserved );
-    constructor(protocol: GameProtocol, game: BaseGame, socket: net.Socket, public PID: number, public joinedRealm: string, public name: string, public internalIP: Buffer, public isReserved: boolean) {
-        super(protocol, game, socket);
+    constructor(protocol: GameProtocol, game: BaseGame, socketId: number, public PID: number, public joinedRealm: string, public name: string, public internalIP: Buffer, public isReserved: boolean) {
+        super(protocol, game, socketId);
 
         this.isLeftMessageSent = false;
     }
 
     // @TODO: implement construct from PotentialPlayer instance
     static fromPotentialPlayer(potential: PotentialPlayer, PID: number, joinedRealm: string, name: string, internalIP: Buffer, isReserved: boolean) {
-        return new GamePlayer(potential.protocol, potential.game, potential.socket, PID, joinedRealm, name, internalIP, isReserved)
+        return new GamePlayer(potential.protocol, potential.game, potential.socketId, PID, joinedRealm, name, internalIP, isReserved);
     }
 
     getIsLeftMessageSent() {
@@ -68,11 +67,15 @@ export class GamePlayer extends PotentialPlayer {
     }
 
     getPID() {
-        return 0
+        return this.PID
+    }
+
+    getName() {
+        return this.name
     }
 
     getLeftCode(): number {
-        return 0
+        return this.leftCode
     }
 
     setSpoofed(value: boolean) {
