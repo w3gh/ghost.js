@@ -9,6 +9,9 @@ const {debug, info, error} = createLoggerFor('Bot');
 const UPDATE_INTERVAL = 50; //50ms
 
 export class Bot extends EventEmitter {
+    static EVENT_UPDATE = 'update';
+    static EVENT_EXIT = 'exit';
+
     cfg: Config;
     plugins: any = {};
     exitingNice: boolean = false;
@@ -33,12 +36,12 @@ export class Bot extends EventEmitter {
             Plugin.load(key, this.plugins[key]);
         });
 
-        Plugin.emit('onInit', this);
+        Plugin.emit(Plugin.EVENT_ON_INIT, this);
     }
 
     start(): this {
         this.intervalID = setInterval(() => {
-            this.emit('update', this);
+            this.emit(Bot.EVENT_UPDATE, this);
 
             if (this.exitingNice) {
                 this.exit()
@@ -67,8 +70,8 @@ export class Bot extends EventEmitter {
         this.exitingNow = true;
         clearInterval(this.intervalID);
         info('exiting');
-        this.emit('update', this);
-        this.emit('exit', this);
+        this.emit(Bot.EVENT_UPDATE, this);
+        this.emit(Bot.EVENT_EXIT, this);
         setTimeout(() => {
             process.exit(0);
         }, 1000)

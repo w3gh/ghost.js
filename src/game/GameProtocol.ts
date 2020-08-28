@@ -20,70 +20,78 @@ const encodeSlotInfo = (slots: GameSlot[], /*uint32*/ randomSeed: number, /*ucha
         playerSlots
     ]);
 
+export enum W3GSGame {
+    GAME_NONE = 0,
+    GAME_FULL = 2,
+
+    GAME_PUBLIC = 16,
+    GAME_PRIVATE = 17
+}
+
+export enum W3GSGameType {
+    GAMETYPE_CUSTOM = 1,
+    GAMETYPE_BLIZZARD = 9,
+}
+
+export enum W3GSPlayerLeave {
+    PLAYERLEAVE_DISCONNECT = 1,
+    PLAYERLEAVE_LOST = 7,
+    PLAYERLEAVE_LOSTBUILDINGS = 8,
+    PLAYERLEAVE_WON = 9,
+    PLAYERLEAVE_DRAW = 10,
+    PLAYERLEAVE_OBSERVER = 11,
+    PLAYERLEAVE_LOBBY = 13,
+    PLAYERLEAVE_GPROXY = 100,
+}
+
+export enum W3GSRejectJoin {
+    REJECTJOIN_FULL = 9,
+    REJECTJOIN_STARTED = 10,
+    REJECTJOIN_WRONGPASSWORD = 27,
+}
+
+export enum W3GSPacket {
+    W3GS_HEADER_CONSTANT = 247,
+    W3GS_PING_FROM_HOST = 1,	// 0x01
+    W3GS_SLOTINFOJOIN = 4,	// 0x04
+    W3GS_REJECTJOIN = 5,	// 0x05
+    W3GS_PLAYERINFO = 6,	// 0x06
+    W3GS_PLAYERLEAVE_OTHERS = 7,	// 0x07
+    W3GS_GAMELOADED_OTHERS = 8,	// 0x08
+    W3GS_SLOTINFO = 9,	// 0x09
+    W3GS_COUNTDOWN_START = 10,	// 0x0A
+    W3GS_COUNTDOWN_END = 11,	// 0x0B
+    W3GS_INCOMING_ACTION = 12,	// 0x0C
+    W3GS_CHAT_FROM_HOST = 15,	// 0x0F
+    W3GS_START_LAG = 16,	// 0x10
+    W3GS_STOP_LAG = 17,	// 0x11
+    W3GS_HOST_KICK_PLAYER = 28,	// 0x1C
+    W3GS_REQJOIN = 30,	// 0x1E
+    W3GS_LEAVEGAME = 33,	// 0x21
+    W3GS_GAMELOADED_SELF = 35,	// 0x23
+    W3GS_OUTGOING_ACTION = 38,	// 0x26
+    W3GS_OUTGOING_KEEPALIVE = 39,	// 0x27
+    W3GS_CHAT_TO_HOST = 40,	// 0x28
+    W3GS_DROPREQ = 41,	// 0x29
+    W3GS_SEARCHGAME = 47,	// 0x2F (UDP/LAN)
+    W3GS_GAMEINFO = 48,	// 0x30 (UDP/LAN)
+    W3GS_CREATEGAME = 49,	// 0x31 (UDP/LAN)
+    W3GS_REFRESHGAME = 50,	// 0x32 (UDP/LAN)
+    W3GS_DECREATEGAME = 51,	// 0x33 (UDP/LAN)
+    W3GS_CHAT_OTHERS = 52,	// 0x34
+    W3GS_PING_FROM_OTHERS = 53,	// 0x35
+    W3GS_PONG_TO_OTHERS = 54,	// 0x36
+    W3GS_MAPCHECK = 61,	// 0x3D
+    W3GS_STARTDOWNLOAD = 63,	// 0x3F
+    W3GS_MAPSIZE = 66,	// 0x42
+    W3GS_MAPPART = 67,	// 0x43
+    W3GS_MAPPARTOK = 68,	// 0x44
+    W3GS_MAPPARTNOTOK = 69,	// 0x45 - just a guess, received this packet after forgetting to send a crc in MAPPART (f7 45 0a 00 01 02 01 00 00 00)
+    W3GS_PONG_TO_HOST = 70,	// 0x46
+    W3GS_INCOMING_ACTION2 = 72,	// 0x48 - received this packet when there are too many actions to fit in INCOMING_ACTION
+}
+
 export class GameProtocol extends Protocol {
-
-    W3GS_HEADER_CONSTANT = 247;
-
-    GAME_NONE = 0;
-    GAME_FULL = 2;
-
-    GAME_PUBLIC = 16;
-    GAME_PRIVATE = 17;
-
-    GAMETYPE_CUSTOM = 1;
-    GAMETYPE_BLIZZARD = 9;
-
-    PLAYERLEAVE_DISCONNECT = 1;
-    PLAYERLEAVE_LOST = 7;
-    PLAYERLEAVE_LOSTBUILDINGS = 8;
-    PLAYERLEAVE_WON = 9;
-    PLAYERLEAVE_DRAW = 10;
-    PLAYERLEAVE_OBSERVER = 11;
-    PLAYERLEAVE_LOBBY = 13;
-    PLAYERLEAVE_GPROXY = 100;
-
-    REJECTJOIN_FULL = 9;
-    REJECTJOIN_STARTED = 10;
-    REJECTJOIN_WRONGPASSWORD = 27;
-
-    W3GS_PING_FROM_HOST = 1;	// 0x01
-    W3GS_SLOTINFOJOIN = 4;	// 0x04
-    W3GS_REJECTJOIN = 5;	// 0x05
-    W3GS_PLAYERINFO = 6;	// 0x06
-    W3GS_PLAYERLEAVE_OTHERS = 7;	// 0x07
-    W3GS_GAMELOADED_OTHERS = 8;	// 0x08
-    W3GS_SLOTINFO = 9;	// 0x09
-    W3GS_COUNTDOWN_START = 10;	// 0x0A
-    W3GS_COUNTDOWN_END = 11;	// 0x0B
-    W3GS_INCOMING_ACTION = 12;	// 0x0C
-    W3GS_CHAT_FROM_HOST = 15;	// 0x0F
-    W3GS_START_LAG = 16;	// 0x10
-    W3GS_STOP_LAG = 17;	// 0x11
-    W3GS_HOST_KICK_PLAYER = 28;	// 0x1C
-    W3GS_REQJOIN = 30;	// 0x1E
-    W3GS_LEAVEGAME = 33;	// 0x21
-    W3GS_GAMELOADED_SELF = 35;	// 0x23
-    W3GS_OUTGOING_ACTION = 38;	// 0x26
-    W3GS_OUTGOING_KEEPALIVE = 39;	// 0x27
-    W3GS_CHAT_TO_HOST = 40;	// 0x28
-    W3GS_DROPREQ = 41;	// 0x29
-    W3GS_SEARCHGAME = 47;	// 0x2F (UDP/LAN)
-    W3GS_GAMEINFO = 48;	// 0x30 (UDP/LAN)
-    W3GS_CREATEGAME = 49;	// 0x31 (UDP/LAN)
-    W3GS_REFRESHGAME = 50;	// 0x32 (UDP/LAN)
-    W3GS_DECREATEGAME = 51;	// 0x33 (UDP/LAN)
-    W3GS_CHAT_OTHERS = 52;	// 0x34
-    W3GS_PING_FROM_OTHERS = 53;	// 0x35
-    W3GS_PONG_TO_OTHERS = 54;	// 0x36
-    W3GS_MAPCHECK = 61;	// 0x3D
-    W3GS_STARTDOWNLOAD = 63;	// 0x3F
-    W3GS_MAPSIZE = 66;	// 0x42
-    W3GS_MAPPART = 67;	// 0x43
-    W3GS_MAPPARTOK = 68;	// 0x44
-    W3GS_MAPPARTNOTOK = 69;	// 0x45 - just a guess; received this packet after forgetting to send a crc in W3GS_MAPPART (f7 45 0a 00 01 02 01 00 00 00)
-    W3GS_PONG_TO_HOST = 70;	// 0x46
-    W3GS_INCOMING_ACTION2 = 72;	// 0x48 - received this packet when there are too many actions to fit in W3GS_INCOMING_ACTION
-
     NULL = '\x00';
     NULL_2 = '\x00\x00';
     NULL_3 = '\x00\x00\x00';
@@ -107,7 +115,7 @@ export class GameProtocol extends Protocol {
      */
     asPacket(id, ...args) {
         return this.buffer(
-            this.W3GS_HEADER_CONSTANT,
+            W3GSPacket.W3GS_HEADER_CONSTANT,
             id,
             ...args
         );
@@ -119,14 +127,14 @@ export class GameProtocol extends Protocol {
      * @returns {Boolean}
      */
     haveHeader(buffer: Buffer) {
-        return buffer[0] === this.W3GS_HEADER_CONSTANT
+        return buffer[0] === W3GSPacket.W3GS_HEADER_CONSTANT
     }
 
     SEND_W3GS_PING_FROM_HOST() {
         debug('SEND_W3GS_PING_FROM_HOST');
 
         return this.asPacket(
-            this.W3GS_PING_FROM_HOST,
+            W3GSPacket.W3GS_PING_FROM_HOST,
             getTicks()
         );
     }
@@ -138,7 +146,7 @@ export class GameProtocol extends Protocol {
         debug('SEND_W3GS_SLOTINFO');
 
         return this.asPacket(
-            this.W3GS_SLOTINFO,
+            W3GSPacket.W3GS_SLOTINFO,
             ByteUInt32(slotInfo.length),
             slotInfo
         )
@@ -164,7 +172,7 @@ export class GameProtocol extends Protocol {
             debug('SEND_W3GS_SLOTINFOJOIN');
 
             return this.asPacket(
-                this.W3GS_SLOTINFOJOIN,
+                W3GSPacket.W3GS_SLOTINFOJOIN,
                 ByteUInt32(slotInfo.length),
                 slotInfo,
                 PID,
@@ -183,7 +191,7 @@ export class GameProtocol extends Protocol {
         debug('SEND_W3GS_REJECTJOIN', reason);
 
         return this.buffer(
-            this.W3GS_REJECTJOIN,
+            W3GSPacket.W3GS_REJECTJOIN,
             reason
         );
     }
@@ -203,7 +211,7 @@ export class GameProtocol extends Protocol {
             debug('SEND_W3GS_PLAYERINFO');
 
             return this.asPacket(
-                this.W3GS_PLAYERINFO,
+                W3GSPacket.W3GS_PLAYERINFO,
                 ByteArray(playerJoinCounter),
                 PID,
                 ByteString(name),
@@ -234,7 +242,7 @@ export class GameProtocol extends Protocol {
             debug('SEND_W3GS_PLAYERLEAVE_OTHERS', {PID, leftCode});
 
             return this.asPacket(
-                this.W3GS_PLAYERLEAVE_OTHERS,
+                W3GSPacket.W3GS_PLAYERLEAVE_OTHERS,
                 PID,
                 ByteUInt32(leftCode)
             );
@@ -259,7 +267,7 @@ export class GameProtocol extends Protocol {
         if (toPIDs.length && message.length && message.length < 255) {
             debug('SEND_W3GS_CHAT_FROM_HOST');
             return this.asPacket(
-                this.W3GS_CHAT_FROM_HOST,
+                W3GSPacket.W3GS_CHAT_FROM_HOST,
                 toPIDs.length,
                 toPIDs,
                 fromPID,
@@ -338,7 +346,7 @@ export class GameProtocol extends Protocol {
             const statBuffer = encodeStatString(ByteArray(statArray));
 
             const buffer = this.asPacket(
-                this.W3GS_GAMEINFO,
+                W3GSPacket.W3GS_GAMEINFO,
                 TFT ? ProductID_TFT : ProductID_ROC,
                 [Number(war3Version), 0, 0, 0],
                 ByteUInt32(hostCounter),
@@ -381,7 +389,7 @@ export class GameProtocol extends Protocol {
         if (mapPath.length && mapSize.length === 4 && mapInfo.length === 4 && mapCRC.length === 4 && mapSHA1.length === 20) {
             debug('SEND_W3GS_MAPCHECK');
             return this.asPacket(
-                this.W3GS_MAPCHECK,
+                W3GSPacket.W3GS_MAPCHECK,
                 unknown,
                 ByteString(mapPath),
                 mapSize,

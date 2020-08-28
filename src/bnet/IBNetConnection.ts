@@ -4,6 +4,9 @@ export interface IBNetConnection {
     username: string;
     clientToken: Buffer;
     alias: string;
+    passwordHashType: string;
+    password: string;
+    nls: Buffer;
 
     connect();
 

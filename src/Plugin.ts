@@ -17,6 +17,9 @@ export interface PluginDefinition {
 }
 
 export class Plugin {
+    static EVENT_ON_INIT = 'onInit';
+    static EVENT_ON_BNET_INIT = 'onBNetInit';
+
     static loaded: LoadedPlugins = {};
 
     constructor(protected config: any) {

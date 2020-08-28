@@ -59,8 +59,8 @@ export class GHost extends Bot {
         //     this.bnet.queueGetGameList('', 20)
         // }, 5000);
 
-        this.on('update', this.onUpdate);
-        this.on('exit', this.onExit);
+        this.on(Bot.EVENT_UPDATE, this.onUpdate);
+        this.on(Bot.EVENT_EXIT, this.onExit);
     }
 
     onUpdate = () => {

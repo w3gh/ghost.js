@@ -1,7 +1,7 @@
 import * as net from 'net';
 import {ByteUInt32, ByteArray} from '../Bytes';
 import {EventEmitter} from 'events';
-import {GameProtocol} from './GameProtocol';
+import {GameProtocol, W3GSPlayerLeave, W3GSRejectJoin} from './GameProtocol';
 import {Map} from './Map';
 import {GamePlayer} from './GamePlayer';
 import {createLoggerFor, hex} from '../Logger';
@@ -76,7 +76,10 @@ export class BaseGame extends EventEmitter {
         info('player joined');
 
         const infoPlayer = msg => info(`[GAME: ${this.gameName}] player [${joinPlayer.getName()}|${potentialPlayer.getExternalIP()}] ${msg}`);
-        const rejectPotentialPlayer = () => potentialPlayer.setDeleteMe(true).send(this.protocol.SEND_W3GS_REJECTJOIN(this.protocol.REJECTJOIN_FULL));
+        const rejectPotentialPlayer = () =>
+            potentialPlayer
+                .setDeleteMe(true)
+                .send(this.protocol.SEND_W3GS_REJECTJOIN(W3GSRejectJoin.REJECTJOIN_FULL));
 
         // check if the new player's name is empty or too long
         if (!joinPlayer.isNameValid()) {
@@ -124,7 +127,7 @@ export class BaseGame extends EventEmitter {
                         kickedPlayer
                             .setDeleteMe(true)
                             .setLeftReason(this.ghost.__t('WasKickedForReservedPlayer', joinPlayer.getName()))
-                            .setLeftCode(this.protocol.PLAYERLEAVE_LOBBY);
+                            .setLeftCode(W3GSPlayerLeave.PLAYERLEAVE_LOBBY);
 
                         // send a playerleave message immediately since it won't normally get sent until the player is deleted which is after we send a playerjoin message
                         // we don't need to call OpenSlot here because we're about to overwrite the slot data anyway
@@ -153,7 +156,7 @@ export class BaseGame extends EventEmitter {
                     kickedPlayer
                         .setDeleteMe(true)
                         .setLeftReason(this.ghost.__t('WasKickedForOwnerPlayer', joinPlayer.getName()))
-                        .setLeftCode(this.protocol.PLAYERLEAVE_LOBBY);
+                        .setLeftCode(W3GSPlayerLeave.PLAYERLEAVE_LOBBY);
 
                     // send a playerleave message immediately since it won't normally get sent until the player is deleted which is after we send a playerjoin message
                     // we don't need to call OpenSlot here because we're about to overwrite the slot data anyway
@@ -657,7 +660,7 @@ export class BaseGame extends EventEmitter {
         if (this.virtualHostPID == GAME_SLOT_MAX)
             return;
 
-        this.sendAll(this.protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(this.virtualHostPID, this.protocol.PLAYERLEAVE_LOBBY));
+        this.sendAll(this.protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(this.virtualHostPID, W3GSPlayerLeave.PLAYERLEAVE_LOBBY));
         this.virtualHostPID = GAME_SLOT_MAX;
     }
 

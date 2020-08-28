@@ -2,6 +2,7 @@ import {IPlugin} from '../../Plugin';
 import * as chalk from 'chalk';
 import {IncomingChatEvent} from "../../bnet/IncomingChatEvent";
 import {IBNetConnection} from "../../bnet/IBNetConnection";
+import {BNetEvent} from "../../bnet/BNetEvent";
 
 // black
 // red
@@ -23,7 +24,7 @@ module.exports = function (Plugin: IPlugin) {
         onBNetInit(bnet: IBNetConnection) {
             bnet
                 .on('SID_CHATEVENT', this.ON_SID_CHATEVENT)
-                .on('chatCommand', this.chatCommand);
+                .on(BNetEvent.CHAT_COMMAND, this.chatCommand);
         }
 
         /**

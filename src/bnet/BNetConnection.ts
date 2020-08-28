@@ -20,6 +20,7 @@ import {IBNetSIDHandler} from "./IBNetSIDHandler";
 import {IBNetSIDReceiver} from "./IBNetSIDReceiver";
 import {IBNetConnection} from "./IBNetConnection";
 import {IBNet} from "./IBNet";
+import { BNetEvent } from './BNetEvent';
 
 const {debug, info, error} = createLoggerFor('BNet');
 
@@ -211,7 +212,7 @@ export class BNetConnection extends EventEmitter implements IBNetConnection, IBN
     }
 
     configurePlugins() {
-        Plugin.emit('onBNetInit', this);
+        Plugin.emit(Plugin.EVENT_ON_BNET_INIT, this);
     }
 
     /**
@@ -445,7 +446,7 @@ export class BNetConnection extends EventEmitter implements IBNetConnection, IBN
             }
 
             if (!silent) {
-                this.emit('chatCommand', this, command);
+                this.emit(BNetEvent.CHAT_COMMAND, this, command);
             }
         }
     }

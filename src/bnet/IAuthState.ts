@@ -1,7 +1,7 @@
-import {BNetConnection} from "./BNetConnection";
+import { IBNetConnection } from "./IBNetConnection";
 
 export interface IAuthState {
-    createClientPublicKey(bnet: BNetConnection): Buffer;
+    createClientPublicKey(bnet: IBNetConnection): Buffer;
 
     isValid(): boolean;
 }

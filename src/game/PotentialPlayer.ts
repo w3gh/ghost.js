@@ -2,7 +2,7 @@
 
 // import hex from 'hex';
 import {GetLength} from '../Bytes';
-import {GameProtocol} from './GameProtocol';
+import {GameProtocol, W3GSPacket} from './GameProtocol';
 import {Protocol} from '../Protocol';
 
 import {createLoggerFor, hex} from '../Logger';
@@ -138,10 +138,10 @@ export class PotentialPlayer extends Protocol {
     }
 
     processPacket(type: number, id: number, buffer: Buffer) {
-        if (type === this.protocol.W3GS_HEADER_CONSTANT) {
+        if (type === W3GSPacket.W3GS_HEADER_CONSTANT) {
             this.debug('processPacket', id, buffer);
 
-            if (id === this.protocol.W3GS_REQJOIN) {
+            if (id === W3GSPacket.W3GS_REQJOIN) {
                 this.incomingJoinPlayer = null;
                 this.incomingJoinPlayer = this.protocol.RECEIVE_W3GS_REQJOIN(buffer);
 

@@ -53,7 +53,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         ));
     }
 
-    [BNetSID.SID_AUTH_CHECK](bnet: BNetConnection, protocol: IBNetProtocol, auth: IAuthState) {
+    [BNetSID.SID_AUTH_CHECK](bnet: IBNetConnection, protocol: IBNetProtocol, auth: IAuthState) {
         debug('HANDLE_SID_AUTH_CHECK');
 
         if (auth.isValid()) {
@@ -68,7 +68,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         }
     }
 
-    [BNetSID.SID_AUTH_ACCOUNTLOGON](bnet: BNetConnection, protocol: IBNetProtocol, logon: IAccountLogon) {
+    [BNetSID.SID_AUTH_ACCOUNTLOGON](bnet: IBNetConnection, protocol: IBNetProtocol, logon: IAccountLogon) {
         debug('HANDLE_SID_AUTH_ACCOUNTLOGON');
 
         if (logon.status > 0) {
@@ -145,65 +145,65 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         bnet.emit('SID_CHATEVENT', bnet, e);
     }
 
-    [BNetSID.SID_CLANINFO](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_CLANINFO](bnet: IBNetConnection, protocol: IBNetProtocol,) {
         debug('HANDLE_SID_CLANINFO');
     }
 
-    [BNetSID.SID_CLANMEMBERLIST](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_CLANMEMBERLIST](bnet: IBNetConnection, protocol: IBNetProtocol,) {
         debug('HANDLE_SID_CLANMEMBERLIST');
     }
 
-    [BNetSID.SID_CLANMEMBERSTATUSCHANGE](bnet: BNetConnection, protocol: IBNetProtocol,) {
+    [BNetSID.SID_CLANMEMBERSTATUSCHANGE](bnet: IBNetConnection, protocol: IBNetProtocol,) {
         debug('HANDLE_SID_CLANMEMBERSTATUSCHANGE');
     }
 
-    [BNetSID.SID_FRIENDSLIST](bnet: BNetConnection, protocol: IBNetProtocol, friends: IIncomingFriend[]) {
+    [BNetSID.SID_FRIENDSLIST](bnet: IBNetConnection, protocol: IBNetProtocol, friends: IIncomingFriend[]) {
         debug('HANDLE_SID_FRIENDSLIST');
 
         bnet.emit('SID_FRIENDSLIST', bnet, friends);
     }
 
-    [BNetSID.SID_GETADVLISTEX](bnet: BNetConnection, protocol: IBNetProtocol, d) {
+    [BNetSID.SID_GETADVLISTEX](bnet: IBNetConnection, protocol: IBNetProtocol, d) {
 
     }
 
-    [BNetSID.SID_FRIENDSADD](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_FRIENDSADD](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_FRIENDSADD');
 
         return;
     }
 
-    [BNetSID.SID_FLOODDETECTED](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_FLOODDETECTED](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_FLOODDETECTED');
 
         return;
     }
 
-    [BNetSID.SID_FRIENDSUPDATE](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_FRIENDSUPDATE](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_FRIENDSUPDATE');
 
         return;
     }
 
-    [BNetSID.SID_MESSAGEBOX](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_MESSAGEBOX](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_MESSAGEBOX');
 
         return;
     }
 
-    [BNetSID.SID_CLANINVITATION](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_CLANINVITATION](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_CLANINVITATION');
 
         return;
     }
 
-    [BNetSID.SID_CLANMEMBERREMOVED](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_CLANMEMBERREMOVED](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_CLANMEMBERREMOVED');
 
         return;
     }
 
-    [BNetSID.SID_REQUIREDWORK](bnet: BNetConnection, protocol: IBNetProtocol) {
+    [BNetSID.SID_REQUIREDWORK](bnet: IBNetConnection, protocol: IBNetProtocol) {
         debug('HANDLE_SID_REQUIREDWORK');
 
         return;
