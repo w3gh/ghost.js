@@ -7,6 +7,7 @@ import {createLoggerFor} from '../Logger';
 import {Config} from "../Config";
 import {GHost} from "../GHost";
 import {arch} from "os";
+import {MPQ} from "../libStorm";
 
 const {debug, info, error} = createLoggerFor('Map');
 
@@ -385,9 +386,7 @@ export class Map {
     }
 
     readMPQ(mpqPath, cb) {
-        const MPQ = require('blizzardry/lib/mpq');
-
-        return MPQ.open(mpqPath, cb);
+        return MPQ.open(mpqPath, null, cb);
     }
 
     readMPQFile(archive, filename) {

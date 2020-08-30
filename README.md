@@ -35,3 +35,20 @@ npm start
 it will display colored chat info like on screenshot below
 
 [![asciicast](https://asciinema.org/a/75HoG34I0UEk9lNvDqeO430Cp.svg)](https://asciinema.org/a/75HoG34I0UEk9lNvDqeO430Cp)
+
+
+## Manual compilation of bncsutil and storm libs
+
+```bash
+sudo apt-get install -y cmake git libboost-all-dev build-essential libgmp-dev zlib1g-dev libbz2-dev libmysql++-dev
+
+cd bncsutil
+mkdir build
+cmake -G "Unix Makefiles" -B./build -H./
+cd build && make && sudo make install
+
+cd StormLib
+mkdir build
+cmake -G "Unix Makefiles" -B./build -H./
+cd build && make && sudo make install
+```

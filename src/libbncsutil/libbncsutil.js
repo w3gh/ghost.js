@@ -1,5 +1,4 @@
 const FFI = require('ffi-napi'),
-    // Struct = require('ref-struct'),
     ref = require('ref-napi'),
     path = require('path');
 

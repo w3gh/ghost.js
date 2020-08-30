@@ -1,7 +1,7 @@
-const Struct = require('ref-struct');
 const fs = require('fs');
 const ffi = require('ffi-napi');
 const ref = require('ref-napi');
+const Struct = require('ref-struct-napi');
 const path = require('path');
 
 const { bool, int32, uint32 } = ref.types;
@@ -56,10 +56,12 @@ if (platform === 'win32'){
 let libName = path.resolve(cwd + libPath);
 
 if (!fs.existsSync(libName)) {
-  console.log(libName + 'not found, fallback to libstorm');
+  console.error(libName + ' not found, fallback to libstorm');
 
   libName = 'libstorm';
 }
+
+console.log('ew ffi.Library(libName', libName);
 
 const StormLib = new ffi.Library(libName, {
   SFileGetLocale: [uint32, []],

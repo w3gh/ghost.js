@@ -42,7 +42,8 @@ class File {
 
   get data() {
     if (this.handle) {
-      const data = new Buffer(this.size);
+      // const data = new Buffer(this.size);
+      const data = Buffer.alloc(this.size);
       this.position = 0;
       if (!StormLib.SFileReadFile(this.handle, data, this.size, null, null)) {
         return null;
