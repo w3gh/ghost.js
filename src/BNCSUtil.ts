@@ -210,16 +210,19 @@ export class BNCSUtil {
     }
 
     static createKeyInfo(key, clientToken, serverToken): Buffer {
-        let info = BNCSUtil.kd_quick(key, clientToken, serverToken);
+        let kd = BNCSUtil.kd_quick(key, clientToken, serverToken);
         let bytes = [
             bp.pack('<I', key.length),
-            bp.pack('<I', info.product),
-            bp.pack('<I', info.publicValue),
+            bp.pack('<I', kd.product),
+            bp.pack('<I', kd.publicValue),
             '\x00\x00\x00\x00',
-            info.hash
+            kd.hash
         ];
+        const buff = ByteArray(bytes);
 
-        return ByteArray(bytes);
+        info('createKeyInfo', buff.toString('hex'));
+
+        return buff;
     }
 
     static createClientPublicKey(username, password) {
