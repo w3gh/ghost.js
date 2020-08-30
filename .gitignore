@@ -30,6 +30,6 @@ build/Release
 node_modules
 
 # war3 patch files
-war3
+# war3
 
 test_*.js
