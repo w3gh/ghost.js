@@ -1,4 +1,4 @@
-import MPQ = require('blizzardry/lib/mpq');
+// import MPQ = require('./libStorm');
 
 export class Storm {
 

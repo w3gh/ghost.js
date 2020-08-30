@@ -12,6 +12,7 @@ import {GhostBNetSIDHandler} from "./ghost/bnet/GhostBNetSIDHandler";
 import {GhostBNetSIDReceiver} from "./ghost/bnet/GhostBNetSIDReceiver";
 import {Config} from "./Config";
 import {SHA1} from "./SHA1";
+import {MPQ} from './libStorm';
 
 const {debug, info, error} = createLoggerFor('GHost');
 
@@ -116,11 +117,10 @@ export class GHost extends Bot {
 
     protected extractScripts() {
         // const mpq = require('mech-mpq');
-        const MPQ = require('blizzardry/lib/mpq');
 
         const patchPath = path.normalize(`${this.war3Path}/War3Patch.mpq`);
 
-        MPQ.open(patchPath, (mpq) => {
+        MPQ.open(patchPath, null, (mpq) => {
             info(`loading MPQ file '${patchPath}'`);
 
             // common.j
