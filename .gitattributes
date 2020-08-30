@@ -1,2 +1,0 @@
-*.mpq filter=lfs diff=lfs merge=lfs -text
-war3/1.27b/War3Patch.mpq filter=lfs diff=lfs merge=lfs -text
