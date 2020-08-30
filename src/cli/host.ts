@@ -14,3 +14,9 @@ readInterface.on('line', (input) => {
 });
 
 ghost.start();
+
+if (process.env.NODE_ENV === 'test') {
+    setTimeout(() => {
+       ghost.exit();
+    }, 3000);
+}

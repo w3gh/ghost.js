@@ -1,5 +1,5 @@
 
-FROM node:10
+FROM node:12
 
 WORKDIR /usr/src/app
 
@@ -30,8 +30,8 @@ RUN cp ./StormLib/libStorm.so ./libstorm.so
 #RUN make -f ./bncsutil/build/Makefile
 #RUN make -f ./bncsutil/build/Makefile install
 
-EXPOSE 6112
-EXPOSE 6113
-EXPOSE 6114
+EXPOSE 6112:6112/udp
+EXPOSE 6113:6113/udp
+EXPOSE 6114:6114/udp
 
 CMD ["npm", "start"]
