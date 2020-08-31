@@ -61,8 +61,6 @@ if (!fs.existsSync(libName)) {
   libName = 'libstorm';
 }
 
-console.log('ew ffi.Library(libName', libName);
-
 const StormLib = new ffi.Library(libName, {
   SFileGetLocale: [uint32, []],
 
