@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import {ByteExtractString, ByteExtractUInt32, BytesExtract, ValidateLength} from "../Bytes";
-import {BNCSUtil} from "../BNCSUtil";
+import {BNCSUtil} from "../bncsutil/BNCSUtil";
 import {createLoggerFor, hex} from '../Logger';
 import {BNetConnection} from "./BNetConnection";
 

@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 
 const startTime = Date.now();
 
@@ -51,4 +53,30 @@ export function ipToBuffer(ip:string) {
 
 export function isNameValid(name) {
     return name.length && name.length <= 15
+}
+
+export function resolveLibraryPath(name: string) {
+    const platform = process.platform;
+    const cwd = process.cwd();
+    let libPath = null;
+
+    if (platform === 'win32') {
+        libPath = `${name}.dll`;
+    } else if (platform === 'linux') {
+        libPath = `lib${name}.so`;
+    } else if (platform === 'darwin') {
+        libPath = `lib${name}.dylib`;
+    } else {
+        throw new Error(`unsupported plateform for ${name}`);
+    }
+
+    let libName = path.resolve(cwd, libPath);
+
+    if (!fs.existsSync(libName)) {
+        console.error(`${libName} not found, fallback to libstorm`);
+
+        return `lib${name}`;
+    }
+
+    return libName;
 }

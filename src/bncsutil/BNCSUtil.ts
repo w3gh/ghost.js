@@ -1,11 +1,10 @@
-// libbncsutil
 import * as ref from 'ref-napi';
 import * as bp from 'bufferpack';
 import * as os from 'os';
 
-import * as lib from './libbncsutil/libbncsutil';
-import {ByteArray} from './Bytes';
-import {createLoggerFor} from "./Logger";
+import {bncsutil} from './libbncsutil';
+import {ByteArray} from '../Bytes';
+import {createLoggerFor} from "../Logger";
 
 const {debug, info, error} = createLoggerFor('BNCSUtil');
 
@@ -30,7 +29,7 @@ export class BNCSUtil {
     static PLATFORM_OSX = 3;
 
     static extractMPQNumber(mpqName): string {
-        return lib.libbncsutil.extractMPQNumber(mpqName);
+        return bncsutil.extractMPQNumber(mpqName);
     }
 
     static getPlatform(): number {
@@ -52,7 +51,7 @@ export class BNCSUtil {
     static getVersion(): string {
         let verChar = ref.alloc('string');
 
-        lib.libbncsutil.bncsutil_getVersionString(verChar);
+        bncsutil.bncsutil_getVersionString(verChar);
 
         return verChar.toString();
     }
@@ -72,7 +71,7 @@ export class BNCSUtil {
 
         //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
 
-        let length = lib.libbncsutil.getExeInfo(
+        let length = bncsutil.getExeInfo(
             fileName,
             exeInfo,
             exeInfo.length,
@@ -106,7 +105,7 @@ export class BNCSUtil {
 
         //console.log('checkRevisionFlat', arguments);
 
-        lib.libbncsutil.checkRevisionFlat(
+        bncsutil.checkRevisionFlat(
             valueString,
             file1,
             file2,
@@ -139,7 +138,7 @@ export class BNCSUtil {
         let product = ref.alloc('uint32');
         let hashBuffer = ref.alloc('string');
 
-        lib.libbncsutil.kd_quick(
+        bncsutil.kd_quick(
             CDKey,
             clientToken,
             serverToken,
@@ -171,7 +170,7 @@ export class BNCSUtil {
          * MEXP(nls_t*) nls_init_l(const char* username, unsigned long username_length,
          const char* password, unsigned long password_length)
          */
-        return lib.libbncsutil.nls_init_l(username, username.length, password, password.length)
+        return bncsutil.nls_init_l(username, username.length, password, password.length)
     }
 
     /**
@@ -180,7 +179,7 @@ export class BNCSUtil {
     static nls_get_A(nls_t): Buffer {
         let buffer = Buffer.alloc(32);
 
-        lib.libbncsutil.nls_get_A(nls_t, buffer);
+        bncsutil.nls_get_A(nls_t, buffer);
 
         return buffer;
     }
@@ -193,7 +192,7 @@ export class BNCSUtil {
         //MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt);
         let buffer = Buffer.alloc(20);
 
-        lib.libbncsutil.nls_get_M1(nls_t, buffer, B, salt);
+        bncsutil.nls_get_M1(nls_t, buffer, B, salt);
 
         return buffer;
     }
@@ -204,7 +203,7 @@ export class BNCSUtil {
     static hashPassword(password): Buffer {
         let buffer = Buffer.alloc(20);
 
-        lib.libbncsutil.hashPassword(password, buffer);
+        bncsutil.hashPassword(password, buffer);
 
         return buffer
     }

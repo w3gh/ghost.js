@@ -7,7 +7,7 @@ import {createLoggerFor} from '../Logger';
 import {Config} from "../Config";
 import {GHost} from "../GHost";
 import {arch} from "os";
-import {MPQ} from "../libStorm";
+import {MPQ} from "../storm";
 
 const {debug, info, error} = createLoggerFor('Map');
 

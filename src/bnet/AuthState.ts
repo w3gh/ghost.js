@@ -3,7 +3,7 @@ import * as assert from "assert";
 import {BNetConnection} from "./BNetConnection";
 import {createLoggerFor, hex} from '../Logger';
 import {BNetKR} from "./BNetKR";
-import {BNCSUtil} from "../BNCSUtil";
+import {BNCSUtil} from "../bncsutil/BNCSUtil";
 
 const {debug, info, error} = createLoggerFor('AuthState');
 

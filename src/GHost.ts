@@ -12,7 +12,7 @@ import {GhostBNetSIDHandler} from "./ghost/bnet/GhostBNetSIDHandler";
 import {GhostBNetSIDReceiver} from "./ghost/bnet/GhostBNetSIDReceiver";
 import {Config} from "./Config";
 import {SHA1} from "./SHA1";
-import {MPQ} from './libStorm';
+import {MPQ} from './storm';
 
 const {debug, info, error} = createLoggerFor('GHost');
 

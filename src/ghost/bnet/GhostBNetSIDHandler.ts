@@ -9,7 +9,7 @@ import {IBNetSIDHandler} from "../../bnet/IBNetSIDHandler";
 import {BNetConnection} from "../../bnet/BNetConnection";
 import {IBNetProtocol} from "../../bnet/IBNetProtocol";
 import {createLoggerFor} from "../../Logger";
-import {BNCSUtil} from '../../BNCSUtil';
+import {BNCSUtil} from '../../bncsutil/BNCSUtil';
 import {IBNetConnection} from "../../bnet/IBNetConnection";
 
 const {debug, info, error} = createLoggerFor('BNet_SID_Handler');

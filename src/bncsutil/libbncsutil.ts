@@ -1,10 +1,11 @@
+import { resolveLibraryPath } from "../util";
+
 const FFI = require('ffi-napi'),
-    ref = require('ref-napi'),
-    path = require('path');
+    ref = require('ref-napi');
 
 const voidPtr = ref.refType(ref.types.void);
 
-exports.CONSTANTS = {
+const CONSTANTS = {
   '': {
       P_ALL: 0,
       P_PID: 1,
@@ -15,47 +16,12 @@ exports.CONSTANTS = {
   },
 };
 
-// var siginfo_t = exports.siginfo_t = voidPtr;
-// var siginfo_tPtr = exports.siginfo_tPtr = ref.refType(siginfo_t);
-// var div_t = exports.div_t = Struct({
-//   quot: ref.types.int32,
-//   rem: ref.types.int32,
-// });
-// var div_tPtr = exports.div_tPtr = ref.refType(div_t);
-// var ldiv_t = exports.ldiv_t = Struct({
-//   quot: ref.types.long,
-//   rem: ref.types.long,
-// });
-// var ldiv_tPtr = exports.ldiv_tPtr = ref.refType(ldiv_t);
-// var lldiv_t = exports.lldiv_t = Struct({
-//   quot: ref.types.longlong,
-//   rem: ref.types.longlong,
-// });
-// var lldiv_tPtr = exports.lldiv_tPtr = ref.refType(lldiv_t);
-// var wchar_t = exports.wchar_t = Struct({
-//   __darwin_wchar_t: ref.types.int32,
-// });
-// var wchar_tPtr = exports.wchar_tPtr = ref.refType(wchar_t);
 const uint32_t = exports.uint32_t = voidPtr;
 const uint32_tPtr = exports.uint32_tPtr = ref.refType(uint32_t);
 const nls_t = exports.nls_t = voidPtr;
 const nls_tPtr = exports.nls_tPtr = ref.refType(nls_t);
 
-const platform = process.platform;
-const cwd = process.cwd();
-let libPath = null;
-
-if (platform === 'win32'){
-    libPath = '/libbncsutil.dll';
-}else if(platform === 'linux'){
-    libPath = '/libbncsutil.so';
-}else if(platform === 'darwin'){
-    libPath = '/libbncsutil.dylib';
-}else{
-    throw new Error('unsupported plateform for mathlibLoc');
-}
-
-exports.libbncsutil = new FFI.Library(path.resolve(cwd + libPath), {
+const bncsutil = new FFI.Library(resolveLibraryPath('bncsutil'), {
   extractMPQNumber: [ref.types.int32, [
     ref.types.CString,
   ]],
@@ -86,11 +52,6 @@ exports.libbncsutil = new FFI.Library(path.resolve(cwd + libPath), {
     ref.types.ulong,
     ref.types.CString,
   ]],
-  // bsha1_hash: [ref.types.void, [
-  //   ref.types.CString,
-  //   ref.types.uint32,
-  //   ref.types.CString,
-  // ]],
   doubleHashPassword: [ref.types.void, [
     ref.types.CString,
     ref.types.uint32,
@@ -232,3 +193,4 @@ exports.libbncsutil = new FFI.Library(path.resolve(cwd + libPath), {
   ]],
 });
 
+export { bncsutil }

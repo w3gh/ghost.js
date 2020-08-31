@@ -1,8 +1,8 @@
-const fs = require('fs');
+import {resolveLibraryPath} from "../util";
+
 const ffi = require('ffi-napi');
 const ref = require('ref-napi');
 const Struct = require('ref-struct-napi');
-const path = require('path');
 
 const { bool, int32, uint32 } = ref.types;
 const string = ref.types.CString;
@@ -39,29 +39,7 @@ const HANDLEPtr = ref.refType(HANDLE);
 
 const LPDWORD = voidPtr;
 
-const platform = process.platform;
-const cwd = process.cwd();
-let libPath = null;
-
-if (platform === 'win32'){
-  libPath = '/storm.dll';
-}else if(platform === 'linux'){
-  libPath = '/libstorm.so';
-}else if(platform === 'darwin'){
-  libPath = '/libstorm.dylib';
-}else{
-  throw new Error('unsupported plateform for mathlibLoc');
-}
-
-let libName = path.resolve(cwd + libPath);
-
-if (!fs.existsSync(libName)) {
-  console.error(libName + ' not found, fallback to libstorm');
-
-  libName = 'libstorm';
-}
-
-const StormLib = new ffi.Library(libName, {
+const StormLib = new ffi.Library(resolveLibraryPath('storm'), {
   SFileGetLocale: [uint32, []],
 
   SFileSetLocale: [uint32, [
