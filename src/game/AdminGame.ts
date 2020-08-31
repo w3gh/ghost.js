@@ -2,6 +2,7 @@
 
 import {BaseGame} from './BaseGame';
 import {GHost} from "../GHost";
+import {Bot} from "../Bot";
 
 export class AdminGame extends BaseGame {
     constructor(ghost: GHost,
@@ -14,6 +15,12 @@ export class AdminGame extends BaseGame {
                 creatorName = 'JiLiZART',
                 creatorServer: string = '') {
         super(ghost, 1, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer);
+
+        this.ghost.on(Bot.EVENT_UPDATE, () => {
+            if (this.update()) {
+                this.exit();
+            }
+        });
 
         this.virtualHostName = '|cFFC04040Admin';
     }

@@ -60,8 +60,9 @@ export class GHost extends Bot {
         //     this.bnet.queueGetGameList('', 20)
         // }, 5000);
 
-        this.on(Bot.EVENT_UPDATE, this.onUpdate);
-        this.on(Bot.EVENT_EXIT, this.onExit);
+        this
+            .on(Bot.EVENT_UPDATE, this.onUpdate)
+            .on(Bot.EVENT_EXIT, this.onExit);
     }
 
     onUpdate = () => {
@@ -83,15 +84,10 @@ export class GHost extends Bot {
             this.bnetExiting = true;
         }
 
-        if (this.adminGame) {
-            if (this.adminGame.update()) {
-                info(' deleting admin game');
-                this.adminGame.exit();
-                delete this.adminGame;
-                this.adminExiting = true;
-            }
+        if (this.adminGame && this.adminGame.exited) {
+            info(' deleting admin game');
+            delete this.adminGame
         }
-
     };
 
     onExit = () => {
@@ -108,10 +104,11 @@ export class GHost extends Bot {
         this.udpSocket.bind(() => {
             this.udpSocket.setBroadcast(true);
         });
-        this.udpSocket.on('listening', this.onListening);
-        this.udpSocket.on('message', this.onMessage);
-        this.udpSocket.on('error', this.onError);
-        this.udpSocket.on('close', this.onClose);
+        this.udpSocket
+            .on('listening', this.onListening)
+            .on('message', this.onMessage)
+            .on('error', this.onError)
+            .on('close', this.onClose);
         //this.udpSocket.setBroadcast(true);
     }
 

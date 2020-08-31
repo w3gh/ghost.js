@@ -40,6 +40,7 @@ export class BaseGame extends EventEmitter {
     protected virtualHostName: string = 'Map';
     protected joinedRealm: string = '';
     public gameName: string = '';
+    public exited = false;
     protected gameLoading = false;
     protected gameLoaded = false;
     protected slotInfoChanged = false;
@@ -732,6 +733,7 @@ export class BaseGame extends EventEmitter {
     }
 
     exit() {
+        this.exited = true;
         this.server.close();
     }
 }
