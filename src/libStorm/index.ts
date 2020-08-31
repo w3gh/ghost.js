@@ -26,7 +26,7 @@ export class MPQ {
   };
   private path: any;
   private flags: any;
-  private handle: any;
+  public handle: any;
   public files: Files;
 
   constructor(path, flags, handle) {
@@ -79,7 +79,7 @@ export class MPQ {
     const priority = 0;
     const handlePtr = ref.alloc(HANDLEPtr);
     if (StormLib.SFileOpenArchive(path, priority, flags, handlePtr)) {
-      const handle = handlePtr.deref();
+      const handle = ref.deref(handlePtr);
       const mpq = new MPQ(path, flags, handle);
 
       if (callback !== undefined) {
