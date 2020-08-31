@@ -39,6 +39,7 @@
     "start": "ts-node ./src/cli/host.ts --config=./config.json",
     "debug": "node --inspect -r ts-node/register ./src/cli/host.ts --config=./config.json",
     "dev": "env GHOST_DEBUG=hex,log ts-node ./src/cli/host.ts --config=./config.json",
+    "test-run": "env NODE_ENV=test ts-node ./src/cli/host.ts --config=./test_config.json",
     "build": "tsc"
   },
   "repository": {
