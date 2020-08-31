@@ -15,8 +15,8 @@ const FixedString = function (length) {
     alignment: length,
     indirection: 1,
     name: 'pointer',
-    get: function (buffer, offset) {
-      return buffer.readCString(offset);
+    get: function (buffer: Buffer, offset: number) {
+      return ref.readCString(buffer, offset);
     },
   };
 };

@@ -11,6 +11,7 @@
     "node": "10.x"
   },
   "dependencies": {
+    "@types/ffi-napi": "2.4.3",
     "bufferpack": "^0.0.6",
     "chalk": "4.1.0",
     "crc": "^3.8.0",
