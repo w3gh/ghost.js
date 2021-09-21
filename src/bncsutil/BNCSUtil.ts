@@ -3,7 +3,7 @@ import * as bp from 'bufferpack';
 import * as os from 'os';
 
 import {bncsutil} from './libbncsutil';
-import {ByteArray} from '../Bytes';
+import {ByteArray, ByteExtractUInt32, ByteUInt32} from '../Bytes';
 import {createLoggerFor} from "../Logger";
 
 const {debug, info, error} = createLoggerFor('BNCSUtil');
@@ -133,10 +133,10 @@ export class BNCSUtil {
      ]],
      * @returns BNCSCdKey
      */
-    static kd_quick(CDKey: string, clientToken: string, serverToken: string): BNCSCdKey {
+    static kd_quick(CDKey: string, clientToken: number, serverToken: number): BNCSCdKey {
         let publicValue = ref.alloc('uint32');
         let product = ref.alloc('uint32');
-        let hashBuffer = ref.alloc('string');
+        let hashBuffer = Buffer.alloc(20); // ref.alloc('string');
 
         bncsutil.kd_quick(
             CDKey,
@@ -147,6 +147,12 @@ export class BNCSUtil {
             hashBuffer,
             hashBuffer.length
         );
+
+        info('kd_quick', {CDKey, clientToken, serverToken}, {
+            publicValue: ByteExtractUInt32(publicValue),
+            product: ByteExtractUInt32(product),
+            hash: hashBuffer
+        });
 
         // init()
         // global _libbncsutil, _utilthread
@@ -208,7 +214,7 @@ export class BNCSUtil {
         return buffer
     }
 
-    static createKeyInfo(key, clientToken, serverToken): Buffer {
+    static createKeyInfo(key, clientToken: number, serverToken: number): Buffer {
         let kd = BNCSUtil.kd_quick(key, clientToken, serverToken);
         let bytes = [
             bp.pack('<I', key.length),

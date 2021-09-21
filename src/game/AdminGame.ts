@@ -14,7 +14,7 @@ export class AdminGame extends BaseGame {
                 ownerName: string,
                 creatorName = 'JiLiZART',
                 creatorServer: string = '') {
-        super(ghost, 1, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer);
+        super(ghost, ghost.hostCounter++, map, saveGame, hostPort, gameState, gameName, ownerName, creatorName, creatorServer);
 
         this.ghost.on(Bot.EVENT_UPDATE, () => {
             if (this.update()) {

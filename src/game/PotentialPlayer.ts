@@ -16,9 +16,9 @@ export class PotentialPlayer extends Protocol {
     protected isDeleteMe: boolean = false;
     protected incomingJoinPlayer: IncomingJoinPlayer;
     protected incomingBuffer: Buffer = Buffer.from('');
-    private debug: Function;
-    private info: Function;
-    private error: Function;
+    protected debug: Function;
+    protected info: Function;
+    protected error: Function;
 
     constructor(public protocol: GameProtocol, public game: BaseGame, public socketId: number) {
         super();
@@ -137,20 +137,24 @@ export class PotentialPlayer extends Protocol {
         }
     }
 
-    processPacket(type: number, id: number, buffer: Buffer) {
+    protected processPacket(type: number, id: number, buffer: Buffer) {
         if (type === W3GSPacket.W3GS_HEADER_CONSTANT) {
             this.debug('processPacket', id, buffer);
 
-            if (id === W3GSPacket.W3GS_REQJOIN) {
-                this.incomingJoinPlayer = null;
-                this.incomingJoinPlayer = this.protocol.RECEIVE_W3GS_REQJOIN(buffer);
-
-                if (this.incomingJoinPlayer) {
-                    this.game.emit(BaseGame.EVENT_PLAYER_JOINED, this, this.incomingJoinPlayer);
-                }
+            if (this[id]) {
+                this[id](buffer)
             }
         }
     }
+
+    [W3GSPacket.W3GS_REQJOIN] = (buffer: Buffer) => {
+        this.debug('W3GS_REQJOIN');
+        const incomingJoinPlayer = this.protocol.RECEIVE_W3GS_REQJOIN(buffer);
+
+        if (incomingJoinPlayer) {
+            this.game.emit(BaseGame.EVENT_PLAYER_JOINED, this, incomingJoinPlayer);
+        }
+    };
 
     update() {
         if (this.isDeleteMe)

@@ -17,7 +17,10 @@ const GAME_REHOST_INTERVAL = 5; // 5 sec
 
 export const GAME_NAME_MAX = 31;
 
+const MAX_UINT32 = 4294967295;
+
 export class BaseGame extends EventEmitter {
+    static EVENT_PLAYER_LEAVE = 'player.joined';
     static EVENT_PLAYER_JOINED = 'player.joined';
     static EVENT_PLAYER_DELETED = 'player.deleted';
 
@@ -34,6 +37,7 @@ export class BaseGame extends EventEmitter {
     private exiting: boolean = false;
     private saving: boolean = false;
     private virtualHostPID: number = GAME_SLOT_MAX;
+    private entryKey: number = Math.floor(Math.random() * Math.floor(MAX_UINT32));
     private randomSeed: number = getTicks();
     private lastConnectionId = 0;
     private connections: net.Socket[] = [];
@@ -322,6 +326,7 @@ export class BaseGame extends EventEmitter {
     socketServerSetup(hostPort: number) {
         this.server.on('listening', this.onListening);
         this.server.on('connection', this.onConnection);
+        this.server.on('data', this.onData);
 
         this.server.on('error', this.onError);
         this.server.on('close', this.onClose);
@@ -331,6 +336,11 @@ export class BaseGame extends EventEmitter {
 
     onListening = () => {
         info('listening');
+    };
+
+    onData = (buffer) => {
+        info('data');
+        hex(buffer);
     };
 
     onConnection = (socket: net.Socket) => {
@@ -719,7 +729,8 @@ export class BaseGame extends EventEmitter {
                     12,
                     12,
                     this.hostPort,
-                    fixedHostCounter
+                    fixedHostCounter,
+                    this.entryKey
                 );
 
                 // @TODO: erro handling

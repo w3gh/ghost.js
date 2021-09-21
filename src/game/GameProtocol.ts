@@ -169,7 +169,7 @@ export class GameProtocol extends Protocol {
         const ipBuffer = ipToBuffer(externalIP);
 
         if (portBuffer.length === 2 && ipBuffer.length === 4) {
-            debug('SEND_W3GS_SLOTINFOJOIN');
+            debug('SEND_W3GS_SLOTINFOJOIN', {PID, port, externalIP, randomSeed, playerSlots, layoutStyle,});
 
             return this.asPacket(
                 W3GSPacket.W3GS_SLOTINFOJOIN,
@@ -207,16 +207,46 @@ export class GameProtocol extends Protocol {
         const externalIPBuffer = ipToBuffer(externalIP);
         const internalIPBuffer = ipToBuffer(internalIP);
 
+        /*
+        	if( !name.empty( ) && name.size( ) <= 15 && externalIP.size( ) == 4 && internalIP.size( ) == 4 )
+            {
+                packet.push_back( W3GS_HEADER_CONSTANT );							// W3GS header constant
+                packet.push_back( W3GS_PLAYERINFO );								// W3GS_PLAYERINFO
+                packet.push_back( 0 );												// packet length will be assigned later
+                packet.push_back( 0 );												// packet length will be assigned later
+                UTIL_AppendByteArray( packet, PlayerJoinCounter, 4 );				// player join counter
+                packet.push_back( PID );											// PID
+                UTIL_AppendByteArrayFast( packet, name );							// player name
+                packet.push_back( 1 );												// ???
+                packet.push_back( 0 );												// ???
+                packet.push_back( 2 );												// AF_INET
+                packet.push_back( 0 );												// AF_INET continued...
+                packet.push_back( 0 );												// port
+                packet.push_back( 0 );												// port continued...
+                UTIL_AppendByteArrayFast( packet, externalIP );						// external IP
+                UTIL_AppendByteArray( packet, Zeros, 4 );							// ???
+                UTIL_AppendByteArray( packet, Zeros, 4 );							// ???
+                packet.push_back( 2 );												// AF_INET
+                packet.push_back( 0 );												// AF_INET continued...
+                packet.push_back( 0 );												// port
+                packet.push_back( 0 );												// port continued...
+                UTIL_AppendByteArrayFast( packet, internalIP );						// internal IP
+                UTIL_AppendByteArray( packet, Zeros, 4 );							// ???
+                UTIL_AppendByteArray( packet, Zeros, 4 );							// ???
+                AssignLength( packet );
+            }
+         */
+
         if (isNameValid(name) && externalIPBuffer.length === 4 && internalIPBuffer.length === 4) {
-            debug('SEND_W3GS_PLAYERINFO');
+            debug('SEND_W3GS_PLAYERINFO', {PID, name, externalIP, internalIP});
 
             return this.asPacket(
                 W3GSPacket.W3GS_PLAYERINFO,
                 ByteArray(playerJoinCounter),
                 PID,
                 ByteString(name),
-                1,
-                0,
+                1, // ???
+                0, // ???
                 2, // AF_INET
                 0, // AF_INET continued...
                 0, // port
@@ -304,7 +334,8 @@ export class GameProtocol extends Protocol {
         slotsTotal: number,
         slotsOpen: number,
         port: number,
-        hostCounter: number
+        hostCounter: number,
+        entryKey: number,
     ) {
         const ProductID_ROC = [51, 82, 65, 87];	// "WAR3"
         const ProductID_TFT = [80, 88, 51, 87];	// "W3XP"
@@ -330,7 +361,17 @@ export class GameProtocol extends Protocol {
         }
 
         if (gameName && hostName && mapPath) {
-            debug('SEND_W3GS_GAMEINFO');
+            debug('SEND_W3GS_GAMEINFO', {
+                TFT,
+                war3Version,
+                gameName,
+                hostName,
+                slotsTotal,
+                slotsOpen,
+                port,
+                hostCounter,
+                entryKey
+            });
 
             const statArray = [
                 mapFlags,
@@ -350,7 +391,7 @@ export class GameProtocol extends Protocol {
                 TFT ? ProductID_TFT : ProductID_ROC,
                 [Number(war3Version), 0, 0, 0],
                 ByteUInt32(hostCounter),
-                ByteUInt32(0), // EntryKey
+                ByteUInt32(entryKey), // EntryKey
                 ByteString(gameName),
                 0, // password ?
                 statBuffer,
@@ -419,7 +460,6 @@ export class GameProtocol extends Protocol {
 
         if (ValidateLength(buffer) && buffer.length >= 20) {
             debug('RECEIVE_W3GS_REQJOIN');
-            hex(buffer);
 
             const hostCounter = bp.unpack('<I', buffer, 4)[0];
             const entryKey = bp.unpack('<I', buffer, 8)[0];

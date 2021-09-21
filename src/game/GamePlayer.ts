@@ -3,7 +3,7 @@
 import {PotentialPlayer} from './PotentialPlayer';
 import {Queue} from "../Queue";
 import { BaseGame } from './BaseGame';
-import { GameProtocol } from './GameProtocol';
+import {GameProtocol, W3GSPacket} from './GameProtocol';
 
 export class GamePlayer extends PotentialPlayer {
     private pings: number[];					// store the last few (20) pings received so we can take an average
@@ -61,6 +61,28 @@ export class GamePlayer extends PotentialPlayer {
     static fromPotentialPlayer(potential: PotentialPlayer, PID: number, joinedRealm: string, name: string, internalIP: Buffer, isReserved: boolean) {
         return new GamePlayer(potential.protocol, potential.game, potential.socketId, PID, joinedRealm, name, internalIP, isReserved);
     }
+
+    [W3GSPacket.W3GS_LEAVEGAME] = () => {
+        this.debug('W3GS_LEAVEGAME')
+    };
+    [W3GSPacket.W3GS_GAMELOADED_SELF] = () => {
+        this.debug('W3GS_GAMELOADED_SELF')
+    };
+    [W3GSPacket.W3GS_OUTGOING_ACTION] = () => {
+        this.debug('W3GS_OUTGOING_ACTION')
+    };
+    [W3GSPacket.W3GS_OUTGOING_KEEPALIVE] = () => {
+        this.debug('W3GS_OUTGOING_KEEPALIVE')
+    };
+    [W3GSPacket.W3GS_CHAT_TO_HOST] = () => {
+        this.debug('W3GS_CHAT_TO_HOST')
+    };
+    [W3GSPacket.W3GS_DROPREQ] = () => {
+        this.debug('W3GS_DROPREQ')
+    };
+    [W3GSPacket.W3GS_PONG_TO_HOST] = () => {
+        this.debug('W3GS_MAPSIZE')
+    };
 
     getIsLeftMessageSent() {
         return this.isLeftMessageSent;

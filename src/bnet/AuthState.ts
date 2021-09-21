@@ -4,6 +4,7 @@ import {BNetConnection} from "./BNetConnection";
 import {createLoggerFor, hex} from '../Logger';
 import {BNetKR} from "./BNetKR";
 import {BNCSUtil} from "../bncsutil/BNCSUtil";
+import {IAuthState} from "./IAuthState";
 
 const {debug, info, error} = createLoggerFor('AuthState');
 
@@ -31,7 +32,7 @@ const {debug, info, error} = createLoggerFor('AuthState');
  KR_WRONG_PRODUCT = 515; //0x203
  */
 
-export class AuthState {
+export class AuthState implements IAuthState {
     public readonly state: Number;
     public readonly description: string;
     private nls: Buffer;

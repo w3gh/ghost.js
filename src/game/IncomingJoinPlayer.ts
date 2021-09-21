@@ -13,7 +13,7 @@ const {debug, info, error} = createLoggerFor('IncomingJoinPlayer');
  */
 export class IncomingJoinPlayer {
 	constructor(public hostCounter, public entryKey, public name, public internalIP) {
-		info(`${this.name} | ${this.getInternalIP()} incoming join (${this.entryKey})`)
+		info(`${name} | ${this.getInternalIP()} incoming join: host - ${hostCounter}, entryKey - ${entryKey}`)
 	}
 
 	getName() {

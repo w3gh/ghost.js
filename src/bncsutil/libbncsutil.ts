@@ -193,4 +193,4 @@ const bncsutil = new FFI.Library(resolveLibraryPath('bncsutil'), {
   ]],
 });
 
-export { bncsutil }
+export { bncsutil, uint32_t }
