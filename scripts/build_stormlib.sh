@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-cd ./StormLib || exit
+cd ./vendor/StormLib || exit
 rm -rf build
 mkdir build
 cmake -G "Unix Makefiles" -B./build -H./
