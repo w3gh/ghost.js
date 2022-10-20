@@ -1,6 +1,5 @@
-import crypto = require('crypto');
 import fs = require('fs');
-import {ByteUInt32, ByteExtractString, ByteDecodeToString, ByteToArrayBuffer} from "../../Bytes";
+import {ByteDecodeToString} from "../../Bytes";
 import {SHA1} from "../../SHA1";
 
 function main() {
