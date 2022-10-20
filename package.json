@@ -22,7 +22,7 @@
     "ref-array-napi": "*",
     "ref-napi": "3.0.1",
     "ref-struct-napi": "*",
-    "yargs": "^5.0.0"
+    "yargs": "^17.6.0"
   },
   "devDependencies": {
     "@types/node": "12.0.10",
