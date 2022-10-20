@@ -70,6 +70,7 @@ export class BNCSUtil {
         let exeVersion = Buffer.alloc(4); //ref.alloc(lib.uint32_t);
 
         //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
+        debug('getExeInfo', fileName, platform)
 
         let length = bncsutil.getExeInfo(
             fileName,
@@ -104,6 +105,7 @@ export class BNCSUtil {
         let checksum = ref.alloc('uint32');
 
         //console.log('checkRevisionFlat', arguments);
+        debug('checkRevisionFlat', valueString, file1, file2, file3, mpqNumber)
 
         bncsutil.checkRevisionFlat(
             valueString,
@@ -138,6 +140,8 @@ export class BNCSUtil {
         let product = ref.alloc('uint32');
         let hashBuffer = Buffer.alloc(20); // ref.alloc('string');
 
+        debug('kd_quick', CDKey, clientToken, serverToken)
+
         bncsutil.kd_quick(
             CDKey,
             clientToken,
@@ -147,12 +151,6 @@ export class BNCSUtil {
             hashBuffer,
             hashBuffer.length
         );
-
-        info('kd_quick', {CDKey, clientToken, serverToken}, {
-            publicValue: ByteExtractUInt32(publicValue),
-            product: ByteExtractUInt32(product),
-            hash: hashBuffer
-        });
 
         // init()
         // global _libbncsutil, _utilthread
@@ -172,6 +170,7 @@ export class BNCSUtil {
 
      */
     static nls_init(username, password): Buffer {
+        debug('nls_init', username, password);
         /**
          * MEXP(nls_t*) nls_init_l(const char* username, unsigned long username_length,
          const char* password, unsigned long password_length)
@@ -182,8 +181,10 @@ export class BNCSUtil {
     /**
      * Gets the public key (A). (32 bytes)
      */
-    static nls_get_A(nls_t): Buffer {
+    static nls_get_A(nls_t: Buffer): Buffer {
         let buffer = Buffer.alloc(32);
+
+        debug('nls_get_A')
 
         bncsutil.nls_get_A(nls_t, buffer);
 
@@ -231,6 +232,7 @@ export class BNCSUtil {
     }
 
     static createClientPublicKey(username, password) {
+        info('version', BNCSUtil.getVersion())
         let nls = BNCSUtil.nls_init(username, password);
 
         const buff = BNCSUtil.nls_get_A(nls);
