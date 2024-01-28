@@ -1,12 +1,12 @@
-import {ByteExtractString, ByteExtractUInt32, ValidateLength} from "../Bytes";
+import { ByteExtractString, ByteExtractUInt32, ValidateLength } from "../Bytes";
 import * as assert from "assert";
-import {BNetConnection} from "./BNetConnection";
-import {createLoggerFor, hex} from '../Logger';
-import {BNetKR} from "./BNetKR";
-import {BNCSUtil} from "../bncsutil/BNCSUtil";
-import {IAuthState} from "./IAuthState";
+import { BNetConnection } from "./BNetConnection";
+import { createLoggerFor, hex } from "../Logger";
+import { BNetKR } from "./BNetKR";
+import { BNCSUtil } from "../bncsutil/BNCSUtil";
+import { IAuthState } from "./IAuthState";
 
-const {debug, info, error} = createLoggerFor('AuthState');
+const { debug, info, error } = createLoggerFor("AuthState");
 
 /*
  0x000: Passed challenge
@@ -33,64 +33,76 @@ const {debug, info, error} = createLoggerFor('AuthState');
  */
 
 export class AuthState implements IAuthState {
-    public readonly state: Number;
-    public readonly description: string;
-    private nls: Buffer;
+  public readonly state: Number;
+  public readonly description: string;
+  private alias: string;
+  private nls: Buffer;
 
-    constructor(buff: Buffer) {
-        assert(ValidateLength(buff) && buff.length >= 9);
-        // 2 bytes					-> Header
-        // 2 bytes					-> Length
-        // 4 bytes					-> KeyState
-        // null terminated string	-> KeyStateDescription
+  constructor(buff: Buffer) {
+    assert(ValidateLength(buff) && buff.length >= 9);
+    // 2 bytes					-> Header
+    // 2 bytes					-> Length
+    // 4 bytes					-> KeyState
+    // null terminated string	-> KeyStateDescription
 
-        this.state = ByteExtractUInt32(buff.slice(4, 8));
-        this.description = ByteExtractString(buff.slice(8));
+    this.state = ByteExtractUInt32(buff.slice(4, 8));
+    this.description = ByteExtractString(buff.slice(8));
+  }
+
+  createClientPublicKey({ username, password, alias }: BNetConnection) {
+    let clientPublicKey = BNCSUtil.createClientPublicKey(username, password);
+
+    info(`[${alias}] create client public key for ${username}`);
+
+    if (clientPublicKey.length !== 32) {
+      // retry since bncsutil randomly fails
+      clientPublicKey = BNCSUtil.createClientPublicKey(username, password);
+
+      assert(clientPublicKey.length === 32, "client public key wrong length");
     }
 
-    createClientPublicKey({username, password}: BNetConnection) {
-        let clientPublicKey = BNCSUtil.createClientPublicKey(username, password);
+    return clientPublicKey;
+  }
 
-        if (clientPublicKey.length !== 32) { // retry since bncsutil randomly fails
-            clientPublicKey = BNCSUtil.createClientPublicKey(username, password);
+  isValid() {
+    info("AuthState", this.state, this.description);
 
-            assert(clientPublicKey.length === 32, 'client public key wrong length');
-        }
+    if (this.state > 0) {
+      switch (this.state) {
+        case BNetKR.ROC_KEY_IN_USE:
+          error(
+            `logon failed - ROC CD key in use by user [${this.description}], disconnecting`
+          );
+          break;
+        case BNetKR.TFT_KEY_IN_USE:
+          error(
+            `logon failed - TFT CD key in use by user [${this.description}], disconnecting`
+          );
+          break;
+        case BNetKR.OLD_GAME_VERSION:
+          error(`logon failed - game version is too old, disconnecting`);
+          break;
+        case BNetKR.INVALID_VERSION:
+          error(`logon failed - game version is invalid, disconnecting`);
+          break;
+        case BNetKR.MUST_BE_DOWNGRADED:
+          error(
+            `logon failed - game version must be downgraded, disconnecting`
+          );
+          break;
+        case BNetKR.INVALID_CD_KEY:
+          error(`logon failed - cd key is invalid, disconnecting`);
+          break;
+        case BNetKR.BANNED_KEY:
+          error(`logon failed - cd key is banned, disconnecting`);
+          break;
+        default:
+          error(`logon failed - cd keys not accepted, disconnecting`);
+      }
 
-        return clientPublicKey;
+      return false;
     }
 
-    isValid() {
-        if (this.state > 0) {
-            switch (this.state) {
-                case BNetKR.ROC_KEY_IN_USE:
-                    error(`logon failed - ROC CD key in use by user [${this.description}], disconnecting`);
-                    break;
-                case BNetKR.TFT_KEY_IN_USE:
-                    error(`logon failed - TFT CD key in use by user [${this.description}], disconnecting`);
-                    break;
-                case BNetKR.OLD_GAME_VERSION:
-                    error(`logon failed - game version is too old, disconnecting`);
-                    break;
-                case BNetKR.INVALID_VERSION:
-                    error(`logon failed - game version is invalid, disconnecting`);
-                    break;
-                case BNetKR.MUST_BE_DOWNGRADED:
-                    error(`logon failed - game version must be downgraded, disconnecting`);
-                    break;
-                case BNetKR.INVALID_CD_KEY:
-                    error(`logon failed - cd key is invalid, disconnecting`);
-                    break;
-                case BNetKR.BANNED_KEY:
-                    error(`logon failed - cd key is banned, disconnecting`);
-                    break;
-                default:
-                    error(`logon failed - cd keys not accepted, disconnecting`);
-            }
-
-            return false;
-        }
-
-        return true;
-    }
+    return true;
+  }
 }

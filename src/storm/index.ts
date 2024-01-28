@@ -1,24 +1,24 @@
-import * as ref from 'ref-napi';
+import * as ref from "ref-napi";
 
-import Files from './files';
-import { StormLib, HANDLEPtr } from './storm-lib';
+import Files from "./files";
+import { StormLib, HANDLEPtr } from "./storm-lib";
 
 export class MPQ {
   static OPEN = {
-    READ_ONLY:        0x00000100,
-    WRITE_SHARE:      0x00000200,
-    USE_BITMAP:       0x00000400,
-    NO_LISTFILE:      0x00010000,
-    NO_ATTRIBUTES:    0x00020000,
+    READ_ONLY: 0x00000100,
+    WRITE_SHARE: 0x00000200,
+    USE_BITMAP: 0x00000400,
+    NO_LISTFILE: 0x00010000,
+    NO_ATTRIBUTES: 0x00020000,
     NO_HEADER_SEARCH: 0x00040000,
-    FORCE_MPQ_V1:     0x00080000,
+    FORCE_MPQ_V1: 0x00080000,
     CHECK_SECTOR_CRC: 0x00100000,
   };
 
   static CREATE = {
-    LISTFILE:   0x00100000,
+    LISTFILE: 0x00100000,
     ATTRIBUTES: 0x00200000,
-    SIGNATURE:  0x00400000,
+    SIGNATURE: 0x00400000,
     ARCHIVE_V1: 0x00000000,
     ARCHIVE_V2: 0x01000000,
     ARCHIVE_V3: 0x02000000,
@@ -48,31 +48,31 @@ export class MPQ {
     return !!this.handle;
   }
 
-  patch(path, prefix = null) {
-    if (!(this.flags & MPQ.OPEN.READ_ONLY)) {
-      throw new Error('archive must be read-only');
-    }
+  // patch(path, prefix = null) {
+  //   if (!(this.flags & MPQ.OPEN.READ_ONLY)) {
+  //     throw new Error('archive must be read-only');
+  //   }
 
-    const flags = 0;
-    return StormLib.SFileOpenPatchArchive(this.handle, path, prefix, flags);
-  }
+  //   const flags = 0;
+  //   return StormLib.SFileOpenPatchArchive(this.handle, path, prefix, flags);
+  // }
 
-  get patched() {
-    if (this.handle) {
-      return StormLib.SFileIsPatchedArchive(this.handle);
-    }
-  }
+  // get patched() {
+  //   if (this.handle) {
+  //     return StormLib.SFileIsPatchedArchive(this.handle);
+  //   }
+  // }
 
-  static get locale() {
-    return StormLib.SFileGetLocale();
-  }
+  // static get locale() {
+  //   return StormLib.SFileGetLocale();
+  // }
 
-  static set locale(locale) {
-    StormLib.SFileSetLocale(locale);
-  }
+  // static set locale(locale) {
+  //   StormLib.SFileSetLocale(locale);
+  // }
 
   static open(path, flags = 0, callback: (mpq: MPQ) => void) {
-    if (typeof flags === 'function' && callback === undefined) {
+    if (typeof flags === "function" && callback === undefined) {
       return MPQ.open(path, null, flags);
     }
 
@@ -94,14 +94,14 @@ export class MPQ {
     throw new Error(`archive could not be found or opened (${errno})`);
   }
 
-  static create(path, callback) {
-    const flags = 0;
-    const maxFileCount = 0;
-    const handlePtr = ref.alloc(HANDLEPtr);
-    if (StormLib.SFileCreateArchive(path, flags, maxFileCount, handlePtr)) {
-      return MPQ.open(path, null, callback);
-    }
-    const errno = StormLib.GetLastError();
-    throw new Error(`archive could not be created (${errno})`);
-  }
+  // static create(path, callback) {
+  //   const flags = 0;
+  //   const maxFileCount = 0;
+  //   const handlePtr = ref.alloc(HANDLEPtr);
+  //   if (StormLib.SFileCreateArchive(path, flags, maxFileCount, handlePtr)) {
+  //     return MPQ.open(path, null, callback);
+  //   }
+  //   const errno = StormLib.GetLastError();
+  //   throw new Error(`archive could not be created (${errno})`);
+  // }
 }

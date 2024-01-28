@@ -1,93 +1,93 @@
-import * as ref from 'ref-napi';
-import * as bp from 'bufferpack';
-import * as os from 'os';
+import * as ref from "ref-napi";
+import * as bp from "bufferpack";
+import * as os from "os";
 
-import {bncsutil} from './libbncsutil';
-import {ByteArray, ByteExtractUInt32, ByteUInt32} from '../Bytes';
-import {createLoggerFor} from "../Logger";
+import { bncsutil } from "./libbncsutil";
+import { ByteArray, ByteExtractUInt32, ByteUInt32 } from "../Bytes";
+import { createLoggerFor } from "../Logger";
 
-const {debug, info, error} = createLoggerFor('BNCSUtil');
+const { debug, info, error } = createLoggerFor("BNCSUtil");
 
 export interface BNCSExeInfo {
-    length: number,
-    exeInfo: Buffer,
-    exeVersion: Buffer
+  length: number;
+  exeInfo: Buffer;
+  exeVersion: Buffer;
 }
 
 export interface BNCSCdKey {
-    publicValue: string,
-    product: string,
-    hash: string
+  publicValue: string;
+  product: string;
+  hash: string;
 }
 
 export class BNCSUtil {
-    static PLATFORM_X86 = 1;
-    static PLATFORM_WINDOWS = 1;
-    static PLATFORM_WIN = 1;
-    static PLATFORM_MAC = 2;
-    static PLATFORM_PPC = 2;
-    static PLATFORM_OSX = 3;
+  static PLATFORM_X86 = 1;
+  static PLATFORM_WINDOWS = 1;
+  static PLATFORM_WIN = 1;
+  static PLATFORM_MAC = 2;
+  static PLATFORM_PPC = 2;
+  static PLATFORM_OSX = 3;
 
-    static extractMPQNumber(mpqName): string {
-        return bncsutil.extractMPQNumber(mpqName);
+  static extractMPQNumber(mpqName): number {
+    return bncsutil.extractMPQNumber(mpqName);
+  }
+
+  static getPlatform(): number {
+    switch (os.platform()) {
+      case "darwin":
+        return BNCSUtil.PLATFORM_X86;
+      //return BNCSUtil.PLATFORM_MAC; cuz getExeInfo method is buggy if platform MAC
+
+      case "aix":
+      case "freebsd":
+      case "linux":
+      case "openbsd":
+      case "sunos":
+      case "win32":
+        return BNCSUtil.PLATFORM_X86;
     }
+  }
 
-    static getPlatform(): number {
-        switch (os.platform()) {
-            case 'darwin':
-                return BNCSUtil.PLATFORM_X86;
-            //return BNCSUtil.PLATFORM_MAC; cuz getExeInfo method is buggy if platform MAC
+  static getVersion(): string {
+    let verChar = ref.alloc("string");
 
-            case 'aix':
-            case 'freebsd':
-            case 'linux':
-            case 'openbsd':
-            case 'sunos':
-            case 'win32':
-                return BNCSUtil.PLATFORM_X86;
-        }
-    }
+    bncsutil.bncsutil_getVersionString(verChar);
 
-    static getVersion(): string {
-        let verChar = ref.alloc('string');
+    return verChar.toString();
+  }
 
-        bncsutil.bncsutil_getVersionString(verChar);
+  /**
+   * Retrieves version and date/size information from executable file.
+   * Returns 0 on failure or length of exeInfoString.
+   * If the generated string is longer than the buffer, the needed buffer
+   * length will be returned, but the string will not be copied into
+   * exeInfoString.  Applications should check to see if the return value
+   * is greater than the length of the buffer, and increase its size if
+   * necessary.
+   */
+  static getExeInfo(fileName, platform): BNCSExeInfo {
+    let exeInfo = Buffer.alloc(1024); //ref.alloc('string');
+    let exeVersion = Buffer.alloc(4); //ref.alloc(lib.uint32_t);
 
-        return verChar.toString();
-    }
+    //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
+    debug("getExeInfo", fileName, platform);
 
-    /**
-     * Retrieves version and date/size information from executable file.
-     * Returns 0 on failure or length of exeInfoString.
-     * If the generated string is longer than the buffer, the needed buffer
-     * length will be returned, but the string will not be copied into
-     * exeInfoString.  Applications should check to see if the return value
-     * is greater than the length of the buffer, and increase its size if
-     * necessary.
-     */
-    static getExeInfo(fileName, platform): BNCSExeInfo {
-        let exeInfo = Buffer.alloc(1024); //ref.alloc('string');
-        let exeVersion = Buffer.alloc(4); //ref.alloc(lib.uint32_t);
+    let length = bncsutil.getExeInfo(
+      fileName,
+      exeInfo,
+      exeInfo.length,
+      exeVersion,
+      platform
+    );
 
-        //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
-        debug('getExeInfo', fileName, platform)
+    return {
+      length,
+      exeInfo,
+      exeVersion,
+    };
+  }
 
-        let length = bncsutil.getExeInfo(
-            fileName,
-            exeInfo,
-            exeInfo.length,
-            exeVersion,
-            platform
-        );
-
-        return {
-            length,
-            exeInfo,
-            exeVersion
-        }
-    }
-
-    /**
+  /**
      * Alternate form of CheckRevision function.
      * Really only useful for VB programmers;
      * VB seems to have trouble passing an array
@@ -101,25 +101,31 @@ export class BNCSUtil {
      unsigned long* checksum
      )
      */
-    static checkRevisionFlat(valueString, file1, file2, file3, mpqNumber): Buffer {
-        let checksum = ref.alloc('uint32');
+  static checkRevisionFlat(
+    valueString,
+    file1,
+    file2,
+    file3,
+    mpqNumber
+  ): Buffer {
+    let checksum = ref.alloc("uint32");
 
-        //console.log('checkRevisionFlat', arguments);
-        debug('checkRevisionFlat', valueString, file1, file2, file3, mpqNumber)
+    //console.log('checkRevisionFlat', arguments);
+    debug("checkRevisionFlat", valueString, file1, file2, file3, mpqNumber);
 
-        bncsutil.checkRevisionFlat(
-            valueString,
-            file1,
-            file2,
-            file3,
-            mpqNumber,
-            checksum
-        );
+    bncsutil.checkRevisionFlat(
+      valueString,
+      file1,
+      file2,
+      file3,
+      mpqNumber,
+      checksum
+    );
 
-        return checksum;
-    }
+    return checksum;
+  }
 
-    /**
+  /**
      * MEXP(int) kd_quick(const char* cd_key, uint32_t client_token,
      uint32_t server_token, uint32_t* public_value,
      uint32_t* product, char* hash_buffer, size_t buffer_len)
@@ -135,110 +141,123 @@ export class BNCSUtil {
      ]],
      * @returns BNCSCdKey
      */
-    static kd_quick(CDKey: string, clientToken: number, serverToken: number): BNCSCdKey {
-        let publicValue = ref.alloc('uint32');
-        let product = ref.alloc('uint32');
-        let hashBuffer = Buffer.alloc(20); // ref.alloc('string');
+  static kd_quick(
+    CDKey: string,
+    clientToken: number,
+    serverToken: number
+  ): BNCSCdKey {
+    let publicValue = ref.alloc("uint32");
+    let product = ref.alloc("uint32");
+    let hashBuffer = Buffer.alloc(20); // ref.alloc('string');
 
-        debug('kd_quick', CDKey, clientToken, serverToken)
+    debug("kd_quick", CDKey, clientToken, serverToken);
 
-        bncsutil.kd_quick(
-            CDKey,
-            clientToken,
-            serverToken,
-            publicValue,
-            product,
-            hashBuffer,
-            hashBuffer.length
-        );
+    bncsutil.kd_quick(
+      CDKey,
+      clientToken,
+      serverToken,
+      publicValue,
+      product,
+      hashBuffer,
+      hashBuffer.length
+    );
 
-        // init()
-        // global _libbncsutil, _utilthread
-        // public_value = c_uint()
-        // product = c_uint()
-        // hash_buffer = create_string_buffer(256)
-        // _utilthread.execute(_libbncsutil.kd_quick, cd_key, client_token, server_token, byref(public_value), byref(product), byref(hash_buffer), 256)
-        // return CdKey(public_value.value, product, hash_buffer.value)
-        return {
-            publicValue: publicValue.toString('hex'),
-            product: product.toString('hex'),
-            hash: hashBuffer.toString('hex')
-        };
-    }
+    // init()
+    // global _libbncsutil, _utilthread
+    // public_value = c_uint()
+    // product = c_uint()
+    // hash_buffer = create_string_buffer(256)
+    // _utilthread.execute(_libbncsutil.kd_quick, cd_key, client_token, server_token, byref(public_value), byref(product), byref(hash_buffer), 256)
+    // return CdKey(public_value.value, product, hash_buffer.value)
+    return {
+      publicValue: publicValue.toString("hex"),
+      product: product.toString("hex"),
+      hash: hashBuffer.toString("hex"),
+    };
+  }
 
-    /*
+  /*
 
      */
-    static nls_init(username, password): Buffer {
-        debug('nls_init', username, password);
-        /**
-         * MEXP(nls_t*) nls_init_l(const char* username, unsigned long username_length,
-         const char* password, unsigned long password_length)
-         */
-        return bncsutil.nls_init_l(username, username.length, password, password.length)
-    }
-
+  static nls_init(username: string, password: string): Buffer {
+    debug("nls_init", username, password);
     /**
-     * Gets the public key (A). (32 bytes)
-     */
-    static nls_get_A(nls_t: Buffer): Buffer {
-        let buffer = Buffer.alloc(32);
+     * MEXP(nls_t*) nls_init_l(const char* username, unsigned long username_length,
+     const char* password, unsigned long password_length)
+    */
+    return bncsutil.nls_init_l(
+      username,
+      username.length,
+      password,
+      password.length
+    );
+  }
 
-        debug('nls_get_A')
+  /**
+   * Gets the public key (A). (32 bytes)
+   */
+  static nls_get_A(nls_t: Buffer): Buffer {
+    let buffer = Buffer.alloc(32);
 
-        bncsutil.nls_get_A(nls_t, buffer);
+    debug("nls_get_A");
 
-        return buffer;
-    }
+    bncsutil.nls_get_A(nls_t, buffer);
 
-    /**
-     * Gets the "M[1]" value, which proves that you know your password.
-     * The buffer "out" must be at least 20 bytes long.
-     */
-    static nls_get_M1(nls_t, B, salt): Buffer {
-        //MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt);
-        let buffer = Buffer.alloc(20);
+    return buffer;
+  }
 
-        bncsutil.nls_get_M1(nls_t, buffer, B, salt);
+  /**
+   * Gets the "M[1]" value, which proves that you know your password.
+   * The buffer "out" must be at least 20 bytes long.
+   */
+  static nls_get_M1(nls_t, B, salt): Buffer {
+    //MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt);
+    let buffer = Buffer.alloc(20);
 
-        return buffer;
-    }
+    debug("nls_get_M1");
 
-    /**
-     * Single-hashes the password for account creation and password changes.
-     */
-    static hashPassword(password): Buffer {
-        let buffer = Buffer.alloc(20);
+    bncsutil.nls_get_M1(nls_t, buffer, B, salt);
 
-        bncsutil.hashPassword(password, buffer);
+    return buffer;
+  }
 
-        return buffer
-    }
+  /**
+   * Single-hashes the password for account creation and password changes.
+   */
+  static hashPassword(password): Buffer {
+    let buffer = Buffer.alloc(20);
 
-    static createKeyInfo(key, clientToken: number, serverToken: number): Buffer {
-        let kd = BNCSUtil.kd_quick(key, clientToken, serverToken);
-        let bytes = [
-            bp.pack('<I', key.length),
-            bp.pack('<I', kd.product),
-            bp.pack('<I', kd.publicValue),
-            '\x00\x00\x00\x00',
-            kd.hash
-        ];
-        const buff = ByteArray(bytes);
+    debug("hashPassword");
 
-        info('createKeyInfo', buff.toString('hex'));
+    bncsutil.hashPassword(password, buffer);
 
-        return buff;
-    }
+    return buffer;
+  }
 
-    static createClientPublicKey(username, password) {
-        info('version', BNCSUtil.getVersion())
-        let nls = BNCSUtil.nls_init(username, password);
+  static createKeyInfo(key, clientToken: number, serverToken: number): Buffer {
+    let kd = BNCSUtil.kd_quick(key, clientToken, serverToken);
+    let bytes = [
+      bp.pack("<I", key.length),
+      bp.pack("<I", kd.product),
+      bp.pack("<I", kd.publicValue),
+      "\x00\x00\x00\x00",
+      kd.hash,
+    ];
+    const buff = ByteArray(bytes);
 
-        const buff = BNCSUtil.nls_get_A(nls);
+    debug("createKeyInfo", buff.toString("hex"));
 
-        info('createClientPublicKey', buff.toString('hex'));
+    return buff;
+  }
 
-        return buff
-    }
+  static createClientPublicKey(username, password) {
+    info("version", BNCSUtil.getVersion());
+    let nls = BNCSUtil.nls_init(username, password);
+
+    const buff = BNCSUtil.nls_get_A(nls);
+
+    info("createClientPublicKey", buff.toString("hex"));
+
+    return buff;
+  }
 }
