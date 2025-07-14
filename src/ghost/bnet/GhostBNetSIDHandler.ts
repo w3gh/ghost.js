@@ -6,7 +6,6 @@ import {IAccountLogonProof} from "../../bnet/IAccountLogonProof";
 import {IIncomingChatEvent} from "../../bnet/IIncomingChatEvent";
 import {IIncomingFriend} from "../../bnet/IIncomingFriend";
 import {IBNetSIDHandler} from "../../bnet/IBNetSIDHandler";
-import {BNetConnection} from "../../bnet/BNetConnection";
 import {IBNetProtocol} from "../../bnet/IBNetProtocol";
 import {createLoggerFor} from "../../Logger";
 import {BNCSUtil} from '../../bncsutil/BNCSUtil';
@@ -108,7 +107,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         bnet.sendPackets(data);
     }
 
-    [BNetSID.SID_AUTH_ACCOUNTLOGONPROOF](bnet: BNetConnection, protocol: IBNetProtocol, logon: IAccountLogonProof) {
+    [BNetSID.SID_AUTH_ACCOUNTLOGONPROOF](bnet: IBNetConnection, protocol: IBNetProtocol, logon: IAccountLogonProof) {
         debug('HANDLE_SID_AUTH_ACCOUNTLOGONPROOF');
 
         bnet.loggedIn = logon.isValid();
@@ -124,7 +123,7 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
         ]);
     }
 
-    [BNetSID.SID_ENTERCHAT](bnet: BNetConnection, protocol: IBNetProtocol, d) {
+    [BNetSID.SID_ENTERCHAT](bnet: IBNetConnection, protocol: IBNetProtocol, d) {
         debug('HANDLE_SID_ENTERCHAT');
 
         if ('#' === d.toString()[0]) {
