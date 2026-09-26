@@ -1,25 +1,5 @@
-import { resolveLibraryPath } from "../util";
-import { open, load, DataType, createPointer, restorePointer } from "ffi-rs";
-
-// const ref = require("ref-napi");
-
-// const voidPtr = ref.refType(ref.types.void);
-
-// const CONSTANTS = {
-//   "": {
-//     P_ALL: 0,
-//     P_PID: 1,
-//     P_PGID: 2,
-//     "0": "P_ALL",
-//     "1": "P_PID",
-//     "2": "P_PGID",
-//   },
-// };
-
-// const uint32_t = (exports.uint32_t = voidPtr);
-// const uint32_tPtr = (exports.uint32_tPtr = ref.refType(uint32_t));
-// const nls_t = (exports.nls_t = voidPtr);
-// const nls_tPtr = (exports.nls_tPtr = ref.refType(nls_t));
+import { resolveLibraryPath, call, outPtr } from "../util";
+import { open, DataType } from "ffi-rs";
 
 open({
   library: "libbncsutil",
@@ -27,8 +7,8 @@ open({
 });
 
 const bncsutil = {
-  extractMPQNumber(name: string) {
-    return load({
+  extractMPQNumber(name: string): number {
+    return call({
       library: "libbncsutil",
       funcName: "extractMPQNumber",
       retType: DataType.I32,
@@ -36,45 +16,51 @@ const bncsutil = {
       paramsValue: [name],
     });
   },
-  bncsutil_getVersionString(cstr) {
-    return load({
+
+  //MEXP(int) bncsutil_getVersionString(char* outbuf)
+  bncsutil_getVersionString(): string {
+    const out = outPtr(32);
+    const length = call({
       library: "libbncsutil",
       funcName: "bncsutil_getVersionString",
       retType: DataType.I32,
-      paramsType: [DataType.U8Array],
-      paramsValue: [cstr],
+      paramsType: [DataType.External],
+      paramsValue: [out.ptr],
     });
+    return out.read().toString("utf8", 0, length);
   },
 
   //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
-  getExeInfo(fileName, exeInfo, exeInfoSize, version, platform) {
-    //   getExeInfo: [
-    //     ref.types.int32,
-    //     [
-    //       ref.types.CString,
-    //       ref.types.CString,
-    //       ref.types.ulong,
-    //       uint32_t,
-    //       ref.types.int32,
-    //     ],
-    //   ],
-    return load({
+  getExeInfo(fileName: string, exeInfoSize: number, platform: number) {
+    const exeInfo = outPtr(exeInfoSize);
+    const version = outPtr(4);
+    const length = call({
       library: "libbncsutil",
       funcName: "getExeInfo",
       retType: DataType.I32,
       paramsType: [
         DataType.String,
-        DataType.String,
+        DataType.External,
         DataType.U64,
-        DataType.U64,
+        DataType.External,
         DataType.I32,
       ],
-      paramsValue: [fileName, exeInfo, exeInfoSize, version, platform],
+      paramsValue: [fileName, exeInfo.ptr, exeInfoSize, version.ptr, platform],
     });
+    return {
+      length,
+      exeInfo: exeInfo.read().subarray(
+        0,
+        Math.min(length, exeInfoSize)
+      ),
+      exeVersion: version.read(),
+    };
   },
 
-  checkRevisionFlat(valueString, file1, file2, file3, mpqNumber, checksum) {
-    return load({
+  //MEXP(int) checkRevisionFlat(const char* valueString, const char* file1, const char* file2, const char* file3, int mpqNumber, unsigned long* checksum)
+  checkRevisionFlat(valueString, file1, file2, file3, mpqNumber): Buffer {
+    const checksum = outPtr(8); // unsigned long is 8 bytes on 64-bit unix
+    call({
       library: "libbncsutil",
       funcName: "checkRevisionFlat",
       retType: DataType.I32,
@@ -84,32 +70,32 @@ const bncsutil = {
         DataType.String,
         DataType.String,
         DataType.I32,
-        DataType.U8Array,
+        DataType.External,
       ],
-      paramsValue: [valueString, file1, file2, file3, mpqNumber, checksum],
+      paramsValue: [valueString, file1, file2, file3, mpqNumber, checksum.ptr],
     });
+    return checksum.read().subarray(0, 4);
   },
 
-  hashPassword(password, buffer) {
-    return load({
+  //MEXP(void) hashPassword(const char* password, char* outBuffer)
+  hashPassword(password: string): Buffer {
+    const out = outPtr(20);
+    call({
       library: "libbncsutil",
       funcName: "hashPassword",
-      retType: DataType.I32,
+      retType: DataType.Void,
       paramsType: [DataType.String, DataType.External],
-      paramsValue: [password, buffer],
+      paramsValue: [password, out.ptr],
     });
+    return out.read();
   },
 
-  kd_quick(
-    CDKey,
-    clientToken,
-    serverToken,
-    publicValue,
-    product,
-    hashBuffer,
-    hashBufferLen
-  ) {
-    return load({
+  //MEXP(int) kd_quick(const char* cd_key, uint32_t client_token, uint32_t server_token, uint32_t* public_value, uint32_t* product, char* hash_buffer, size_t buffer_len)
+  kd_quick(CDKey: string, clientToken: number, serverToken: number) {
+    const publicValue = outPtr(4);
+    const product = outPtr(4);
+    const hash = outPtr(20);
+    call({
       library: "libbncsutil",
       funcName: "kd_quick",
       retType: DataType.I32,
@@ -117,56 +103,61 @@ const bncsutil = {
         DataType.String,
         DataType.I32,
         DataType.I32,
-        DataType.U8Array,
-        DataType.U8Array,
-        DataType.U8Array,
-        DataType.I32,
+        DataType.External,
+        DataType.External,
+        DataType.External,
+        DataType.U64,
       ],
       paramsValue: [
         CDKey,
-        clientToken,
-        serverToken,
-        publicValue,
-        product,
-        hashBuffer,
-        hashBufferLen,
+        clientToken | 0, // uint32 passed as same-bits int32
+        serverToken | 0,
+        publicValue.ptr,
+        product.ptr,
+        hash.ptr,
+        20,
       ],
     });
+    return {
+      publicValue: publicValue.read().readUInt32LE(0),
+      product: product.read().readUInt32LE(0),
+      hash: hash.read(),
+    };
   },
 
-  nls_get_M1(nls_t, buffer, B, salt) {
-    console.log("nls_get_M1", nls_t);
-
-    return load({
+  //MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt)
+  nls_get_M1(nls_t, B: Buffer, salt: Buffer): Buffer {
+    const out = outPtr(20);
+    call({
       library: "libbncsutil",
       funcName: "nls_get_M1",
-      retType: DataType.I32,
+      retType: DataType.Void,
       paramsType: [
         DataType.External,
-        DataType.String,
-        DataType.String,
-        DataType.String,
+        DataType.External,
+        DataType.U8Array,
+        DataType.U8Array,
       ],
-      paramsValue: [nls_t, buffer, B, salt],
+      paramsValue: [nls_t, out.ptr, B, salt],
     });
+    return out.read();
   },
 
-  nls_get_A(nls_t, buffer) {
-    console.log("nls_get_A", nls_t);
-
-    return load({
+  //MEXP(void) nls_get_A(nls_t* nls, char* out)
+  nls_get_A(nls_t): Buffer {
+    const out = outPtr(32);
+    call({
       library: "libbncsutil",
       funcName: "nls_get_A",
-      retType: DataType.I32,
-      paramsType: [DataType.External, DataType.String],
-      paramsValue: [nls_t, buffer],
+      retType: DataType.Void,
+      paramsType: [DataType.External, DataType.External],
+      paramsValue: [nls_t, out.ptr],
     });
+    return out.read();
   },
 
   nls_init_l(username, usernameLen, password, passwordLen) {
-    console.log("nls_init_l", username, usernameLen, password, passwordLen);
-
-    const nls_t = load({
+    return call({
       library: "libbncsutil",
       funcName: "nls_init_l",
       retType: DataType.External,
@@ -178,8 +169,6 @@ const bncsutil = {
       ],
       paramsValue: [username, usernameLen, password, passwordLen],
     });
-
-    return nls_t;
   },
 };
 

@@ -1,5 +1,15 @@
 import * as fs from "fs";
 import * as path from "path";
+import {
+  load,
+  DataType,
+  arrayConstructor,
+  createPointer,
+  restorePointer,
+  unwrapPointer,
+  freePointer,
+  PointerType,
+} from "ffi-rs";
 
 const startTime = Date.now();
 
@@ -80,3 +90,34 @@ export function resolveLibraryPath(name: string) {
 
   return libName;
 }
+
+// ffi-rs typings resolve to a Promise under TS 4.0; these calls are synchronous
+export const call = load as (params: Parameters<typeof load>[0]) => any;
+
+const bytes = (length: number) =>
+  arrayConstructor({ type: DataType.U8Array, length });
+
+// ffi-rs copies Buffer arguments, so C writes into them are lost.
+// Out-params need a native buffer: pass `ptr`, then `read()` copies it out and frees it.
+export function outPtr(length: number) {
+  const paramsType = [bytes(length)];
+  const pointer = createPointer({
+    paramsType,
+    paramsValue: [Buffer.alloc(length)],
+  });
+
+  return {
+    ptr: unwrapPointer(pointer)[0],
+    read(): Buffer {
+      const [data] = restorePointer({ retType: paramsType, paramsValue: pointer });
+      const copy = Buffer.from(data as number[]);
+      freePointer({
+        paramsType,
+        paramsValue: pointer,
+        pointerType: PointerType.RsPointer,
+      });
+      return copy;
+    },
+  };
+}
+

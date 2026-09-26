@@ -1,7 +1,5 @@
-import * as ref from "ref-napi";
 import * as bp from "bufferpack";
 import * as os from "os";
-import { DataType, createPointer, restorePointer } from "ffi-rs";
 
 import { bncsutil } from "./libbncsutil";
 import { ByteArray, ByteExtractUInt32, ByteUInt32 } from "../Bytes";
@@ -16,9 +14,9 @@ export interface BNCSExeInfo {
 }
 
 export interface BNCSCdKey {
-  publicValue: string;
-  product: string;
-  hash: string;
+  publicValue: number;
+  product: number;
+  hash: Buffer;
 }
 
 export class BNCSUtil {
@@ -50,11 +48,7 @@ export class BNCSUtil {
   }
 
   static getVersion(): string {
-    let verChar = ref.alloc("string");
-
-    bncsutil.bncsutil_getVersionString(verChar);
-
-    return verChar.toString();
+    return bncsutil.bncsutil_getVersionString();
   }
 
   /**
@@ -67,14 +61,9 @@ export class BNCSUtil {
    * necessary.
    */
   static getExeInfo(fileName: string, platform: number): BNCSExeInfo {
-    let exeInfo = Buffer.alloc(1024); //ref.alloc('string');
-    let exeVersion = Buffer.alloc(4); //ref.alloc(lib.uint32_t);
-
-    let length = bncsutil.getExeInfo(
+    let { length, exeInfo, exeVersion } = bncsutil.getExeInfo(
       fileName,
-      exeInfo,
       1024,
-      exeVersion,
       platform
     );
 
@@ -119,8 +108,6 @@ export class BNCSUtil {
     file3,
     mpqNumber
   ): Buffer {
-    let checksum = ref.alloc("uint32");
-
     //console.log('checkRevisionFlat', arguments);
     debug("checkRevisionFlat", {
       valueString,
@@ -130,16 +117,13 @@ export class BNCSUtil {
       mpqNumber,
     });
 
-    bncsutil.checkRevisionFlat(
+    return bncsutil.checkRevisionFlat(
       valueString,
       file1,
       file2,
       file3,
-      mpqNumber,
-      checksum
+      mpqNumber
     );
-
-    return checksum;
   }
 
   /**
@@ -163,34 +147,9 @@ export class BNCSUtil {
     clientToken: number,
     serverToken: number
   ): BNCSCdKey {
-    let publicValue = ref.alloc("uint32");
-    let product = ref.alloc("uint32");
-    let hashBuffer = Buffer.alloc(20); // ref.alloc('string');
-
     debug("kd_quick", CDKey, clientToken, serverToken);
 
-    bncsutil.kd_quick(
-      CDKey,
-      clientToken,
-      serverToken,
-      publicValue,
-      product,
-      hashBuffer,
-      hashBuffer.length
-    );
-
-    // init()
-    // global _libbncsutil, _utilthread
-    // public_value = c_uint()
-    // product = c_uint()
-    // hash_buffer = create_string_buffer(256)
-    // _utilthread.execute(_libbncsutil.kd_quick, cd_key, client_token, server_token, byref(public_value), byref(product), byref(hash_buffer), 256)
-    // return CdKey(public_value.value, product, hash_buffer.value)
-    return {
-      publicValue: publicValue.toString("hex"),
-      product: product.toString("hex"),
-      hash: hashBuffer.toString("hex"),
-    };
+    return bncsutil.kd_quick(CDKey, clientToken, serverToken);
   }
 
   /*
@@ -214,13 +173,9 @@ export class BNCSUtil {
    * Gets the public key (A). (32 bytes)
    */
   static nls_get_A(nls_t: Buffer): Buffer {
-    let buffer = Buffer.alloc(32);
-
     debug("nls_get_A");
 
-    bncsutil.nls_get_A(nls_t, buffer);
-
-    return buffer;
+    return bncsutil.nls_get_A(nls_t);
   }
 
   /**
@@ -229,34 +184,26 @@ export class BNCSUtil {
    */
   static nls_get_M1(nls_t, B, salt): Buffer {
     //MEXP(void) nls_get_M1(nls_t* nls, char* out, const char* B, const char* salt);
-    let buffer = Buffer.alloc(20);
-
     debug("nls_get_M1");
 
-    bncsutil.nls_get_M1(nls_t, buffer, B, salt);
-
-    return buffer;
+    return bncsutil.nls_get_M1(nls_t, B, salt);
   }
 
   /**
    * Single-hashes the password for account creation and password changes.
    */
   static hashPassword(password): Buffer {
-    let buffer = Buffer.alloc(20);
-
     debug("hashPassword");
 
-    bncsutil.hashPassword(password, buffer);
-
-    return buffer;
+    return bncsutil.hashPassword(password);
   }
 
   static createKeyInfo(key, clientToken: number, serverToken: number): Buffer {
     let kd = BNCSUtil.kd_quick(key, clientToken, serverToken);
     let bytes = [
-      bp.pack("<I", key.length),
-      bp.pack("<I", kd.product),
-      bp.pack("<I", kd.publicValue),
+      bp.pack("<I", [key.length]),
+      bp.pack("<I", [kd.product]),
+      bp.pack("<I", [kd.publicValue]),
       "\x00\x00\x00\x00",
       kd.hash,
     ];

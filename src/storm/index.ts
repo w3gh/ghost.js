@@ -1,7 +1,5 @@
-import * as ref from "ref-napi";
-
 import Files from "./files";
-import { StormLib, HANDLEPtr } from "./storm-lib";
+import { StormLib } from "./storm-lib";
 
 export class MPQ {
   static OPEN = {
@@ -77,9 +75,8 @@ export class MPQ {
     }
 
     const priority = 0;
-    const handlePtr = ref.alloc(HANDLEPtr);
-    if (StormLib.SFileOpenArchive(path, priority, flags, handlePtr)) {
-      const handle = ref.deref(handlePtr);
+    const handle = StormLib.SFileOpenArchive(path, priority, flags || 0);
+    if (handle) {
       const mpq = new MPQ(path, flags, handle);
 
       if (callback !== undefined) {

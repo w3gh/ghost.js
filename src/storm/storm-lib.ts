@@ -1,6 +1,6 @@
-import { resolveLibraryPath } from "../util";
+import { resolveLibraryPath, call as load, outPtr } from "../util";
 
-import { DataType, open, load } from "ffi-rs";
+import { DataType, open } from "ffi-rs";
 
 // const FFI = require("ffi-rs");
 const ref = require("ref-napi");
@@ -47,8 +47,10 @@ open({
 });
 
 const StormLib = {
-  SFileOpenArchive(path, priority, flags, handlePtr) {
-    return load({
+  // HANDLEs travel as pointer-sized integers (U64); user-space addresses fit in 2^53
+  SFileOpenArchive(path, priority, flags): number | null {
+    const handlePtr = outPtr(8);
+    const opened = load({
       library: "libstorm",
       funcName: "SFileOpenArchive",
       retType: DataType.Boolean,
@@ -56,7 +58,7 @@ const StormLib = {
         DataType.String,
         DataType.I32,
         DataType.I32,
-        DataType.U8Array,
+        DataType.External,
         // {
         //   filename: DataType.String,
         //   name: DataType.String,
@@ -70,8 +72,10 @@ const StormLib = {
         //   locale: DataType.I32,
         // },
       ], // path, priority, flags, handlePtr
-      paramsValue: [path, priority, flags, handlePtr],
+      paramsValue: [path, priority, flags, handlePtr.ptr],
     });
+    const handle = Number(handlePtr.read().readBigUInt64LE(0));
+    return opened ? handle : null;
   },
 
   SFileCloseArchive(handle) {
@@ -79,19 +83,24 @@ const StormLib = {
       library: "libstorm",
       funcName: "SFileCloseArchive",
       retType: DataType.Boolean,
-      paramsType: [DataType.U8Array],
+      paramsType: [DataType.U64],
       paramsValue: [handle],
     });
   },
 
+  // newer StormLib exports SErrGetLastError, older builds GetLastError
   GetLastError() {
-    return load({
-      library: "libstorm",
-      funcName: "GetLastError",
-      retType: DataType.I32,
-      paramsType: [],
-      paramsValue: [],
-    });
+    for (const funcName of ["SErrGetLastError", "GetLastError"]) {
+      try {
+        return load({
+          library: "libstorm",
+          funcName,
+          retType: DataType.I32,
+          paramsType: [],
+          paramsValue: [],
+        });
+      } catch (e) {}
+    }
   },
 
   SFileHasFile(handle, file) {
@@ -99,7 +108,7 @@ const StormLib = {
       library: "libstorm",
       funcName: "SFileHasFile",
       retType: DataType.Boolean,
-      paramsType: [DataType.U8Array, DataType.String],
+      paramsType: [DataType.U64, DataType.String],
       paramsValue: [handle, file],
     });
   },
@@ -110,7 +119,7 @@ const StormLib = {
       funcName: "SFileExtractFile",
       retType: DataType.Boolean,
       paramsType: [
-        DataType.U8Array,
+        DataType.U64,
         DataType.String,
         DataType.String,
         DataType.I32,
