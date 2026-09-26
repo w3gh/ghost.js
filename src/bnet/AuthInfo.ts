@@ -46,6 +46,8 @@ export class AuthInfo implements IAuthInfo {
     this.valueString = ByteExtractString(
       buff.slice(25 + this.ix86VerFileName.length)
     ); // p[25 + len(ix86VerFileName):].split(this.NULL, 1)[0]
+
+    debug("AuthInfo", this);
   }
 
   handle(conn: BNetConnection) {

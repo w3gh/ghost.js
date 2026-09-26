@@ -46,19 +46,30 @@ const bncsutil = {
     });
   },
 
-  getExeInfo(fileName, exeInfo, exeInfoLen, exeVersion, platform) {
+  //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
+  getExeInfo(fileName, exeInfo, exeInfoSize, version, platform) {
+    //   getExeInfo: [
+    //     ref.types.int32,
+    //     [
+    //       ref.types.CString,
+    //       ref.types.CString,
+    //       ref.types.ulong,
+    //       uint32_t,
+    //       ref.types.int32,
+    //     ],
+    //   ],
     return load({
       library: "libbncsutil",
       funcName: "getExeInfo",
       retType: DataType.I32,
       paramsType: [
         DataType.String,
-        DataType.U8Array,
-        DataType.I32,
-        DataType.U8Array,
+        DataType.String,
+        DataType.U64,
+        DataType.U64,
         DataType.I32,
       ],
-      paramsValue: [fileName, exeInfo, exeInfoLen, exeVersion, platform],
+      paramsValue: [fileName, exeInfo, exeInfoSize, version, platform],
     });
   },
 

@@ -1,6 +1,7 @@
 import * as ref from "ref-napi";
 import * as bp from "bufferpack";
 import * as os from "os";
+import { DataType, createPointer, restorePointer } from "ffi-rs";
 
 import { bncsutil } from "./libbncsutil";
 import { ByteArray, ByteExtractUInt32, ByteUInt32 } from "../Bytes";
@@ -65,19 +66,29 @@ export class BNCSUtil {
    * is greater than the length of the buffer, and increase its size if
    * necessary.
    */
-  static getExeInfo(fileName, platform): BNCSExeInfo {
+  static getExeInfo(fileName: string, platform: number): BNCSExeInfo {
     let exeInfo = Buffer.alloc(1024); //ref.alloc('string');
     let exeVersion = Buffer.alloc(4); //ref.alloc(lib.uint32_t);
-
-    //MEXP(int) getExeInfo(const char* file_name, char* exe_info, size_t exe_info_size, uint32_t* version, int platform)
-    debug("getExeInfo", fileName, platform);
 
     let length = bncsutil.getExeInfo(
       fileName,
       exeInfo,
-      exeInfo.length,
+      1024,
       exeVersion,
       platform
+    );
+
+    debug(
+      "getExeInfo",
+      {
+        fileName,
+        platform,
+      },
+      {
+        length,
+        exeInfo,
+        exeVersion,
+      }
     );
 
     return {
@@ -111,7 +122,13 @@ export class BNCSUtil {
     let checksum = ref.alloc("uint32");
 
     //console.log('checkRevisionFlat', arguments);
-    debug("checkRevisionFlat", valueString, file1, file2, file3, mpqNumber);
+    debug("checkRevisionFlat", {
+      valueString,
+      file1,
+      file2,
+      file3,
+      mpqNumber,
+    });
 
     bncsutil.checkRevisionFlat(
       valueString,

@@ -38,6 +38,8 @@ export class GhostBNetSIDHandler implements IBNetSIDHandler {
     const { exeVersion, exeVersionHash, keyInfoROC, keyInfoTFT, exeInfo } =
       authInfo.handle(bnet);
 
+    info({ exeVersion, exeVersionHash, keyInfoROC, keyInfoTFT, exeInfo });
+
     bnet.emit("SID_AUTH_INFO", bnet, authInfo);
     bnet.sendPackets(
       protocol.SEND_SID_AUTH_CHECK(
