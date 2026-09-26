@@ -20,3 +20,19 @@ if (process.env.NODE_ENV === 'test') {
        ghost.exit();
     }, 3000);
 }
+
+process.on('uncaughtException', error => {
+    console.error(error)
+})
+
+process.on('SIGINT', () => {
+    console.info('SIGINT signal received.')
+    ghost.exit();
+    process.exit(2)
+})
+
+process.on('SIGTERM', () => {
+    console.info('SIGTERM signal received.')
+    ghost.exit();
+    process.exit(2)
+})

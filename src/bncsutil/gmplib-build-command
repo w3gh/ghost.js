@@ -1,0 +1,1 @@
+CC_FOR_BUILD=/usr/bin/gcc ABI=standard emconfigure ./configure --host none --disable-assembly --enable-cxx
